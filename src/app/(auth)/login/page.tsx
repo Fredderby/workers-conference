@@ -13,7 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 const schema = z.object({
-  identifier: z.string().min(3, "Enter email or username"),
+  identifier: z.string().min(3, "Enter your username"),
   password: z.string().min(1, "Password required"),
   rememberMe: z.boolean().optional(),
 });
@@ -171,10 +171,10 @@ export default function LoginPage() {
             <CardContent className="pt-4">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="identifier">Email or Username</Label>
+                  <Label htmlFor="identifier">Username</Label>
                   <div className="relative">
                     <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <Input id="identifier" placeholder="e.g. super@dclm.workers.conf" className="pl-10 h-[44px]" {...register("identifier")} ref={e => { register("identifier").ref(e); if (e) (identifierRef as any).current = e; }} />
+                    <Input id="identifier" placeholder="e.g. admin" className="pl-10 h-[44px]" {...register("identifier")} ref={e => { register("identifier").ref(e); if (e) (identifierRef as any).current = e; }} />
                   </div>
                   {errors.identifier && <p className="text-xs text-red-500">{errors.identifier.message}</p>}
                 </div>
