@@ -10,39 +10,11 @@ services:
     ports:
       - "3037:3037"
     environment:
-      # App reaches Postgres over the Docker network by the SERVICE NAME "db"
-      # on the standard internal port 5432. It does NOT use 15432/15433.
-      - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@db:5432/wc_app
+      # Connect to the Dokploy-managed Postgres service by its Docker service
+      # name "workers-db-p9wou6" on the standard internal port 5432.
+      # Do NOT use 15432/15433 here — those are host ports for the SSH tunnel.
+      - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@workers-db-p9wou6:5432/wc_app
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3037}
       - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
-
-  db:
-    image: postgres:16-alpine
-    container_name: workers-conf-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: wc_user
-      POSTGRES_PASSWORD: xzTUuV0XqlOVPNKnAxd2
-      POSTGRES_DB: wc_app
-    # Publish internal 5432 as HOST port 15432 so the SSH tunnel
-    # (ssh -L 15432:127.0.0.1:15432 root@srv1298033.hstgr.cloud) can reach it.
-    # The app connects via service name "db" on internal :5432 and NEVER
-    # references 15432/15433. Binding 15432 (not 5432) on the host avoids the
-    # old "port 5432 already allocated" conflict.
-    ports:
-      - "15432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wc_user -d wc_app"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-volumes:
-  pgdata:
