@@ -24,6 +24,9 @@ function getPool(): Pool {
       connectionString: process.env.DATABASE_URL,
       connectionTimeoutMillis: 5000,
     });
+    _pool.on("error", (err) => {
+      console.error("[pg] pool error (non-fatal):", err.message);
+    });
   }
   return _pool;
 }
