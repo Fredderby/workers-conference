@@ -69,7 +69,11 @@ export const PATCH = withError(async (req: NextRequest) => {
   if (action === "toggleVerified") {
     const w = await db.findWorkerById(workerId);
     if (!w) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
-    const updated = await db.updateWorker(workerId, { verified: !w.verified });
+    const newVerified = !w.verified;
+    const patch: any = { verified: newVerified };
+    if (newVerified) patch.verifiedAt = new Date().toISOString();
+    else patch.verifiedAt = undefined;
+    const updated = await db.updateWorker(workerId, patch);
     return NextResponse.json({ worker: updated });
   }
 

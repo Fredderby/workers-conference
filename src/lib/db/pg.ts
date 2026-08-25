@@ -10,6 +10,7 @@ import type {
   Report,
   Message,
   LoginAttempt,
+  Approval,
 } from "./mock";
 
 let _pool: Pool | null = null;
@@ -130,7 +131,22 @@ async function init(): Promise<void> {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+    CREATE TABLE IF NOT EXISTS approvals (
+      id TEXT PRIMARY KEY,
+      region TEXT NOT NULL,
+      approved_by TEXT,
+      approved_by_name TEXT,
+      approved_at TEXT,
+      verified_count INTEGER DEFAULT 0,
+      batch_number INTEGER DEFAULT 1,
+      notes TEXT
+    );
   `);
+
+  // Migration: add verified_at column if missing
+  try {
+    await pool.query("ALTER TABLE workers ADD COLUMN verified_at TEXT");
+  } catch {}
 
   const { rows } = await pool.query("SELECT COUNT(*)::int AS c FROM users");
   if (rows[0].c === 0) {
@@ -186,6 +202,7 @@ function mapWorker(r: any): Worker {
   return {
     id: r.id, name: r.name, gender: r.gender, zone: r.zone, region: r.region, division: r.division,
     position: r.position, paymentStatus: r.payment_status, verified: r.verified,
+    verifiedAt: r.verified_at ?? undefined,
     registeredBy: r.registered_by, registeredByName: r.registered_by_name, createdAt: r.created_at,
   };
 }
@@ -194,6 +211,13 @@ function mapAttendance(r: any): Attendance {
     id: r.id, workerId: r.worker_id, workerName: r.worker_name, zone: r.zone, region: r.region,
     division: r.division, checkedInBy: r.checked_in_by, checkedInByName: r.checked_in_by_name,
     checkedInAt: r.checked_in_at, checkedOutAt: r.checked_out_at ?? undefined,
+  };
+}
+function mapApproval(r: any): Approval {
+  return {
+    id: r.id, region: r.region, approvedBy: r.approved_by, approvedByName: r.approved_by_name,
+    approvedAt: r.approved_at, verifiedCount: r.verified_count, batchNumber: r.batch_number,
+    notes: r.notes ?? undefined,
   };
 }
 function mapReport(r: any): Report {
@@ -334,6 +358,7 @@ export const db = {
     if (patch.position !== undefined) set("position", patch.position);
     if (patch.paymentStatus !== undefined) set("payment_status", patch.paymentStatus);
     if (patch.verified !== undefined) set("verified", patch.verified);
+    if (patch.verifiedAt !== undefined) set("verified_at", patch.verifiedAt ?? null);
     if (patch.registeredBy !== undefined) set("registered_by", patch.registeredBy);
     if (patch.registeredByName !== undefined) set("registered_by_name", patch.registeredByName);
     if (fields.length === 0) return this.findWorkerById(id);
@@ -516,5 +541,33 @@ export const db = {
        ON CONFLICT (key) DO UPDATE SET value=$1`,
       [String(locked)]
     );
+  },
+
+  // ---------- approvals ----------
+  async listApprovals(): Promise<Approval[]> {
+    await ensureInit();
+    const { rows } = await pool.query("SELECT * FROM approvals ORDER BY approved_at DESC");
+    return rows.map(mapApproval);
+  },
+  async listApprovalsByRegion(region: string): Promise<Approval[]> {
+    await ensureInit();
+    const { rows } = await pool.query("SELECT * FROM approvals WHERE region=$1 ORDER BY batch_number ASC", [region]);
+    return rows.map(mapApproval);
+  },
+  async createApproval(data: { region: string; approvedBy: string; approvedByName: string; verifiedCount: number; batchNumber: number; notes?: string }): Promise<Approval> {
+    await ensureInit();
+    const id = rid("ap");
+    const now = new Date().toISOString();
+    await pool.query(
+      `INSERT INTO approvals (id, region, approved_by, approved_by_name, approved_at, verified_count, batch_number, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, data.region, data.approvedBy, data.approvedByName, now, data.verifiedCount, data.batchNumber, data.notes ?? null]
+    );
+    return { id, region: data.region, approvedBy: data.approvedBy, approvedByName: data.approvedByName, approvedAt: now, verifiedCount: data.verifiedCount, batchNumber: data.batchNumber, notes: data.notes };
+  },
+  async getLatestBatchNumber(region: string): Promise<number> {
+    await ensureInit();
+    const { rows } = await pool.query("SELECT COALESCE(MAX(batch_number), 0) AS max_batch FROM approvals WHERE region=$1", [region]);
+    return rows[0]?.max_batch || 0;
   },
 };

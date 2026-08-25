@@ -66,9 +66,21 @@ export interface Worker {
   position: Position;
   paymentStatus: PaymentStatus;
   verified: boolean;
+  verifiedAt?: string;
   registeredBy: string;
   registeredByName: string;
   createdAt: string;
+}
+
+export interface Approval {
+  id: string;
+  region: string;
+  approvedBy: string;
+  approvedByName: string;
+  approvedAt: string;
+  verifiedCount: number;
+  batchNumber: number;
+  notes?: string;
 }
 
 export interface Attendance {

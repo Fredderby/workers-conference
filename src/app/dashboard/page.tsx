@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, AlertCircle, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu } from "lucide-react";
+import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu } from "lucide-react";
 import { NotificationBell } from "@/components/notification/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1119,56 +1119,54 @@ function VerificationSection({ user }: { user: any }) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   APPROVAL — Souvenir Approval by Region
+   APPROVAL — Souvenir Approval by Region (Batch System)
    ══════════════════════════════════════════════════════════════ */
 function ApprovalSection({ user }: { user: any }) {
   const [locked, setLocked] = useState(false);
-  const [approvals, setApprovals] = useState<Record<string, { approved: boolean; approvedBy: string }>>({});
-  const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const qc = useQueryClient();
+  const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: approvalData, isLoading: approvalsLoading } = useQuery({ queryKey: ["approvals"], queryFn: async () => fetch("/api/auth/approvals").then(r => r.json()) });
+
+  const isLoading = workersLoading || approvalsLoading;
+  const workers = workerData?.workers || [];
+  const allApprovals = approvalData?.approvals || [];
 
   const regionStats = useMemo(() => {
-    const workers = data?.workers || [];
-    const map: Record<string, { total: number; verified: number; approved: boolean; approvedBy: string }> = {};
+    const map: Record<string, { total: number; verified: number; currentBatch: number; lastApproval: any }> = {};
     workers.forEach((w: any) => {
-      if (!map[w.region]) map[w.region] = { total: 0, verified: 0, approved: false, approvedBy: "" };
+      if (!map[w.region]) map[w.region] = { total: 0, verified: 0, currentBatch: 0, lastApproval: null };
       map[w.region].total++;
       if (w.verified) map[w.region].verified++;
     });
-    Object.keys(map).forEach(r => {
-      map[r].approved = !!approvals[r]?.approved;
-      map[r].approvedBy = approvals[r]?.approvedBy || "";
+    Object.keys(map).forEach(region => {
+      const regionApprovals = allApprovals.filter((a: any) => a.region === region).sort((a: any, b: any) => b.batchNumber - a.batchNumber);
+      const lastApproval = regionApprovals[0] || null;
+      map[region].lastApproval = lastApproval;
+      if (lastApproval) {
+        map[region].currentBatch = map[region].verified - lastApproval.verifiedCount;
+      } else {
+        map[region].currentBatch = map[region].verified;
+      }
     });
     return Object.entries(map).map(([region, stats]) => ({ region, ...stats }));
-  }, [data, approvals]);
+  }, [workers, allApprovals]);
 
   const totalWorkers = regionStats.reduce((s, r) => s + r.total, 0);
   const totalVerified = regionStats.reduce((s, r) => s + r.verified, 0);
-  const totalApproved = regionStats.filter(r => r.approved).length;
-  const totalPending = regionStats.filter(r => !r.approved && r.verified > 0).length;
-  const approvalPct = regionStats.length > 0 ? Math.round((totalApproved / regionStats.length) * 100) : 0;
-  const verifiedPct = totalWorkers > 0 ? Math.round((totalVerified / totalWorkers) * 100) : 0;
+  const totalBatches = allApprovals.length;
+  const totalCurrentBatch = regionStats.reduce((s, r) => s + Math.max(0, r.currentBatch), 0);
+  const regionsWithBatch = regionStats.filter(r => r.currentBatch > 0).length;
 
-  function toggleApproval(region: string) {
-    if (locked) return;
-    setApprovals(prev => ({
-      ...prev,
-      [region]: prev[region]?.approved
-        ? { approved: false, approvedBy: "" }
-        : { approved: true, approvedBy: user.displayName },
-    }));
-  }
-
-  function approveAll() {
-    if (locked) return;
-    const next: typeof approvals = {};
-    regionStats.forEach(r => { if (!r.approved && r.verified > 0) next[r.region] = { approved: true, approvedBy: user.displayName }; });
-    setApprovals(prev => ({ ...prev, ...next }));
-  }
+  const approveMutation = useMutation({
+    mutationFn: async ({ region, verifiedCount }: { region: string; verifiedCount: number }) =>
+      fetch("/api/auth/approvals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ region, verifiedCount }) }).then(r => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["approvals"] }); },
+  });
 
   return (
     <div className="space-y-5">
 
-      {/* ── Power BI Gradient Header ── */}
+      {/* ── Header ── */}
       <div className="relative rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6366f1 40%, #3b82f6 100%)" }}>
         <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 25% 25%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
         <div className="relative px-6 py-5 sm:px-8 sm:py-6 text-white">
@@ -1179,7 +1177,7 @@ function ApprovalSection({ user }: { user: any }) {
               </div>
               <div>
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight">Souvenir Approval</h2>
-                <p className="text-xs sm:text-sm text-white/70 mt-0.5">Approve verified workers per region for souvenir distribution</p>
+                <p className="text-xs sm:text-sm text-white/70 mt-0.5">Batch-based approval for souvenir distribution</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1192,46 +1190,32 @@ function ApprovalSection({ user }: { user: any }) {
                   {locked ? "Unlock" : "Lock"}
                 </button>
               )}
-              {!locked && isAdmin(user.role as RoleType) && totalApproved < regionStats.length && regionStats.length > 0 && (
-                <button onClick={approveAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-indigo-700 hover:bg-white/90 transition-colors shadow-lg shadow-black/10">
-                  <CheckCircle2 size={13} /> Approve All
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* ── KPI Strip ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden divide-x divide-slate-100 dark:divide-slate-800">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden divide-x divide-slate-100 dark:divide-slate-800">
         <div className="px-5 py-4">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Total Workers</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: "#6366f1" }}>{totalWorkers}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">All registered</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">{totalVerified} verified</p>
         </div>
         <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Verified</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: "#06b6d4" }}>{totalVerified}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">{verifiedPct}% of total</p>
-        </div>
-        <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approved</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: "#10b981" }}>{totalApproved}</p>
-          <p className="text-[10px] text-slate-400 mt-0.5">{regionStats.length} regions total</p>
-        </div>
-        <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Pending</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: "#f59e0b" }}>{totalPending}</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Current Batch</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#f59e0b" }}>{totalCurrentBatch}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">Awaiting approval</p>
         </div>
         <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approval Rate</p>
-          <p className="text-2xl font-black mt-0.5" style={{ color: "#8b5cf6" }}>{approvalPct}%</p>
-          <div className="flex items-center gap-1 mt-1">
-            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${approvalPct}%`, background: "linear-gradient(90deg, #8b5cf6, #6366f1)" }} />
-            </div>
-          </div>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approved Batches</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#10b981" }}>{totalBatches}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Across all regions</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Regions Pending</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#8b5cf6" }}>{regionsWithBatch}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Have new verifications</p>
         </div>
       </div>
 
@@ -1239,172 +1223,151 @@ function ApprovalSection({ user }: { user: any }) {
         <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
       ) : (
         <>
-          {/* ── Ring Chart + Region Cards ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-            {/* Donut / Ring Chart */}
-            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 h-1 w-full" style={{ background: "linear-gradient(90deg, #8b5cf6, #6366f1, #10b981)" }} />
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Approval Progress</p>
-              <div className="relative w-40 h-40">
-                <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90">
-                  <circle cx="80" cy="80" r="65" fill="none" stroke="#f1f5f9" strokeWidth="14" className="dark:stroke-slate-800" />
-                  <circle
-                    cx="80" cy="80" r="65"
-                    fill="none"
-                    stroke="url(#ring-grad)"
-                    strokeWidth="14"
-                    strokeLinecap="round"
-                    strokeDasharray={`${(approvalPct / 100) * 2 * Math.PI * 65} ${2 * Math.PI * 65}`}
-                    className="transition-all duration-1000 ease-out"
-                  />
-                  <defs>
-                    <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#8b5cf6" />
-                      <stop offset="50%" stopColor="#6366f1" />
-                      <stop offset="100%" stopColor="#10b981" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{approvalPct}%</span>
-                  <span className="text-[10px] text-slate-400 font-medium">approved</span>
-                </div>
-              </div>
-              {/* Legend */}
-              <div className="flex items-center gap-4 mt-5">
-                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#10b981" }} />
-                  Approved ({totalApproved})
-                </span>
-                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }} />
-                  Pending ({totalPending})
-                </span>
-              </div>
-            </div>
-
-            {/* Region Cards — PBICard style */}
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {regionStats.map((r, i) => {
-                const rate = r.total > 0 ? Math.round((r.verified / r.total) * 100) : 0;
-                const accent = r.approved ? "#10b981" : r.verified > 0 ? "#f59e0b" : "#94a3b8";
-                return (
-                  <div key={r.region} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative overflow-hidden group hover:shadow-md transition-shadow">
-                    <div className="absolute top-0 left-0 h-1 w-full transition-all duration-300" style={{ background: accent }} />
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Region</p>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate max-w-[160px]">{r.region}</p>
-                      </div>
-                      {r.approved ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 shrink-0">
-                          <CheckCircle2 size={10} /> Approved
-                        </span>
-                      ) : r.verified > 0 ? (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 shrink-0">
-                          <AlertCircle size={10} /> Pending
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 shrink-0">—</span>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <div>
-                        <p className="text-[10px] text-slate-400">Workers</p>
-                        <p className="text-lg font-black" style={{ color: "#6366f1" }}>{r.total}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-400">Verified</p>
-                        <p className="text-lg font-black" style={{ color: "#06b6d4" }}>{r.verified}</p>
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                        <span>Approval Rate</span>
-                        <span className="font-semibold" style={{ color: accent }}>{rate}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${rate}%`, background: `linear-gradient(90deg, ${accent}88, ${accent})` }} />
-                      </div>
-                    </div>
-
-                    {/* Mini Gender Split */}
-                    {r.total > 0 && (
-                      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400">Verified by Officer</span>
-                        <span className="text-[10px] font-semibold" style={{ color: accent }}>{r.verified} / {r.total}</span>
-                      </div>
-                    )}
-
-                    {/* Action Button */}
-                    {r.verified > 0 && (
-                      <div className="mt-3">
-                        {!locked ? (
-                          <button
-                            onClick={() => toggleApproval(r.region)}
-                            className={`w-full text-center py-2 rounded-lg text-xs font-semibold transition-all ${
-                              r.approved
-                                ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                : "text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
-                            }`}
-                            style={!r.approved ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" } : undefined}
-                          >
-                            {r.approved ? "Revoke Approval" : "Approve Souvenirs"}
-                          </button>
-                        ) : (
-                          <div className="w-full text-center py-2 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800/50 text-slate-400 italic border border-dashed border-slate-200 dark:border-slate-700">
-                            Locked
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {r.approved && r.approvedBy && (
-                      <p className="text-[10px] text-slate-400 mt-1.5 text-center">Approved by {r.approvedBy}</p>
-                    )}
+          {/* ── Current Batch: Regions with new verifications ── */}
+          {regionsWithBatch > 0 && (
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Current Batch — Pending Approval</p>
+                    <p className="text-[10px] text-slate-400">Workers verified after the last approval per region</p>
                   </div>
-                );
-              })}
-              {regionStats.length === 0 && (
-                <div className="sm:col-span-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center">
-                  <ClipboardCheck size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-400">No regions found. Register workers first.</p>
                 </div>
-              )}
+                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full">{totalCurrentBatch} workers</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[500px]">
+                  <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+                    <tr>
+                      <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Total Verified</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Last Approved</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">New in Batch</th>
+                      <th className="text-right text-[10px] font-semibold uppercase tracking-widest">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {regionStats.filter(r => r.currentBatch > 0).map((r, i) => (
+                      <tr key={r.region} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #f59e0b, #f97316)" }}>
+                              {r.region.charAt(0)}
+                            </div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{r.region}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-slate-300">{r.verified}</td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">
+                          {r.lastApproval ? (
+                            <span>Batch {r.lastApproval.batchNumber} ({r.lastApproval.verifiedCount} workers)</span>
+                          ) : (
+                            <span className="text-slate-400">Never</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-800">
+                            +{r.currentBatch} new
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          {!locked && (
+                            <button
+                              onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })}
+                              disabled={approveMutation.isPending}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white shadow-md disabled:opacity-50"
+                              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                            >
+                              <CheckCircle2 size={10} /> Approve Batch
+                            </button>
+                          )}
+                          {locked && <span className="text-[10px] text-slate-400 italic">Locked</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* ── Region Table (Full Width) ── */}
+          {/* ── Approval History ── */}
+          {allApprovals.length > 0 && (
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-600" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Approval History</p>
+                    <p className="text-[10px] text-slate-400">Previously approved batches</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{allApprovals.length} approvals</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[600px]">
+                  <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+                    <tr>
+                      <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Batch</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Workers Approved</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Approved By</th>
+                      <th className="text-[10px] font-semibold uppercase tracking-widest">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {allApprovals.map((a: any) => (
+                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>
+                              {a.region.charAt(0)}
+                            </div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{a.region}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                            #{a.batchNumber}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-slate-300">{a.verifiedCount}</td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">{a.approvedByName}</td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">{new Date(a.approvedAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── All Regions Overview ── */}
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Regional Breakdown</p>
-                <p className="text-[10px] text-slate-400">Detailed approval status per region</p>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">All Regions</p>
+                <p className="text-[10px] text-slate-400">Complete overview</p>
               </div>
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{regionStats.length} regions</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
                   <tr>
                     <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
                     <th className="text-[10px] font-semibold uppercase tracking-widest">Workers</th>
                     <th className="text-[10px] font-semibold uppercase tracking-widest">Verified</th>
-                    <th className="text-[10px] font-semibold uppercase tracking-widest">Verified %</th>
-                    <th className="text-[10px] font-semibold uppercase tracking-widest">Status</th>
-                    <th className="text-[10px] font-semibold uppercase tracking-widest">Approved By</th>
-                    <th className="text-right text-[10px] font-semibold uppercase tracking-widest">Action</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Current Batch</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Batches</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {regionStats.map((r, i) => {
-                    const rate = r.total > 0 ? Math.round((r.verified / r.total) * 100) : 0;
+                    const regionApprovals = allApprovals.filter((a: any) => a.region === r.region);
                     return (
-                      <tr key={r.region} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <tr key={r.region} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#ef4444"][i % 7]}, ${["#818cf8", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#22d3ee", "#f87171"][i % 7]})` }}>
@@ -1419,45 +1382,13 @@ function ApprovalSection({ user }: { user: any }) {
                           <span className="text-slate-400"> / {r.total}</span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: rate === 100 ? "#10b981" : rate >= 50 ? "#6366f1" : "#f59e0b" }} />
-                            </div>
-                            <span className="text-[10px] font-semibold text-slate-500 w-8">{rate}%</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {r.approved ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
-                              <CheckCircle2 size={10} /> Approved
-                            </span>
-                          ) : r.verified > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-800">
-                              <AlertCircle size={10} /> Pending
-                            </span>
+                          {r.currentBatch > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600">+{r.currentBatch}</span>
                           ) : (
                             <span className="text-[10px] text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-slate-500">{r.approvedBy || "—"}</td>
-                        <td className="px-5 py-3.5 text-right">
-                          {r.verified > 0 && !locked && (
-                            <button
-                              onClick={() => toggleApproval(r.region)}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                                r.approved
-                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                  : "text-white shadow-md"
-                              }`}
-                              style={!r.approved ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" } : undefined}
-                            >
-                              {r.approved ? "Revoke" : "Approve"}
-                            </button>
-                          )}
-                          {r.verified > 0 && locked && (
-                            <span className="text-[10px] text-slate-400 italic">Locked</span>
-                          )}
-                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">{regionApprovals.length}</td>
                       </tr>
                     );
                   })}
@@ -1466,25 +1397,10 @@ function ApprovalSection({ user }: { user: any }) {
             </div>
           </div>
 
-          {/* ── Approved Regions Summary Bar ── */}
-          {totalApproved > 0 && (
-            <div className="rounded-2xl overflow-hidden border border-emerald-200 dark:border-emerald-800" style={{ background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%)" }}>
-              <div className="dark:bg-emerald-950/20 px-5 py-4">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                  <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                    {totalApproved} of {regionStats.length} regions approved for souvenir distribution
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {regionStats.filter(r => r.approved).map(r => (
-                    <span key={r.region} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      <CheckCircle2 size={10} /> {r.region}
-                      <span className="text-emerald-500 dark:text-emerald-400 ml-0.5">({r.verified} workers)</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
+          {regionStats.length === 0 && (
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center">
+              <ClipboardCheck size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-sm text-slate-400">No regions found. Register workers first.</p>
             </div>
           )}
         </>
