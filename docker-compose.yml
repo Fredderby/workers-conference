@@ -9,11 +9,14 @@ services:
     restart: unless-stopped
     ports:
       - "3037:3037"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
-      # Connect to the Dokploy-managed Postgres database. For this hostname to
-      # resolve, the database MUST be linked to this app in the Dokploy UI
-      # (App -> Database -> add workers-db-p9wou6) so they share a network.
-      - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@workers-db-p9wou6:5432/wc_app
+      # The DB is published on the host at port 15432. From inside the
+      # container we reach it via host.docker.internal:15432, bypassing
+      # DNS resolution entirely (which is what was failing with
+      # workers-db-p9wou6 / db hostnames).
+      - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@host.docker.internal:15432/wc_app
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3037}
