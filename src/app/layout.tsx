@@ -10,10 +10,7 @@ export const metadata: Metadata = {
   title: "Workers Conference | Registration & Verification",
   description: "Enterprise Authentication & Conference Management System",
   icons: {
-    icon: [
-      { url: "/icon.jpg", type: "image/jpeg" },
-      { url: "/dclmlogo.JPG", type: "image/jpeg" },
-    ],
+    icon: "/dclmlogo.JPG",
     apple: "/dclmlogo.JPG",
   },
 };

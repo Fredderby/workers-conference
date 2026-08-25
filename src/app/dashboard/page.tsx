@@ -54,7 +54,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
     localStorage.setItem("theme", nd ? "dark" : "light");
   };
 
-  const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); };
+  const logout = () => { fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); };
 
   const handleNav = (id: string) => {
     setSection(id);
