@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
-import { db } from "@/lib/db/mock";
+import { db } from "@/lib/db/pg";
 import { isAdmin } from "@/lib/auth/rbac";
 
 function auth(req: NextRequest) {
@@ -12,10 +12,10 @@ function auth(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let list = db.reports;
+  let list = await db.listReports();
   if (!isAdmin(user.role)) {
     list = list.filter(r => r.submittedBy === user.id);
   }
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { title, description, category, zone, region, division } = await req.json();
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const report = db.createReport({
+  const report = await db.createReport({
     title, description, category, zone: zone || "", region: region || "", division: division || "",
     submittedBy: user.id,
     submittedByName: user.displayName,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
-import { db } from "@/lib/db/mock";
+import { db } from "@/lib/db/pg";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("access_token")?.value;
@@ -8,6 +8,6 @@ export async function GET(req: NextRequest) {
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Super admin sees all, others see own
-  const logs = payload.role === "super_admin" ? db.auditLogs : db.auditLogs.filter(l => l.userId === payload.sub);
+  const logs = await db.listAuditLogs(payload.role === "super_admin" ? undefined : payload.sub);
   return NextResponse.json({ logs });
 }

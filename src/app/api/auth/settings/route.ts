@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
-import { db } from "@/lib/db/mock";
+import { db } from "@/lib/db/pg";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { passwordHash, mfaSecret, ...safe } = user as any;
   return NextResponse.json({ user: safe });
@@ -18,21 +18,21 @@ export async function PATCH(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const { username, displayName, email } = body;
 
   if (username) {
-    const existing = db.findUserByEmailOrUsername(username);
+    const existing = await db.findUserByEmailOrUsername(username);
     if (existing && existing.id !== user.id) {
       return NextResponse.json({ error: "Username already taken" }, { status: 409 });
     }
   }
 
   if (email) {
-    const existing = db.findUserByEmailOrUsername(email);
+    const existing = await db.findUserByEmailOrUsername(email);
     if (existing && existing.id !== user.id) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }
@@ -47,10 +47,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "No changes provided" }, { status: 400 });
   }
 
-  db.updateUser(user.id, patch);
-  db.audit({ userId: user.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Profile updated: ${Object.keys(patch).join(", ")}` });
+  await db.updateUser(user.id, patch);
+  await db.audit({ userId: user.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Profile updated: ${Object.keys(patch).join(", ")}` });
 
-  const updated = db.findUserById(user.id);
+  const updated = await db.findUserById(user.id);
   const { passwordHash: _, mfaSecret: __, ...safe } = updated as any;
   return NextResponse.json({ user: safe });
 }

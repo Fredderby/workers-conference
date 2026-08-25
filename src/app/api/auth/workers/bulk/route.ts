@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
-import { db, ZONE_STRUCTURE } from "@/lib/db/mock";
+import { db } from "@/lib/db/pg";
+import { ZONE_STRUCTURE } from "@/lib/db/mock";
 
 const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker"];
 const VALID_PAYMENTS = ["paid", "unpaid"];
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     const err = validateRow(row, i);
     if (err) { errors.push({ row: i + 1, message: err }); continue; }
 
-    const worker = db.createWorker({
+    const worker = await db.createWorker({
       name: row.FullName.trim(),
       gender: row.Gender.toLowerCase(),
       zone: row.Zone,
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     created.push(worker);
   }
 
-  db.audit({ userId: payload.sub, action: "workers_bulk_import", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Bulk imported ${created.length} workers, ${errors.length} errors` });
+  await db.audit({ userId: payload.sub, action: "workers_bulk_import", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Bulk imported ${created.length} workers, ${errors.length} errors` });
 
   return NextResponse.json({ created: created.length, errors, total: rows.length });
 }

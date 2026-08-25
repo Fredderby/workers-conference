@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
-import { db } from "@/lib/db/mock";
+import { db } from "@/lib/db/pg";
 
 function auth(req: NextRequest) {
   const token = req.cookies.get("access_token")?.value;
@@ -11,21 +11,21 @@ function auth(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ attendances: db.attendances });
+  return NextResponse.json({ attendances: await db.listAttendances() });
 }
 
 export async function POST(req: NextRequest) {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = db.findUserById(payload.sub);
+  const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { workerId, workerName, zone, region, division, action } = await req.json();
 
   if (action === "checkout") {
-    const a = db.checkOut(workerId);
+    const a = await db.checkOut(workerId);
     return NextResponse.json({ attendance: a });
   }
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing worker info" }, { status: 400 });
   }
 
-  const a = db.checkIn({
+  const a = await db.checkIn({
     workerId, workerName, zone: zone || "", region: region || "", division: division || "",
     checkedInBy: user.id,
     checkedInByName: user.displayName,
