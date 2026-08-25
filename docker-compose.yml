@@ -8,17 +8,17 @@ services:
     container_name: workers-conf-app-v2
     restart: unless-stopped
     ports:
-      - "3055:3055"
+      - "3056:3056"
     environment:
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3055}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3056}
       - NODE_ENV=production
       # DATABASE_URL is provided by Dokploy's Environment Variables.
       # Internal hostname: workers-db-p9wou6:5432
       # Do NOT use host.docker.internal or published host ports.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3055/api/auth/me"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3056/api/auth/me"]
       interval: 30s
       timeout: 10s
       retries: 3
