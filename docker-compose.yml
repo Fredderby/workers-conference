@@ -18,8 +18,8 @@ services:
       # Internal hostname: workers-db-p9wou6:5432
       # Do NOT use host.docker.internal or published host ports.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3056/api/auth/me"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/api/auth/me', r => { process.exit(r.statusCode === 200 || r.statusCode === 401 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
