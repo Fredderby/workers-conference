@@ -42,3 +42,14 @@ next-env.d.ts
 
 # mock database
 .db-data.json
+
+# python
+env/
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
