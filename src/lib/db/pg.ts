@@ -12,6 +12,10 @@ import type {
   LoginAttempt,
 } from "./mock";
 
+if (!process.env.DATABASE_URL) {
+  throw new Error("FATAL: DATABASE_URL is not set. The application cannot start without a database connection.");
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 5000,
