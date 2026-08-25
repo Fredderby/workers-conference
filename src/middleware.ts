@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "@/lib/auth/jwt";
 
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/403", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"];
 
@@ -12,7 +13,6 @@ export async function middleware(req: NextRequest) {
     const token = req.cookies.get("access_token")?.value;
     if (token) {
       try {
-        const { verifyToken } = await import("@/lib/auth/jwt");
         payload = await verifyToken(token);
       } catch {
         payload = null;
