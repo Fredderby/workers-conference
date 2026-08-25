@@ -2,7 +2,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, AlertCircle, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key } from "lucide-react";
+import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, AlertCircle, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu } from "lucide-react";
+import { NotificationBell } from "@/components/notification/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [section, setSection] = useState("overview");
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const queryClient = useQueryClient();
 
@@ -35,14 +37,12 @@ export default function DashboardPage() {
 
   if (!user) return <div className="min-h-screen grid place-items-center"><Skeleton className="h-8 w-48" /></div>;
 
-  const visibleSections = getVisibleSections(user.role as RoleType);
-
   return (
-    <DashboardInner user={user} setUser={setUser} dark={dark} setDark={setDark} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} section={section} setSection={setSection} queryClient={queryClient} />
+    <DashboardInner user={user} setUser={setUser} dark={dark} setDark={setDark} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} section={section} setSection={setSection} queryClient={queryClient} />
   );
 }
 
-function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarOpen, section, setSection, queryClient }: { user: any; setUser: any; dark: boolean; setDark: any; sidebarOpen: boolean; setSidebarOpen: any; section: string; setSection: any; queryClient: any }) {
+function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarOpen, mobileOpen, setMobileOpen, section, setSection, queryClient }: { user: any; setUser: any; dark: boolean; setDark: any; sidebarOpen: boolean; setSidebarOpen: any; mobileOpen: boolean; setMobileOpen: any; section: string; setSection: any; queryClient: any }) {
   const router = useRouter();
   const { data: msgData } = useQuery({ queryKey: ["messages", "unread"], queryFn: async () => fetch("/api/auth/messages").then(r => r.json()), refetchInterval: 30000 });
   const unreadCount = msgData?.unreadCount || 0;
@@ -56,68 +56,128 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
 
   const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); };
 
+  const handleNav = (id: string) => {
+    setSection(id);
+    setMobileOpen(false);
+  };
+
+  const SidebarContent = ({ collapsed }: { collapsed?: boolean }) => (
+    <>
+      <div className="h-14 md:h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
+        {!collapsed && (
+          <div className="flex items-center gap-2.5 flex-1">
+            <div className="h-8 w-8 rounded-lg overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+            <div><p className="text-xs font-semibold leading-none">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
+          </div>
+        )}
+        {!collapsed && (
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400 hidden md:grid">
+            <ChevronRight size={14} className="rotate-180" />
+          </button>
+        )}
+        {collapsed && (
+          <button onClick={() => setSidebarOpen(false)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400">
+            <ChevronRight size={14} />
+          </button>
+        )}
+      </div>
+      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+        {visibleSections.map(s => {
+          const Icon = ICON_MAP[s.icon] || BarChart3;
+          const isBroadcast = s.id === "broadcast";
+          return (
+            <button key={s.id} onClick={() => handleNav(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
+              <Icon size={16} />
+              {!collapsed && s.label}
+              {!collapsed && isBroadcast && unreadCount > 0 && (
+                <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">{unreadCount > 99 ? "99+" : unreadCount}</span>
+              )}
+              {collapsed && isBroadcast && unreadCount > 0 && (
+                <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+      {!collapsed && (
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+            <p className="text-xs font-medium truncate">{user.displayName}</p>
+            <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="min-h-screen flex bg-[#f0f2f5] dark:bg-[#020617]">
-      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-16"}`}>
-        <div className="h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
-          {sidebarOpen && (
-            <div className="flex items-center gap-2.5 flex-1">
-              <div className="h-8 w-8 rounded-lg overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
-              <div><p className="text-xs font-semibold leading-none">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
-            </div>
-          )}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400">
-            <ChevronRight size={14} className={`transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
-          </button>
-        </div>
-        <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-          {visibleSections.map(s => {
-            const Icon = ICON_MAP[s.icon] || BarChart3;
-            const isBroadcast = s.id === "broadcast";
-            return (
-              <button key={s.id} onClick={() => setSection(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
-                <Icon size={16} />
-                {sidebarOpen && s.label}
-                {sidebarOpen && isBroadcast && unreadCount > 0 && (
-                  <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">{unreadCount > 99 ? "99+" : unreadCount}</span>
-                )}
-                {!sidebarOpen && isBroadcast && unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          {sidebarOpen && (
-            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-              <p className="text-xs font-medium truncate">{user.displayName}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
-            </div>
-          )}
-        </div>
+      {/* Desktop sidebar */}
+      <aside className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-16"}`}>
+        <SidebarContent collapsed={!sidebarOpen} />
       </aside>
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-16"}`}>
-        <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-bold tracking-tight capitalize">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
-            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={toggleTheme} className="h-9 w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800">{dark ? <Moon size={16} /> : <Sun size={16} />}</button>
-            <button onClick={() => setSection("broadcast")} className="relative h-9 w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-              {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold animate-pulse">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+      {/* Mobile sidebar overlay */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} />
+            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 md:hidden shadow-2xl">
+              <div className="h-14 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2.5 flex-1">
+                  <div className="h-8 w-8 rounded-lg overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+                  <div><p className="text-xs font-semibold leading-none">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
+                </div>
+                <button onClick={() => setMobileOpen(false)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400">
+                  <X size={16} />
+                </button>
+              </div>
+              <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+                {visibleSections.map(s => {
+                  const Icon = ICON_MAP[s.icon] || BarChart3;
+                  const isBroadcast = s.id === "broadcast";
+                  return (
+                    <button key={s.id} onClick={() => handleNav(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
+                      <Icon size={18} />
+                      <span className="flex-1 text-left">{s.label}</span>
+                      {isBroadcast && unreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+                  <p className="text-xs font-medium truncate">{user.displayName}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-16"}`}>
+        <header className="sticky top-0 z-20 h-14 md:h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button onClick={() => setMobileOpen(true)} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300">
+              <Menu size={18} />
             </button>
+            <h1 className="text-sm font-bold tracking-tight capitalize">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
+            <span className="hidden sm:inline text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
+          </div>
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <button onClick={toggleTheme} className="h-8 w-8 md:h-9 md:w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800">{dark ? <Moon size={14} /> : <Sun size={14} />}</button>
+            <NotificationBell userId={user.id} onNavigateToBroadcast={() => handleNav("broadcast")} />
             <div className="hidden sm:flex items-center gap-2 rounded-full border bg-white dark:bg-slate-800 px-3 py-1.5">
               <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#1a237e] to-[#7c4dff] grid place-items-center text-white text-xs font-bold">{user.displayName?.[0]}</div>
               <div className="text-left leading-none"><p className="text-xs font-semibold">{user.displayName}</p><p className="text-[10px] text-slate-500">{user.email}</p></div>
             </div>
-            <button onClick={logout} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-2 text-xs font-medium"><LogOut size={14} /> Logout</button>
+            <button onClick={logout} className="inline-flex items-center gap-1 md:gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-2.5 md:px-3 py-1.5 md:py-2 text-xs font-medium"><LogOut size={14} /> <span className="hidden sm:inline">Logout</span></button>
           </div>
         </header>
-        <main className="p-6">
+        <main className="p-4 md:p-6">
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
               {section === "overview" && <OverviewSection user={user} />}
@@ -737,8 +797,8 @@ function UserManagementSection() {
         )}
       </AnimatePresence>
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
             <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Email</th><th>Role</th><th>Zone</th><th>Region</th><th>Temp Pw</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody className="divide-y">
               {data?.users?.map((u: any) => (
@@ -1466,8 +1526,8 @@ function AttendanceSection() {
       {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="font-semibold">{selectedWorker.name}</p><p className="text-sm text-slate-500">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)}>{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
       <h3 className="font-semibold">Check-in Log ({attData?.attendances?.length || 0})</h3>
       {isLoading ? <Skeleton className="h-12 w-full" /> : (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
             <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
             <tbody className="divide-y">
               {(attData?.attendances || []).map((a: any) => (
