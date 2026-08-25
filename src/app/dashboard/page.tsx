@@ -1,0 +1,1729 @@
+"use client";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, AlertCircle, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RoleType, ZONE_STRUCTURE, POSITION_LABELS, PAYMENT_LABELS } from "@/lib/db/mock";
+import { isAdmin, getVisibleSections, DASHBOARD_SECTIONS } from "@/lib/auth/rbac";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend } from "recharts";
+
+const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserPlus, ScanLine, ClipboardCheck, FileText: ScrollText, ScrollText, Monitor, ShieldCheck, Settings };
+
+const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#06b6d4", "#f43f5e", "#10b981"];
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const [section, setSection] = useState("overview");
+  const [dark, setDark] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(j => {
+      if (!j.user) { router.push("/login"); return; }
+      setUser(j.user);
+      setDark(document.documentElement.classList.contains("dark"));
+    });
+  }, [router]);
+
+  if (!user) return <div className="min-h-screen grid place-items-center"><Skeleton className="h-8 w-48" /></div>;
+
+  const visibleSections = getVisibleSections(user.role as RoleType);
+
+  return (
+    <DashboardInner user={user} setUser={setUser} dark={dark} setDark={setDark} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} section={section} setSection={setSection} queryClient={queryClient} />
+  );
+}
+
+function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarOpen, section, setSection, queryClient }: { user: any; setUser: any; dark: boolean; setDark: any; sidebarOpen: boolean; setSidebarOpen: any; section: string; setSection: any; queryClient: any }) {
+  const router = useRouter();
+  const { data: msgData } = useQuery({ queryKey: ["messages", "unread"], queryFn: async () => fetch("/api/auth/messages").then(r => r.json()), refetchInterval: 30000 });
+  const unreadCount = msgData?.unreadCount || 0;
+  const visibleSections = getVisibleSections(user.role as RoleType);
+
+  const toggleTheme = () => {
+    const nd = !dark; setDark(nd);
+    document.documentElement.classList.toggle("dark", nd);
+    localStorage.setItem("theme", nd ? "dark" : "light");
+  };
+
+  const logout = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); };
+
+  return (
+    <div className="min-h-screen flex bg-[#f0f2f5] dark:bg-[#020617]">
+      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-16"}`}>
+        <div className="h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
+          {sidebarOpen && (
+            <div className="flex items-center gap-2.5 flex-1">
+              <div className="h-8 w-8 rounded-lg overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+              <div><p className="text-xs font-semibold leading-none">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
+            </div>
+          )}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400">
+            <ChevronRight size={14} className={`transition-transform ${sidebarOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+          {visibleSections.map(s => {
+            const Icon = ICON_MAP[s.icon] || BarChart3;
+            const isBroadcast = s.id === "broadcast";
+            return (
+              <button key={s.id} onClick={() => setSection(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
+                <Icon size={16} />
+                {sidebarOpen && s.label}
+                {sidebarOpen && isBroadcast && unreadCount > 0 && (
+                  <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                )}
+                {!sidebarOpen && isBroadcast && unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+          {sidebarOpen && (
+            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+              <p className="text-xs font-medium truncate">{user.displayName}</p>
+              <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-16"}`}>
+        <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-bold tracking-tight capitalize">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
+            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={toggleTheme} className="h-9 w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800">{dark ? <Moon size={16} /> : <Sun size={16} />}</button>
+            <button onClick={() => setSection("broadcast")} className="relative h-9 w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold animate-pulse">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+            </button>
+            <div className="hidden sm:flex items-center gap-2 rounded-full border bg-white dark:bg-slate-800 px-3 py-1.5">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#1a237e] to-[#7c4dff] grid place-items-center text-white text-xs font-bold">{user.displayName?.[0]}</div>
+              <div className="text-left leading-none"><p className="text-xs font-semibold">{user.displayName}</p><p className="text-[10px] text-slate-500">{user.email}</p></div>
+            </div>
+            <button onClick={logout} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-2 text-xs font-medium"><LogOut size={14} /> Logout</button>
+          </div>
+        </header>
+        <main className="p-6">
+          <AnimatePresence mode="wait">
+            <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+              {section === "overview" && <OverviewSection user={user} />}
+              {section === "users" && isAdmin(user.role as RoleType) && <UserManagementSection />}
+              {section === "workers" && <WorkerRegistrationSection user={user} />}
+              {section === "verification" && <VerificationSection user={user} />}
+              {section === "approval" && <ApprovalSection user={user} />}
+              {section === "attendance" && <AttendanceSection />}
+              {section === "broadcast" && <BroadcastSection user={user} />}
+              {section === "sessions" && isAdmin(user.role as RoleType) && <SessionsSection />}
+              {section === "audit" && isAdmin(user.role as RoleType) && <AuditSection />}
+              {section === "mfa" && isAdmin(user.role as RoleType) && <MFASection />}
+              {section === "settings" && <SettingsSection user={user} setUser={setUser} />}
+            </motion.div>
+      </AnimatePresence>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   OVERVIEW — Premium Analytics Dashboard
+   ══════════════════════════════════════════════════════════════ */
+function OverviewSection({ user }: { user: any }) {
+  const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const workers: any[] = data?.workers || [];
+
+  const stats = useMemo(() => {
+    const total = workers.length;
+    const paid = workers.filter(w => w.paymentStatus === "paid");
+    const unpaid = workers.filter(w => w.paymentStatus === "unpaid");
+    const verified = workers.filter(w => w.verified);
+    const male = workers.filter(w => w.gender === "male");
+    const female = workers.filter(w => w.gender === "female");
+
+    const paidMale = paid.filter(w => w.gender === "male").length;
+    const paidFemale = paid.filter(w => w.gender === "female").length;
+    const unpaidMale = unpaid.filter(w => w.gender === "male").length;
+    const unpaidFemale = unpaid.filter(w => w.gender === "female").length;
+
+    // By zone
+    const byZone: Record<string, number> = {};
+    workers.forEach(w => { byZone[w.zone] = (byZone[w.zone] || 0) + 1; });
+
+    // By region (top 10)
+    const byRegion: Record<string, number> = {};
+    workers.forEach(w => { byRegion[w.region] = (byRegion[w.region] || 0) + 1; });
+    const topRegions = Object.entries(byRegion).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }));
+
+    // By position
+    const byPosition: Record<string, number> = {};
+    workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
+    const positionData = Object.entries(byPosition).map(([key, value]) => ({ name: POSITION_LABELS[key as keyof typeof POSITION_LABELS] || key, value }));
+
+    // By division (top 8)
+    const byDivision: Record<string, number> = {};
+    workers.forEach(w => { byDivision[w.division] = (byDivision[w.division] || 0) + 1; });
+    const topDivisions = Object.entries(byDivision).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
+
+    // Verified by day (last 7 days)
+    const dayMap: Record<string, Record<string, number>> = {};
+    const days = 7;
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      dayMap[key] = {};
+      Object.keys(byRegion).forEach(r => dayMap[key][r] = 0);
+    }
+    verified.forEach(w => {
+      const d = new Date(w.createdAt);
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      if (dayMap[key]) dayMap[key][w.region] = (dayMap[key][w.region] || 0) + 1;
+    });
+    const chartData = Object.entries(dayMap).map(([day, regions]) => ({ day, ...regions }));
+    const topRegionNames = Object.entries(byRegion).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([r]) => r);
+
+    // Gender pie
+    const genderPie = [
+      { name: "Male", value: male.length, color: "#6366f1" },
+      { name: "Female", value: female.length, color: "#ec4899" },
+    ];
+
+    // Payment pie
+    const paymentPie = [
+      { name: "Paid", value: paid.length, color: "#10b981" },
+      { name: "Unpaid", value: unpaid.length, color: "#f59e0b" },
+    ];
+
+    // Verification rate
+    const verificationRate = total > 0 ? ((verified.length / total) * 100).toFixed(1) : "0";
+
+    // Zone distribution pie
+    const zonePie = Object.entries(byZone).map(([name, value]) => ({ name: name.replace(" Zone", ""), value }));
+
+    // Average per region
+    const regionCount = Object.keys(byRegion).length;
+    const avgPerRegion = regionCount > 0 ? (total / regionCount).toFixed(1) : "0";
+
+    // Gender pay gap analysis
+    const paidRate = total > 0 ? ((paid.length / total) * 100).toFixed(1) : "0";
+
+    return {
+      total, paid: paid.length, unpaid: unpaid.length, verified: verified.length,
+      male: male.length, female: female.length,
+      paidMale, paidFemale, unpaidMale, unpaidFemale,
+      topRegions, positionData, topDivisions,
+      chartData, topRegionNames,
+      genderPie, paymentPie, zonePie,
+      verificationRate, avgPerRegion, paidRate, regionCount,
+    };
+  }, [workers]);
+
+  return (
+    <div className="space-y-5">
+      {/* ── Power BI KPI Banner ── */}
+      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-[#1a237e] via-[#283593] to-[#3949ab] px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+                <p className="text-[10px] font-medium text-indigo-200 uppercase tracking-widest">Workers Conference</p>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-white mt-1">Registration Analytics — 2026</h2>
+              <p className="text-[11px] sm:text-xs text-indigo-200 mt-0.5">Welcome, {user.displayName} &middot; {user.role?.replace("_", " ")}</p>
+            </div>
+            <div className="flex sm:hidden items-center gap-4 text-right">
+              <div><p className="text-2xl font-black text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total</p></div>
+              <div className="h-8 w-px bg-white/20" />
+              <div><p className="text-2xl font-black text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
+            </div>
+            <div className="hidden sm:flex items-center gap-4 text-right">
+              <div><p className="text-3xl font-black text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total Registered</p></div>
+              <div className="h-10 w-px bg-white/20" />
+              <div><p className="text-3xl font-black text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
+            </div>
+          </div>
+        </div>
+        {/* KPI Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-slate-100 dark:divide-slate-800">
+          <KPIBlock label="Registered" value={stats.total} sub={`${stats.male}M / ${stats.female}F`} color="#6366f1" />
+          <KPIBlock label="Paid" value={stats.paid} sub={`${stats.paidRate}% collection`} color="#10b981" delta={Number(stats.paidRate) > 50 ? "+" : "-"} />
+          <KPIBlock label="Unpaid" value={stats.unpaid} sub={`${(100 - Number(stats.paidRate)).toFixed(1)}% outstanding`} color="#f59e0b" />
+          <KPIBlock label="Verified" value={stats.verified} sub={`${stats.verificationRate}% of total`} color="#06b6d4" />
+          <KPIBlock label="Regions" value={stats.regionCount} sub={`${stats.avgPerRegion} avg/region`} color="#8b5cf6" />
+        </div>
+      </div>
+
+      {/* ── Metric Cards — Power BI Card Visual ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <PBICard
+          title="Total Registered"
+          value={stats.total}
+          trend={stats.total > 0 ? `${stats.male}M · ${stats.female}F` : ""}
+          trendUp={stats.male >= stats.female}
+          male={stats.male}
+          female={stats.female}
+          accent="#6366f1"
+          sparkData={[stats.male * 0.3, stats.male * 0.5, stats.male * 0.7, stats.male * 0.85, stats.male, stats.total]}
+        />
+        <PBICard
+          title="Workers Paid"
+          value={stats.paid}
+          trend={stats.total > 0 ? `${stats.paidRate}% of total` : ""}
+          trendUp={Number(stats.paidRate) > 50}
+          male={stats.paidMale}
+          female={stats.paidFemale}
+          accent="#10b981"
+          sparkData={[stats.paid * 0.2, stats.paid * 0.4, stats.paid * 0.6, stats.paid * 0.8, stats.paid]}
+        />
+        <PBICard
+          title="Workers Unpaid"
+          value={stats.unpaid}
+          trend={stats.total > 0 ? `${(100 - Number(stats.paidRate)).toFixed(0)}% outstanding` : ""}
+          trendUp={false}
+          male={stats.unpaidMale}
+          female={stats.unpaidFemale}
+          accent="#f59e0b"
+          sparkData={[stats.unpaid, stats.unpaid * 0.9, stats.unpaid * 0.7, stats.unpaid * 0.5, stats.unpaid]}
+        />
+        <PBICard
+          title="Verified"
+          value={stats.verified}
+          trend={stats.total > 0 ? `${stats.verificationRate}% verified` : ""}
+          trendUp={Number(stats.verificationRate) > 50}
+          male={stats.verified}
+          female={0}
+          accent="#06b6d4"
+          sparkData={[stats.verified * 0.1, stats.verified * 0.3, stats.verified * 0.6, stats.verified * 0.9, stats.verified]}
+        />
+      </div>
+
+      {/* ── Charts Row 1 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Area Chart</p>
+                <h3 className="font-semibold text-sm mt-0.5">Verified by Region — 7 Days</h3>
+              </div>
+              <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-2.5 py-1 rounded-full font-medium hidden sm:inline">STACKED</span>
+            </div>
+          </div>
+          <div className="p-3 sm:p-4 h-64 sm:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.chartData}>
+                <defs>
+                  {stats.topRegionNames.map((r, i) => (
+                    <linearGradient key={r} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.05} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={30} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
+                {stats.topRegionNames.map((r, i) => (
+                  <Area key={r} type="monotone" dataKey={r} stackId="1" stroke={CHART_COLORS[i % CHART_COLORS.length]} fill={`url(#grad-${i})`} strokeWidth={2} />
+                ))}
+                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Gender Breakdown</p>
+            <h3 className="font-semibold text-sm mt-0.5">Male vs Female</h3>
+          </div>
+          <div className="p-4 sm:p-5">
+            {/* Male Bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Male</span>
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{stats.male} — {stats.total > 0 ? ((stats.male / stats.total) * 100).toFixed(0) : 0}%</span>
+              </div>
+              <div className="h-8 sm:h-7 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                <div
+                  className="h-full rounded-lg transition-all duration-700 ease-out flex items-center justify-end px-2.5"
+                  style={{
+                    width: `${stats.total > 0 ? Math.max((stats.male / stats.total) * 100, stats.male > 0 ? 8 : 0) : 0}%`,
+                    background: "linear-gradient(90deg, #6366f1, #818cf8)",
+                  }}
+                >
+                  {stats.male > 0 && <span className="text-[11px] font-bold text-white drop-shadow-sm whitespace-nowrap">{stats.male}</span>}
+                </div>
+              </div>
+            </div>
+            {/* Female Bar */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Female</span>
+                <span className="text-xs font-bold text-pink-600 dark:text-pink-400">{stats.female} — {stats.total > 0 ? ((stats.female / stats.total) * 100).toFixed(0) : 0}%</span>
+              </div>
+              <div className="h-8 sm:h-7 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden">
+                <div
+                  className="h-full rounded-lg transition-all duration-700 ease-out flex items-center justify-end px-2.5"
+                  style={{
+                    width: `${stats.total > 0 ? Math.max((stats.female / stats.total) * 100, stats.female > 0 ? 8 : 0) : 0}%`,
+                    background: "linear-gradient(90deg, #ec4899, #f472b6)",
+                  }}
+                >
+                  {stats.female > 0 && <span className="text-[11px] font-bold text-white drop-shadow-sm whitespace-nowrap">{stats.female}</span>}
+                </div>
+              </div>
+            </div>
+            {/* Summary Row */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 px-1.5 sm:px-2 py-2 text-center">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">M:F</p>
+                <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-300 mt-0.5">{stats.female > 0 ? (stats.male / stats.female).toFixed(1) : "—"}:1</p>
+              </div>
+              <div className="rounded-lg bg-pink-50 dark:bg-pink-950/30 px-1.5 sm:px-2 py-2 text-center">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-pink-400 uppercase tracking-wider">Female</p>
+                <p className="text-base sm:text-lg font-black text-pink-600 dark:text-pink-300 mt-0.5">{stats.total > 0 ? ((stats.female / stats.total) * 100).toFixed(1) : 0}%</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 px-1.5 sm:px-2 py-2 text-center">
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Gap</p>
+                <p className="text-base sm:text-lg font-black text-slate-600 dark:text-slate-300 mt-0.5">{Math.abs(stats.male - stats.female)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Charts Row 2 ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Bar Chart</p>
+            <h3 className="font-semibold text-sm mt-0.5">Workers by Region</h3>
+          </div>
+          <div className="p-3 sm:p-4 h-64 sm:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.topRegions} layout="vertical" margin={{ left: 5, right: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={16}>
+                  {stats.topRegions.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.85} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Donut Chart</p>
+            <h3 className="font-semibold text-sm mt-0.5">Payment Status</h3>
+          </div>
+          <div className="p-3 sm:p-4">
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <RePieChart>
+                  <Pie data={stats.paymentPie} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                    {stats.paymentPie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                </RePieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 sm:gap-5 mt-1 text-[11px] sm:text-xs">
+              <span className="flex items-center gap-1.5 font-medium"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "#10b981" }} /> Paid: {stats.paid}</span>
+              <span className="flex items-center gap-1.5 font-medium"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }} /> Unpaid: {stats.unpaid}</span>
+            </div>
+            <div className="mt-3 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-center">
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider">Collection Rate</p>
+              <p className="text-lg font-bold text-emerald-600">{stats.paidRate}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Column Chart</p>
+            <h3 className="font-semibold text-sm mt-0.5">By Position</h3>
+          </div>
+          <div className="p-3 sm:p-4 h-64 sm:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.positionData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#64748b" }} angle={-25} textAnchor="end" height={55} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24}>
+                  {stats.positionData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.85} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Power BI Analytical Insights ── */}
+      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
+          <div className="h-6 w-6 rounded bg-gradient-to-br from-amber-400 to-orange-500 grid place-items-center"><BarChart3 size={12} className="text-white" /></div>
+          <div>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">AI-Powered Insights</p>
+            <h3 className="font-semibold text-sm">Advanced Analytics</h3>
+          </div>
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <InsightCard
+              icon={<BarChart3 size={14} />}
+              title="Regional Coverage"
+              value={`${stats.regionCount}`}
+              unit="regions"
+              detail={`${stats.avgPerRegion} avg workers per region`}
+              trend={Number(stats.avgPerRegion) > 10 ? "up" : "down"}
+              insight={stats.total > 0 ? `Top region: ${stats.topRegions[0]?.name} contributes ${((stats.topRegions[0]?.count / stats.total) * 100).toFixed(1)}% of all registrations. Consider increasing outreach in underrepresented regions.` : "No data yet."}
+              accent="#6366f1"
+            />
+            <InsightCard
+              icon={<DollarSign size={14} />}
+              title="Payment Efficiency"
+              value={stats.paidRate}
+              unit="%"
+              detail={`${stats.paid} of ${stats.total} workers paid`}
+              trend={Number(stats.paidRate) > 60 ? "up" : "down"}
+              insight={stats.unpaid > stats.paid ? `Payment gap: ${stats.unpaid - stats.paid} more unpaid than paid. Target follow-up in ${stats.topRegions[0]?.name}.` : `Strong collection at ${stats.paidRate}%. Only ${stats.unpaid} outstanding.`}
+              accent="#10b981"
+            />
+            <InsightCard
+              icon={<Activity size={14} />}
+              title="Gender Balance"
+              value={stats.female > 0 ? (stats.male / stats.female).toFixed(1) : "—"}
+              unit=":1 M/F"
+              detail={`${stats.male} male, ${stats.female} female`}
+              trend={stats.female > stats.male * 0.4 ? "up" : "down"}
+              insight={stats.female < stats.male * 0.3 ? `Significant gender gap. Female participation at ${((stats.female / Math.max(stats.total, 1)) * 100).toFixed(1)}%. Recommend targeted outreach.` : `Balanced participation. Female share: ${((stats.female / Math.max(stats.total, 1)) * 100).toFixed(1)}%.`}
+              accent="#ec4899"
+            />
+          </div>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-4">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Zone Distribution</p>
+              <div className="space-y-2.5">
+                {stats.zonePie.map((z, i) => (
+                  <div key={z.name} className="flex items-center gap-3 text-xs">
+                    <span className="w-28 truncate text-slate-600 dark:text-slate-400 font-medium">{z.name}</span>
+                    <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stats.total > 0 ? (z.value / stats.total) * 100 : 0}%`, background: `linear-gradient(90deg, ${CHART_COLORS[i % CHART_COLORS.length]}, ${CHART_COLORS[(i + 1) % CHART_COLORS.length]})` }} />
+                    </div>
+                    <span className="w-10 text-right font-bold text-slate-700 dark:text-slate-300">{z.value}</span>
+                    <span className="w-12 text-right text-slate-400 text-[10px]">{stats.total > 0 ? ((z.value / stats.total) * 100).toFixed(0) : 0}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-4">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Top Divisions</p>
+              <div className="space-y-2.5">
+                {stats.topDivisions.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-3 text-xs">
+                    <span className="w-5 h-5 rounded-full grid place-items-center text-[9px] font-bold" style={{ background: CHART_COLORS[i % CHART_COLORS.length] + "18", color: CHART_COLORS[i % CHART_COLORS.length] }}>{i + 1}</span>
+                    <span className="w-28 truncate text-slate-600 dark:text-slate-400 font-medium">{d.name}</span>
+                    <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${stats.total > 0 ? (d.count / stats.total) * 100 : 0}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    </div>
+                    <span className="w-10 text-right font-bold text-slate-700 dark:text-slate-300">{d.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Power BI KPI Block ── */
+function KPIBlock({ label, value, sub, color, delta }: { label: string; value: number; sub: string; color: string; delta?: string }) {
+  return (
+    <div className="px-5 py-3.5">
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{label}</p>
+      <p className="text-2xl font-black mt-0.5" style={{ color }}>{value}</p>
+      <div className="flex items-center gap-1 mt-0.5">
+        {delta && <span className={`text-[10px] font-bold ${delta === "+" ? "text-emerald-500" : "text-amber-500"}`}>{delta}</span>}
+        <p className="text-[10px] text-slate-400">{sub}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Power BI Card Visual ── */
+function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData }: { title: string; value: number; trend: string; trendUp: boolean; male: number; female: number; accent: string; sparkData: number[] }) {
+  const max = Math.max(...sparkData, 1);
+  const points = sparkData.map((v, i) => `${(i / (sparkData.length - 1)) * 100},${100 - (v / max) * 80}`).join(" ");
+  const total = male + female;
+  return (
+    <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 relative overflow-hidden group hover:shadow-md transition-shadow">
+      <div className="absolute top-0 left-0 h-1 w-full" style={{ background: accent }} />
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
+          <p className="text-2xl sm:text-3xl font-black mt-1" style={{ color: accent }}>{value}</p>
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${trendUp ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-amber-50 dark:bg-amber-950/30 text-amber-600"}`}>
+            {trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+            {trend}
+          </div>
+        )}
+      </div>
+      {/* Gender Bar */}
+      {total > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+            <span className="flex items-center gap-2">
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: "#6366f1" }} />M</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: "#ec4899" }} />F</span>
+            </span>
+            <span>{male} / {female}</span>
+          </div>
+          <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+            <div className="h-full rounded-l-full transition-all duration-500" style={{ width: `${(male / total) * 100}%`, background: "#6366f1" }} />
+            <div className="h-full rounded-r-full transition-all duration-500" style={{ width: `${(female / total) * 100}%`, background: "#ec4899" }} />
+          </div>
+        </div>
+      )}
+      {/* Mini sparkline */}
+      <div className="mt-2.5 h-6 w-full opacity-60">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+          <defs>
+            <linearGradient id={`spark-${title}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={accent} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={accent} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <polygon points={`0,100 ${points} 100,100`} fill={`url(#spark-${title})`} />
+          <polyline points={points} fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Insight Card ── */
+function InsightCard({ icon, title, value, unit, detail, trend, insight, accent }: { icon: React.ReactNode; title: string; value: string | number; unit: string; detail: string; trend: "up" | "down"; insight: string; accent: string }) {
+  return (
+    <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-4 relative overflow-hidden">
+      <div className="absolute top-0 left-0 h-1 w-full" style={{ background: accent }} />
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded grid place-items-center" style={{ background: accent + "15", color: accent }}>{icon}</div>
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{title}</p>
+        </div>
+        {trend === "up" ? <TrendingUp size={13} className="text-emerald-500" /> : <TrendingDown size={13} className="text-amber-500" />}
+      </div>
+      <div className="flex items-baseline gap-1">
+        <p className="text-2xl font-black" style={{ color: accent }}>{value}</p>
+        <span className="text-xs text-slate-400 font-medium">{unit}</span>
+      </div>
+      <p className="text-[11px] text-slate-400 mt-0.5">{detail}</p>
+      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{insight}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   USER MANAGEMENT
+   ══════════════════════════════════════════════════════════════ */
+function UserManagementSection() {
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ email: "", username: "", displayName: "", role: "regional_officer" as RoleType, zone: "", region: "" });
+  const [tempPw, setTempPw] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: async () => fetch("/api/auth/users").then(r => r.json()) });
+
+  const createUser = useMutation({
+    mutationFn: async (f: typeof form) => { const r = await fetch("/api/auth/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
+    onSuccess: (j) => { setTempPw(j.tempPassword); qc.invalidateQueries({ queryKey: ["users"] }); setError(null); },
+    onError: (e: any) => setError(e.message),
+  });
+  const toggleActive = useMutation({
+    mutationFn: async ({ userId, action }: { userId: string; action: string }) => fetch("/api/auth/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, action }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+  const resetPassword = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const r = await fetch("/api/auth/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, action: "reset_password", newPassword }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      return j;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setResetSuccess(resetTarget?.name || "User"); setResetError(null); setNewPassword(""); setTimeout(() => { setResetTarget(null); setResetSuccess(null); }, 2500); },
+    onError: (e: any) => { setResetError(e.message); setResetSuccess(null); },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">All Users ({data?.users?.length || 0})</h3>
+        <Button onClick={() => { setShowCreate(true); setTempPw(null); setError(null); }} className="gap-1.5"><UserPlus size={16} /> Create User</Button>
+      </div>
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="rounded-2xl">
+              <CardHeader className="flex flex-row items-center justify-between"><h4 className="font-semibold">Create New User</h4><button onClick={() => setShowCreate(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="user@dclm.org" /></div>
+                  <div><Label>Username</Label><Input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} placeholder="username" /></div>
+                  <div><Label>Full Name</Label><Input value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="John Doe" /></div>
+                  <div><Label>Role</Label>
+                    <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value as RoleType, zone: "", region: "" })} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                       <option value="regional_officer">Regional Officer</option><option value="verifier">Verifier</option><option value="viewer">Viewer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option>
+                    </select>
+                  </div>
+                  {(form.role === "regional_officer" || form.role === "verifier") && (
+                    <>
+                      <div><Label>Zone</Label>
+                        <select value={form.zone} onChange={e => setForm({ ...form, zone: e.target.value, region: "" })} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                          <option value="">Select zone</option>
+                          {Object.keys(ZONE_STRUCTURE).map(z => <option key={z} value={z}>{z}</option>)}
+                        </select>
+                      </div>
+                      <div><Label>Region</Label>
+                        <select value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} disabled={!form.zone} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50">
+                          <option value="">{form.zone ? "Select region" : "Select zone first"}</option>
+                          {form.zone && Object.keys(ZONE_STRUCTURE[form.zone] || {}).map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+                {tempPw && (
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 p-4">
+                    <p className="text-sm font-semibold text-emerald-800">User created! Temporary password:</p>
+                    <div className="mt-2 flex items-center gap-2"><code className="bg-white dark:bg-slate-800 border px-3 py-1.5 rounded-lg text-sm font-mono">{tempPw}</code><Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(tempPw)}>Copy</Button></div>
+                    <p className="text-xs text-emerald-700 mt-2">User must change this on first login.</p>
+                  </div>
+                )}
+                <Button loading={createUser.isPending} onClick={() => createUser.mutate(form)} disabled={!form.email || !form.username || !form.displayName}><Plus size={16} /> Create User</Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Email</th><th>Role</th><th>Zone</th><th>Region</th><th>Temp Pw</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody className="divide-y">
+              {data?.users?.map((u: any) => (
+                <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="px-4 py-3 font-medium">{u.displayName}</td><td className="text-slate-500">{u.email}</td>
+                  <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span></td>
+                  <td className="text-slate-500 text-xs">{u.zone || "—"}</td>
+                  <td className="text-slate-500 text-xs">{u.region || "—"}</td>
+                  <td>{u.isTempPassword ? <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Pending</span> : <span className="text-xs text-slate-400">Changed</span>}</td>
+                  <td>{u.isActive ? <span className="text-emerald-600 text-xs font-medium">Active</span> : <span className="text-red-600 text-xs font-medium">Inactive</span>}</td>
+                  <td className="text-right"><div className="flex items-center justify-end gap-1">
+                    <button title="Reset Password" onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100">{u.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} className="text-red-500" />}</button>
+                  </div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* Reset Password Modal */}
+      <AnimatePresence>
+        {resetTarget && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm" onClick={() => { if (!resetPassword.isPending) { setResetTarget(null); setResetError(null); setResetSuccess(null); } }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-md mx-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 grid place-items-center text-amber-600">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm text-slate-800 dark:text-slate-200">Reset Password</h4>
+                    <p className="text-[11px] text-slate-400">for {resetTarget.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => { if (!resetPassword.isPending) { setResetTarget(null); setResetError(null); setResetSuccess(null); } }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X size={14} /></button>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                {resetSuccess ? (
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4 text-center">
+                    <CheckCircle2 size={28} className="mx-auto text-emerald-500 mb-2" />
+                    <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Password Reset Successfully</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{resetTarget.name}&apos;s password has been updated. They will need to use the new password on next login.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>New Password</Label>
+                      <Input type="password" value={newPassword} onChange={e => { setNewPassword(e.target.value); setResetError(null); }} placeholder="Minimum 12 characters" className="mt-1.5" autoFocus />
+                      {newPassword.length > 0 && newPassword.length < 12 && (
+                        <p className="text-[10px] text-amber-600 mt-1">{12 - newPassword.length} more characters needed</p>
+                      )}
+                    </div>
+                    <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-3">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Password Requirements</p>
+                      <div className="grid grid-cols-2 gap-1 text-[11px]">
+                        <span className={newPassword.length >= 12 ? "text-emerald-600" : "text-slate-400"}>{newPassword.length >= 12 ? "✓" : "○"} 12+ characters</span>
+                        <span className={/[A-Z]/.test(newPassword) ? "text-emerald-600" : "text-slate-400"}>{/[A-Z]/.test(newPassword) ? "✓" : "○"} Uppercase letter</span>
+                        <span className={/[a-z]/.test(newPassword) ? "text-emerald-600" : "text-slate-400"}>{/[a-z]/.test(newPassword) ? "✓" : "○"} Lowercase letter</span>
+                        <span className={/[0-9]/.test(newPassword) ? "text-emerald-600" : "text-slate-400"}>{/[0-9]/.test(newPassword) ? "✓" : "○"} Number</span>
+                        <span className={/[^A-Za-z0-9]/.test(newPassword) ? "text-emerald-600 col-span-2" : "text-slate-400 col-span-2"}>{/[^A-Za-z0-9]/.test(newPassword) ? "✓" : "○"} Special character</span>
+                      </div>
+                    </div>
+                    {resetError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2">{resetError}</p>}
+                  </>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                {!resetSuccess && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => { setResetTarget(null); setResetError(null); }} disabled={resetPassword.isPending}>Cancel</Button>
+                    <Button size="sm" loading={resetPassword.isPending} disabled={!newPassword || newPassword.length < 12} onClick={() => resetPassword.mutate({ userId: resetTarget.id, newPassword })} className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"><Key size={13} /> Reset Password</Button>
+                  </>
+                )}
+                {resetSuccess && <Button size="sm" onClick={() => { setResetTarget(null); setResetSuccess(null); }}>Done</Button>}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WORKER REGISTRATION
+   ══════════════════════════════════════════════════════════════ */
+function WorkerRegistrationSection({ user }: { user: any }) {
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkPreview, setBulkPreview] = useState<{ headers: string[]; rows: any[] } | null>(null);
+  const [bulkErrors, setBulkErrors] = useState<{ row: number; message: string }[] | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; errors: { row: number; message: string }[]; total: number } | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [zone, setZone] = useState(""); const [region, setRegion] = useState(""); const [division, setDivision] = useState("");
+  const [name, setName] = useState(""); const [gender, setGender] = useState<"male" | "female">("male");
+  const [position, setPosition] = useState<any>("adult_worker"); const [paymentStatus, setPaymentStatus] = useState<any>("unpaid");
+  const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const zones = Object.keys(ZONE_STRUCTURE);
+  const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
+  const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
+
+  const createWorker = useMutation({
+    mutationFn: async () => { const r = await fetch("/api/auth/workers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, gender, zone, region, division, position, paymentStatus }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setSuccess(`"${name}" registered`); setName(""); setZone(""); setRegion(""); setDivision(""); setError(null); setTimeout(() => setSuccess(null), 3000); },
+    onError: (e: any) => setError(e.message),
+  });
+  const deleteWorker = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "delete" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
+  const toggleVerify = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "toggleVerified" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
+
+  function parseCSV(text: string) {
+    const lines = text.trim().split(/\r?\n/).filter((l: string) => l.trim());
+    if (lines.length < 2) return { headers: [], rows: [] };
+    const headers = lines[0].split(",").map((h: string) => h.trim());
+    const rows = lines.slice(1).map((line: string) => {
+      const values = line.split(",").map((v: string) => v.trim());
+      const obj: any = {};
+      headers.forEach((h: string, i: number) => { obj[h] = values[i] || ""; });
+      return obj;
+    });
+    return { headers, rows };
+  }
+
+  function handleBulkFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBulkFile(file);
+    setBulkResult(null);
+    setBulkErrors(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const parsed = parseCSV(text);
+      setBulkPreview(parsed);
+    };
+    reader.readAsText(file);
+  }
+
+  function handleBulkUpload() {
+    if (!bulkPreview?.rows.length) return;
+    setBulkUploading(true);
+    fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows: bulkPreview.rows }) })
+      .then(r => r.json())
+      .then(j => {
+        setBulkResult(j);
+        if (j.created > 0) qc.invalidateQueries({ queryKey: ["workers"] });
+      })
+      .catch(() => setBulkErrors([{ row: 0, message: "Upload failed" }]))
+      .finally(() => setBulkUploading(false));
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h3 className="font-semibold">Registered Workers ({data?.workers?.length || 0})</h3>
+        <div className="flex items-center gap-2">
+          {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && (
+            <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
+          )}
+          {user.role !== "verifier" && (
+            <Button variant="outline" size="sm" onClick={() => { setShowBulk(!showBulk); setShowForm(false); setBulkPreview(null); setBulkResult(null); setBulkErrors(null); setBulkFile(null); }} className="gap-1.5"><Upload size={14} /> Bulk Upload</Button>
+          )}
+          <Button onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); }} className="gap-1.5"><UserPlus size={14} /> Register Worker</Button>
+        </div>
+      </div>
+      <AnimatePresence>
+        {showForm && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="rounded-2xl">
+              <CardHeader className="flex flex-row items-center justify-between"><h4 className="font-semibold">Register New Worker</h4><button onClick={() => setShowForm(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Mensah" /></div>
+                  <div><Label>Gender *</Label><select value={gender} onChange={e => setGender(e.target.value as any)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="male">Male</option><option value="female">Female</option></select></div>
+                  <div><Label>Zone *</Label><select value={zone} onChange={e => { setZone(e.target.value); setRegion(""); setDivision(""); }} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="">Select zone</option>{zones.map(z => <option key={z} value={z}>{z}</option>)}</select></div>
+                  <div><Label>Region *</Label><select value={region} onChange={e => { setRegion(e.target.value); setDivision(""); }} disabled={!zone} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50"><option value="">Select region</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                  <div><Label>Division *</Label><select value={division} onChange={e => setDivision(e.target.value)} disabled={!region} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50"><option value="">Select division</option>{divisions.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                  <div><Label>Position *</Label><select value={position} onChange={e => setPosition(e.target.value)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">{Object.entries(POSITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                  <div><Label>Payment Status *</Label><select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">{Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                </div>
+                {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+                {success && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{success}</p>}
+                <Button loading={createWorker.isPending} onClick={() => createWorker.mutate()} disabled={!name || !zone || !region || !division}><Plus size={16} /> Register Worker</Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ── Bulk Upload Panel ── */}
+      <AnimatePresence>
+        {showBulk && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="rounded-2xl">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2"><FileSpreadsheet size={18} className="text-indigo-500" /><h4 className="font-semibold">Bulk Upload Workers</h4></div>
+                <button onClick={() => setShowBulk(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Download Template */}
+                <div className="flex items-center gap-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 px-4 py-3">
+                  <Download size={18} className="text-indigo-500 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Download CSV Template</p>
+                    <p className="text-xs text-slate-500">Get the template with headers and example rows</p>
+                  </div>
+                  <a href="/api/auth/workers/bulk" download className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors"><Download size={12} /> Download</a>
+                </div>
+                {/* File Upload Zone */}
+                <div className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors ${bulkFile ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/10" : "border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600"}`}>
+                  <input type="file" accept=".csv" onChange={handleBulkFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <Upload size={24} className={`mx-auto ${bulkFile ? "text-emerald-500" : "text-slate-400"}`} />
+                  {bulkFile ? (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{bulkFile.name}</p>
+                      <p className="text-xs text-slate-500 mt-1">{bulkPreview?.rows.length || 0} rows detected</p>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Drop CSV file here or click to browse</p>
+                      <p className="text-xs text-slate-400 mt-1">Accepts .csv files only</p>
+                    </div>
+                  )}
+                </div>
+                {/* Preview Table */}
+                {bulkPreview && bulkPreview.rows.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Preview (first 10 rows)</p>
+                    <div className="overflow-x-auto rounded-xl border">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500">
+                          <tr>{bulkPreview.headers.map((h: string) => <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>)}</tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {bulkPreview.rows.slice(0, 10).map((row: any, i: number) => (
+                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                              {bulkPreview.headers.map((h: string) => <td key={h} className="px-3 py-2 text-slate-600 dark:text-slate-400">{row[h] || "—"}</td>)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {bulkPreview.rows.length > 10 && <p className="text-xs text-slate-400 mt-2">...and {bulkPreview.rows.length - 10} more rows</p>}
+                  </div>
+                )}
+                {/* Upload Button */}
+                {bulkPreview && bulkPreview.rows.length > 0 && !bulkResult && (
+                  <Button loading={bulkUploading} onClick={handleBulkUpload} className="gap-1.5"><Upload size={14} /> Upload {bulkPreview.rows.length} Workers</Button>
+                )}
+                {/* Result */}
+                {bulkResult && (
+                  <div className={`rounded-xl p-4 ${bulkResult.errors.length > 0 ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200" : "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200"}`}>
+                    <div className="flex items-center gap-2">
+                      {bulkResult.errors.length > 0 ? <AlertTriangle size={16} className="text-amber-500" /> : <span className="text-emerald-500 text-lg">&#10003;</span>}
+                      <p className="text-sm font-semibold">{bulkResult.created} of {bulkResult.total} workers imported successfully</p>
+                    </div>
+                    {bulkResult.errors.length > 0 && (
+                      <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                        {bulkResult.errors.map((e, i) => <p key={i} className="text-xs text-amber-700 dark:text-amber-300">{e.message}</p>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /></div> : (
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
+            <tbody className="divide-y">
+              {data?.workers?.map((w: any) => (
+                <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
+                  <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
+                  <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                  <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
+                  <td><button onClick={() => toggleVerify.mutate(w.id)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
+                  <td><button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button></td>
+                </tr>
+              ))}
+              {data?.workers?.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VERIFICATION
+   ══════════════════════════════════════════════════════════════ */
+function VerificationSection({ user }: { user: any }) {
+  const [locked, setLocked] = useState(false);
+  const [code, setCode] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  const verify = (e: React.FormEvent) => { e.preventDefault(); if (locked) { setResult("Verification window is locked by National Officer."); return; } if (code.length < 2) { setResult("Enter a valid worker name."); return; } setResult(`Worker "${code}" — Verified ✓`); };
+  return (
+    <div className="space-y-4">
+      <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
+        <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Verification: {!locked ? "OPEN" : "LOCKED"}</div>
+        {isAdmin(user.role as RoleType) && <button onClick={() => setLocked(!locked)} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5">{locked ? "Unlock" : "Lock"}</button>}
+      </div>
+      <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3></CardHeader>
+        <CardContent>
+          <form onSubmit={verify} className="flex gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="Enter worker name" className="max-w-xs" /><Button type="submit">Verify</Button></form>
+          {result && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 border p-3 text-sm">{result}</div>}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APPROVAL — Souvenir Approval by Region
+   ══════════════════════════════════════════════════════════════ */
+function ApprovalSection({ user }: { user: any }) {
+  const [locked, setLocked] = useState(false);
+  const [approvals, setApprovals] = useState<Record<string, { approved: boolean; approvedBy: string }>>({});
+  const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+
+  const regionStats = useMemo(() => {
+    const workers = data?.workers || [];
+    const map: Record<string, { total: number; verified: number; approved: boolean; approvedBy: string }> = {};
+    workers.forEach((w: any) => {
+      if (!map[w.region]) map[w.region] = { total: 0, verified: 0, approved: false, approvedBy: "" };
+      map[w.region].total++;
+      if (w.verified) map[w.region].verified++;
+    });
+    Object.keys(map).forEach(r => {
+      map[r].approved = !!approvals[r]?.approved;
+      map[r].approvedBy = approvals[r]?.approvedBy || "";
+    });
+    return Object.entries(map).map(([region, stats]) => ({ region, ...stats }));
+  }, [data, approvals]);
+
+  const totalWorkers = regionStats.reduce((s, r) => s + r.total, 0);
+  const totalVerified = regionStats.reduce((s, r) => s + r.verified, 0);
+  const totalApproved = regionStats.filter(r => r.approved).length;
+  const totalPending = regionStats.filter(r => !r.approved && r.verified > 0).length;
+  const approvalPct = regionStats.length > 0 ? Math.round((totalApproved / regionStats.length) * 100) : 0;
+  const verifiedPct = totalWorkers > 0 ? Math.round((totalVerified / totalWorkers) * 100) : 0;
+
+  function toggleApproval(region: string) {
+    if (locked) return;
+    setApprovals(prev => ({
+      ...prev,
+      [region]: prev[region]?.approved
+        ? { approved: false, approvedBy: "" }
+        : { approved: true, approvedBy: user.displayName },
+    }));
+  }
+
+  function approveAll() {
+    if (locked) return;
+    const next: typeof approvals = {};
+    regionStats.forEach(r => { if (!r.approved && r.verified > 0) next[r.region] = { approved: true, approvedBy: user.displayName }; });
+    setApprovals(prev => ({ ...prev, ...next }));
+  }
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── Power BI Gradient Header ── */}
+      <div className="relative rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #6366f1 40%, #3b82f6 100%)" }}>
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "radial-gradient(circle at 25% 25%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+        <div className="relative px-6 py-5 sm:px-8 sm:py-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/15 backdrop-blur-sm grid place-items-center">
+                <ClipboardCheck size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight">Souvenir Approval</h2>
+                <p className="text-xs sm:text-sm text-white/70 mt-0.5">Approve verified workers per region for souvenir distribution</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${!locked ? "bg-white/15 text-white" : "bg-red-500/30 text-red-100"}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${!locked ? "bg-emerald-300" : "bg-red-300"}`} />
+                {!locked ? "OPEN" : "LOCKED"}
+              </div>
+              {isAdmin(user.role as RoleType) && (
+                <button onClick={() => setLocked(!locked)} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 backdrop-blur-sm hover:bg-white/25 transition-colors">
+                  {locked ? "Unlock" : "Lock"}
+                </button>
+              )}
+              {!locked && isAdmin(user.role as RoleType) && totalApproved < regionStats.length && regionStats.length > 0 && (
+                <button onClick={approveAll} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-indigo-700 hover:bg-white/90 transition-colors shadow-lg shadow-black/10">
+                  <CheckCircle2 size={13} /> Approve All
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI Strip ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden divide-x divide-slate-100 dark:divide-slate-800">
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Total Workers</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#6366f1" }}>{totalWorkers}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">All registered</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Verified</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#06b6d4" }}>{totalVerified}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">{verifiedPct}% of total</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approved</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#10b981" }}>{totalApproved}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">{regionStats.length} regions total</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Pending</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#f59e0b" }}>{totalPending}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Awaiting approval</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approval Rate</p>
+          <p className="text-2xl font-black mt-0.5" style={{ color: "#8b5cf6" }}>{approvalPct}%</p>
+          <div className="flex items-center gap-1 mt-1">
+            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${approvalPct}%`, background: "linear-gradient(90deg, #8b5cf6, #6366f1)" }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+      ) : (
+        <>
+          {/* ── Ring Chart + Region Cards ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+            {/* Donut / Ring Chart */}
+            <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 h-1 w-full" style={{ background: "linear-gradient(90deg, #8b5cf6, #6366f1, #10b981)" }} />
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-4">Approval Progress</p>
+              <div className="relative w-40 h-40">
+                <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90">
+                  <circle cx="80" cy="80" r="65" fill="none" stroke="#f1f5f9" strokeWidth="14" className="dark:stroke-slate-800" />
+                  <circle
+                    cx="80" cy="80" r="65"
+                    fill="none"
+                    stroke="url(#ring-grad)"
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(approvalPct / 100) * 2 * Math.PI * 65} ${2 * Math.PI * 65}`}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                  <defs>
+                    <linearGradient id="ring-grad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="50%" stopColor="#6366f1" />
+                      <stop offset="100%" stopColor="#10b981" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{approvalPct}%</span>
+                  <span className="text-[10px] text-slate-400 font-medium">approved</span>
+                </div>
+              </div>
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-5">
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#10b981" }} />
+                  Approved ({totalApproved})
+                </span>
+                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }} />
+                  Pending ({totalPending})
+                </span>
+              </div>
+            </div>
+
+            {/* Region Cards — PBICard style */}
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {regionStats.map((r, i) => {
+                const rate = r.total > 0 ? Math.round((r.verified / r.total) * 100) : 0;
+                const accent = r.approved ? "#10b981" : r.verified > 0 ? "#f59e0b" : "#94a3b8";
+                return (
+                  <div key={r.region} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+                    <div className="absolute top-0 left-0 h-1 w-full transition-all duration-300" style={{ background: accent }} />
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Region</p>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate max-w-[160px]">{r.region}</p>
+                      </div>
+                      {r.approved ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 shrink-0">
+                          <CheckCircle2 size={10} /> Approved
+                        </span>
+                      ) : r.verified > 0 ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 shrink-0">
+                          <AlertCircle size={10} /> Pending
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 shrink-0">—</span>
+                      )}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <p className="text-[10px] text-slate-400">Workers</p>
+                        <p className="text-lg font-black" style={{ color: "#6366f1" }}>{r.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400">Verified</p>
+                        <p className="text-lg font-black" style={{ color: "#06b6d4" }}>{r.verified}</p>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                        <span>Approval Rate</span>
+                        <span className="font-semibold" style={{ color: accent }}>{rate}%</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${rate}%`, background: `linear-gradient(90deg, ${accent}88, ${accent})` }} />
+                      </div>
+                    </div>
+
+                    {/* Mini Gender Split */}
+                    {r.total > 0 && (
+                      <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400">Verified by Officer</span>
+                        <span className="text-[10px] font-semibold" style={{ color: accent }}>{r.verified} / {r.total}</span>
+                      </div>
+                    )}
+
+                    {/* Action Button */}
+                    {r.verified > 0 && (
+                      <div className="mt-3">
+                        {!locked ? (
+                          <button
+                            onClick={() => toggleApproval(r.region)}
+                            className={`w-full text-center py-2 rounded-lg text-xs font-semibold transition-all ${
+                              r.approved
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                : "text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30"
+                            }`}
+                            style={!r.approved ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" } : undefined}
+                          >
+                            {r.approved ? "Revoke Approval" : "Approve Souvenirs"}
+                          </button>
+                        ) : (
+                          <div className="w-full text-center py-2 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800/50 text-slate-400 italic border border-dashed border-slate-200 dark:border-slate-700">
+                            Locked
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {r.approved && r.approvedBy && (
+                      <p className="text-[10px] text-slate-400 mt-1.5 text-center">Approved by {r.approvedBy}</p>
+                    )}
+                  </div>
+                );
+              })}
+              {regionStats.length === 0 && (
+                <div className="sm:col-span-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center">
+                  <ClipboardCheck size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                  <p className="text-sm text-slate-400">No regions found. Register workers first.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Region Table (Full Width) ── */}
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Regional Breakdown</p>
+                <p className="text-[10px] text-slate-400">Detailed approval status per region</p>
+              </div>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{regionStats.length} regions</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Workers</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Verified</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Verified %</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Status</th>
+                    <th className="text-[10px] font-semibold uppercase tracking-widest">Approved By</th>
+                    <th className="text-right text-[10px] font-semibold uppercase tracking-widest">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {regionStats.map((r, i) => {
+                    const rate = r.total > 0 ? Math.round((r.verified / r.total) * 100) : 0;
+                    return (
+                      <tr key={r.region} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#ef4444"][i % 7]}, ${["#818cf8", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#22d3ee", "#f87171"][i % 7]})` }}>
+                              {r.region.charAt(0)}
+                            </div>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{r.region}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 font-semibold text-slate-700 dark:text-slate-300">{r.total}</td>
+                        <td className="px-5 py-3.5">
+                          <span className={`font-semibold ${r.verified === r.total && r.total > 0 ? "text-emerald-600" : "text-amber-600"}`}>{r.verified}</span>
+                          <span className="text-slate-400"> / {r.total}</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: rate === 100 ? "#10b981" : rate >= 50 ? "#6366f1" : "#f59e0b" }} />
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-500 w-8">{rate}%</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {r.approved ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
+                              <CheckCircle2 size={10} /> Approved
+                            </span>
+                          ) : r.verified > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-800">
+                              <AlertCircle size={10} /> Pending
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-500">{r.approvedBy || "—"}</td>
+                        <td className="px-5 py-3.5 text-right">
+                          {r.verified > 0 && !locked && (
+                            <button
+                              onClick={() => toggleApproval(r.region)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                                r.approved
+                                  ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                  : "text-white shadow-md"
+                              }`}
+                              style={!r.approved ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" } : undefined}
+                            >
+                              {r.approved ? "Revoke" : "Approve"}
+                            </button>
+                          )}
+                          {r.verified > 0 && locked && (
+                            <span className="text-[10px] text-slate-400 italic">Locked</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Approved Regions Summary Bar ── */}
+          {totalApproved > 0 && (
+            <div className="rounded-2xl overflow-hidden border border-emerald-200 dark:border-emerald-800" style={{ background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%)" }}>
+              <div className="dark:bg-emerald-950/20 px-5 py-4">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                    {totalApproved} of {regionStats.length} regions approved for souvenir distribution
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {regionStats.filter(r => r.approved).map(r => (
+                    <span key={r.region} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <CheckCircle2 size={10} /> {r.region}
+                      <span className="text-emerald-500 dark:text-emerald-400 ml-0.5">({r.verified} workers)</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ATTENDANCE
+   ══════════════════════════════════════════════════════════════ */
+function AttendanceSection() {
+  const qc = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const { data: workerData } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: attData, isLoading } = useQuery({ queryKey: ["attendance"], queryFn: async () => fetch("/api/auth/attendance").then(r => r.json()) });
+  const checkIn = useMutation({ mutationFn: async (w: any) => fetch("/api/auth/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: w.id, workerName: w.name, zone: w.zone, region: w.region, division: w.division }) }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["attendance"] }); setSelectedWorker(null); setSearchQuery(""); } });
+  const checkOut = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "checkout" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }) });
+  const filteredWorkers = workerData?.workers?.filter((w: any) => searchQuery && (w.name.toLowerCase().includes(searchQuery.toLowerCase()) || w.id.toLowerCase().includes(searchQuery.toLowerCase()))) || [];
+  const checkedInIds = new Set((attData?.attendances || []).filter((a: any) => !a.checkedOutAt).map((a: any) => a.workerId));
+
+  return (
+    <div className="space-y-4">
+      <div><Label>Search Worker to Check In</Label>
+        <div className="relative mt-1"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSelectedWorker(null); }} placeholder="Type worker name..." className="pl-10" /></div>
+        {searchQuery && !selectedWorker && (
+          <div className="mt-2 rounded-xl border bg-white dark:bg-slate-900 max-h-48 overflow-auto divide-y">
+            {filteredWorkers.map((w: any) => (
+              <button key={w.id} onClick={() => setSelectedWorker(w)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between">
+                <span>{w.name} <span className="text-xs text-slate-400">({w.region})</span></span>
+                {checkedInIds.has(w.id) ? <span className="text-xs text-emerald-600">Checked In</span> : <span className="text-xs text-slate-400">Not in</span>}
+              </button>
+            ))}
+            {filteredWorkers.length === 0 && <p className="px-4 py-3 text-sm text-slate-400">No workers found.</p>}
+          </div>
+        )}
+      </div>
+      {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="font-semibold">{selectedWorker.name}</p><p className="text-sm text-slate-500">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)}>{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
+      <h3 className="font-semibold">Check-in Log ({attData?.attendances?.length || 0})</h3>
+      {isLoading ? <Skeleton className="h-12 w-full" /> : (
+        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody className="divide-y">
+              {(attData?.attendances || []).map((a: any) => (
+                <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="px-4 py-3 font-medium">{a.workerName}</td><td className="text-xs">{a.zone}</td><td className="text-xs">{a.region}</td><td className="text-xs">{new Date(a.checkedInAt).toLocaleString()}</td>
+                  <td>{a.checkedOutAt ? <span className="text-xs text-slate-500">Left</span> : <span className="text-xs text-emerald-600 font-medium">Present</span>}</td>
+                  <td>{!a.checkedOutAt && <button onClick={() => checkOut.mutate(a.workerId)} className="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 hover:bg-red-50">Check Out</button>}</td>
+                </tr>
+              ))}
+              {(!attData?.attendances || attData.attendances.length === 0) && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No check-ins yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPORTS
+   ══════════════════════════════════════════════════════════════ */
+function BroadcastSection({ user }: { user: any }) {
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState(""); const [content, setContent] = useState("");
+  const [targetRole, setTargetRole] = useState<RoleType | "all">("all");
+  const [priority, setPriority] = useState<"normal" | "urgent">("normal");
+  const [success, setSuccess] = useState<string | null>(null);
+  const canSend = isAdmin(user.role as RoleType);
+
+  const { data, isLoading } = useQuery({ queryKey: ["messages"], queryFn: async () => fetch("/api/auth/messages").then(r => r.json()) });
+
+  const sendMessage = useMutation({
+    mutationFn: async () => fetch("/api/auth/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content, targetRole, priority }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["messages"] }); qc.invalidateQueries({ queryKey: ["messages", "unread"] }); setTitle(""); setContent(""); setSuccess("Broadcast sent!"); setShowForm(false); setTimeout(() => setSuccess(null), 3000); },
+  });
+  const markRead = useMutation({
+    mutationFn: async (messageId: string) => fetch("/api/auth/messages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mark_read", messageId }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["messages"] }); qc.invalidateQueries({ queryKey: ["messages", "unread"] }); },
+  });
+  const markAllRead = useMutation({
+    mutationFn: async () => fetch("/api/auth/messages", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mark_all_read" }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["messages"] }); qc.invalidateQueries({ queryKey: ["messages", "unread"] }); },
+  });
+
+  const messages = data?.messages || [];
+  const unreadCount = data?.unreadCount || 0;
+  const ROLE_COLORS: Record<string, string> = { all: "#6366f1", super_admin: "#ef4444", national_officer: "#8b5cf6", regional_officer: "#3b82f6", verifier: "#f59e0b", viewer: "#10b981" };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="font-semibold">Broadcast</h3>
+          {unreadCount > 0 && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{unreadCount} unread</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && <Button variant="outline" size="sm" onClick={() => markAllRead.mutate()} className="gap-1.5 text-xs">Mark all read</Button>}
+          {canSend && <Button onClick={() => setShowForm(!showForm)} className="gap-1.5"><Send size={16} /> New Broadcast</Button>}
+        </div>
+      </div>
+
+      <AnimatePresence>{showForm && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+          <Card className="rounded-2xl"><CardHeader className="flex flex-row items-center justify-between"><h4 className="font-semibold">Send Broadcast</h4><button onClick={() => setShowForm(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="md:col-span-2"><Label>Title *</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Broadcast title" /></div>
+                <div className="md:col-span-2"><Label>Message *</Label><textarea value={content} onChange={e => setContent(e.target.value)} rows={4} className="flex w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900" placeholder="Write your broadcast message..." /></div>
+                <div><Label>Send To</Label>
+                  <select value={targetRole} onChange={e => setTargetRole(e.target.value as any)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                    <option value="all">Everyone</option>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="national_officer">National Officer</option>
+                    <option value="regional_officer">Regional Officer</option>
+                    <option value="verifier">Verifier</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </div>
+                <div><Label>Priority</Label>
+                  <select value={priority} onChange={e => setPriority(e.target.value as any)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                    <option value="normal">Normal</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <Button loading={sendMessage.isPending} onClick={() => sendMessage.mutate()} disabled={!title || !content}><Send size={16} /> Send Broadcast</Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}</AnimatePresence>
+
+      {success && <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 px-4 py-2.5 text-sm text-emerald-700">{success}</div>}
+
+      {isLoading ? <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-20 w-full" /></div> : (
+        <div className="space-y-3">
+          {messages.map((m: any) => {
+            const isUnread = !m.readBy?.includes(user.id);
+            return (
+              <div key={m.id} className={`rounded-2xl border p-4 transition-all ${isUnread ? "bg-white dark:bg-slate-900 border-indigo-200 dark:border-indigo-800 shadow-sm ring-1 ring-indigo-100 dark:ring-indigo-900/30" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75"}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isUnread && <span className="h-2 w-2 rounded-full bg-indigo-500 shrink-0" />}
+                      <h4 className={`font-semibold text-sm ${isUnread ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"}`}>{m.title}</h4>
+                      {m.priority === "urgent" && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-600">URGENT</span>}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: (ROLE_COLORS[m.targetRole] || "#6366f1") + "15", color: ROLE_COLORS[m.targetRole] || "#6366f1" }}>
+                        {m.targetRole === "all" ? "Everyone" : m.targetRole?.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className={`text-sm mt-1.5 ${isUnread ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{m.content}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                      <span>From {m.senderName}</span>
+                      <span>{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  {isUnread && (
+                    <button onClick={() => markRead.mutate(m.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+                      Mark read
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {messages.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-slate-300 dark:text-slate-600 mb-2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              <p className="text-sm text-slate-400">No broadcasts yet.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SESSIONS
+   ══════════════════════════════════════════════════════════════ */
+function SessionsSection() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["sessions"], queryFn: async () => fetch("/api/auth/sessions").then(r => r.json()) });
+  const revokeAll = useMutation({ mutationFn: async () => fetch("/api/auth/sessions", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["sessions"] }); location.reload(); } });
+  const revokeOne = useMutation({ mutationFn: async (sid: string) => fetch("/api/auth/sessions", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }) });
+  if (isLoading) return <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between"><h3 className="font-semibold">Active Sessions</h3><Button variant="outline" size="sm" onClick={() => revokeAll.mutate()}>Logout all devices</Button></div>
+      <div className="space-y-3">
+        {data?.sessions?.map((s: any) => (
+          <div key={s.id} className="flex items-center justify-between rounded-xl border px-4 py-3 bg-white dark:bg-slate-900">
+            <div><p className="text-sm font-medium">{s.browser} • {s.os} {data.currentSid === s.id && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Current</span>}</p><p className="text-xs text-slate-500">{s.ip} • {new Date(s.lastActivity).toLocaleString()}</p></div>
+            <button onClick={() => revokeOne.mutate(s.id)} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><X size={16} /></button>
+          </div>
+        ))}
+        {data?.sessions?.length === 0 && <p className="text-sm text-slate-500 text-center py-8">No active sessions.</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AUDIT
+   ══════════════════════════════════════════════════════════════ */
+function AuditSection() {
+  const { data, isLoading } = useQuery({ queryKey: ["audit"], queryFn: async () => fetch("/api/auth/audit").then(r => r.json()) });
+  if (isLoading) return <div className="space-y-3"><Skeleton className="h-12 w-full" /></div>;
+  return (
+    <div className="space-y-3">
+      <h3 className="font-semibold">Audit Trail (immutable)</h3>
+      <div className="max-h-[400px] overflow-auto divide-y rounded-2xl border bg-white dark:bg-slate-900">
+        {data?.logs?.map((l: any) => (
+          <div key={l.id} className="px-4 py-3 flex items-center justify-between text-sm">
+            <div><span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{l.action}</span><span className="ml-2 text-slate-600 dark:text-slate-300">{l.detail || ""}</span></div>
+            <span className="text-xs text-slate-500">{new Date(l.timestamp).toLocaleString()}</span>
+          </div>
+        ))}
+        {data?.logs?.length === 0 && <p className="text-sm text-slate-400 py-12 text-center">No logs yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MFA
+   ══════════════════════════════════════════════════════════════ */
+function MFASection() {
+  const [enabled, setEnabled] = useState(false); const [code, setCode] = useState(""); const [msg, setMsg] = useState("");
+  useEffect(() => { fetch("/api/auth/mfa").then(r => r.json()).then(j => setEnabled(j.mfaEnabled)); }, []);
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold">Multi-Factor Authentication</h3>
+      <div className="rounded-2xl border bg-white dark:bg-slate-900 p-4 flex items-center justify-between">
+        <div><p className="text-sm font-medium">Authenticator App (TOTP)</p><p className="text-xs text-slate-500">{enabled ? "Enabled" : "Not enabled"}</p></div>
+        {enabled ? <Button variant="outline" size="sm" onClick={async () => { await fetch("/api/auth/mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable" }) }); setEnabled(false); }}>Disable</Button> : <Button size="sm" onClick={async () => { await fetch("/api/auth/mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "enable" }) }); setEnabled(true); setMsg("MFA enabled. Code: 123456"); }}>Enable</Button>}
+      </div>
+      <div className="rounded-2xl border bg-white dark:bg-slate-900 p-4">
+        <p className="text-sm font-medium">Verify code (demo: 123456)</p>
+        <div className="mt-3 flex gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="6-digit code" className="max-w-xs" maxLength={6} /><Button onClick={async () => { const r = await fetch("/api/auth/mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify", code }) }); const j = await r.json(); setMsg(r.ok ? "✓ Verified" : j.error); }} disabled={code.length !== 6}>Verify</Button></div>
+        {msg && <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS
+   ══════════════════════════════════════════════════════════════ */
+function SettingsSection({ user, setUser }: { user: any; setUser: (u: any) => void }) {
+  const [username, setUsername] = useState(user.username || "");
+  const [displayName, setDisplayName] = useState(user.displayName || "");
+  const [email, setEmail] = useState(user.email || "");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    setLoading(true); setMsg(null); setError(null);
+    try {
+      const r = await fetch("/api/auth/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, displayName, email }) });
+      const j = await r.json();
+      if (!r.ok) { setError(j.error); return; }
+      setUser(j.user);
+      setMsg("Profile updated successfully");
+    } catch { setError("Failed to update"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <h3 className="font-semibold">Account Settings</h3>
+      <Card className="rounded-2xl">
+        <CardHeader><h4 className="font-semibold">Profile Information</h4><p className="text-sm text-slate-500">Update your account details and basic info.</p></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-2xl overflow-hidden shadow-lg"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+            <div><p className="font-semibold">{displayName}</p><p className="text-sm text-slate-500">{user.role?.replace("_", " ")}</p><p className="text-xs text-slate-400">Member since {new Date(user.createdAt).toLocaleDateString()}</p></div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div><Label>Username</Label><Input value={username} onChange={e => setUsername(e.target.value)} placeholder="username" /></div>
+            <div><Label>Display Name</Label><Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Full name" /></div>
+            <div className="md:col-span-2"><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@dclm.org" type="email" /></div>
+          </div>
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+          {msg && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{msg}</p>}
+          <Button loading={loading} onClick={save}>Save Changes</Button>
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardHeader><h4 className="font-semibold">Security</h4></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between rounded-xl border p-3"><div><p className="text-sm font-medium">Password</p><p className="text-xs text-slate-500">Last changed: Unknown</p></div><Button variant="outline" size="sm">Change Password</Button></div>
+          <div className="flex items-center justify-between rounded-xl border p-3"><div><p className="text-sm font-medium">Two-Factor Auth</p><p className="text-xs text-slate-500">{user.mfaEnabled ? "Enabled" : "Disabled"}</p></div><Button variant="outline" size="sm">{user.mfaEnabled ? "Manage" : "Enable"}</Button></div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
