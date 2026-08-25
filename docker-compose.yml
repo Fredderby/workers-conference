@@ -10,13 +10,13 @@ services:
     ports:
       - "3056:3056"
     environment:
-      - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@workers-db-p9wou6:5432/wc_app
+      - DATABASE_URL=postgresql://app_user:c49t4QO5rTCAQ69AUfnI@workers-data-jdojwz:5432/app_data
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3056}
       - NODE_ENV=production
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/api/auth/me', r => { process.exit(r.statusCode === 200 || r.statusCode === 401 ? 0 : 1) }).on('error', () => process.exit(1))\""]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/login', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
