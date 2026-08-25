@@ -12,13 +12,25 @@ import type {
   LoginAttempt,
 } from "./mock";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("FATAL: DATABASE_URL is not set. The application cannot start without a database connection.");
+let _pool: Pool | null = null;
+
+function getPool(): Pool {
+  if (!_pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("FATAL: DATABASE_URL is not set. The application cannot start without a database connection.");
+    }
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 5000,
+    });
+  }
+  return _pool;
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 5000,
+const pool = new Proxy({} as Pool, {
+  get(_, prop) {
+    return (getPool() as any)[prop];
+  },
 });
 
 let initPromise: Promise<void> | null = null;
