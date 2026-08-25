@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, loginAttempts } from "@/lib/db/pg";
 import { verifyPassword } from "@/lib/auth/password";
 import { signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const { identifier, password, rememberMe } = await req.json();
   if (!identifier || !password) return NextResponse.json({ error: "Missing credentials" }, { status: 400 });
 
@@ -28,16 +29,14 @@ export async function POST(req: NextRequest) {
     await trackFailure(key, ip, ua, identifier);
     const att = loginAttempts.get(key);
     if (att && att.count >= 5) {
-      att.lockedUntil = now + 5 * 60 * 1000; // 5 min lock
+      att.lockedUntil = now + 5 * 60 * 1000;
       await db.audit({ userId: user.id, action: "account_lock", ip, device: ua, browser: ua, os: "unknown", detail: "Brute force lockout" });
     }
     return NextResponse.json({ error: "Invalid credentials", attempts: att?.count }, { status: 401 });
   }
 
-  // success - reset attempts
   loginAttempts.delete(key);
 
-  // temp password handling
   if (user.isTempPassword) {
     const sid = `sid_${Math.random().toString(36).slice(2)}`;
     const accessToken = await signAccessToken({ sub: user.id, role: user.role, email: user.email, username: user.username, displayName: user.displayName, region: user.region, sid }, "15m");
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
   const accessToken = await signAccessToken({ sub: user.id, role: user.role, email: user.email, username: user.username, displayName: user.displayName, region: user.region, sid });
   const refreshToken = await signRefreshToken({ sub: user.id, sid });
 
-  // create session
   await db.addSession({
     id: sid,
     userId: user.id,
@@ -71,7 +69,7 @@ export async function POST(req: NextRequest) {
   res.cookies.set("access_token", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 15 * 60 });
   res.cookies.set("refresh_token", refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60 });
   return res;
-}
+});
 
 async function trackFailure(key: string, ip: string, ua: string, identifier: string) {
   const prev = loginAttempts.get(key) || { identifier: key, count: 0, lastAttempt: 0 };

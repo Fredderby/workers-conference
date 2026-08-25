@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
 function auth(req: NextRequest) {
   const token = req.cookies.get("access_token")?.value;
@@ -8,15 +9,15 @@ function auth(req: NextRequest) {
   return verifyToken(token);
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.json({ attendances: await db.listAttendances() });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await db.findUserById(payload.sub);
@@ -40,4 +41,4 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({ attendance: a }, { status: 201 });
-}
+});

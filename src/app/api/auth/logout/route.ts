@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
   const ua = req.headers.get("user-agent") || "Unknown";
@@ -17,4 +18,4 @@ export async function POST(req: NextRequest) {
   res.cookies.set("access_token", "", { maxAge: 0, path: "/" });
   res.cookies.set("refresh_token", "", { maxAge: 0, path: "/" });
   return res;
-}
+});

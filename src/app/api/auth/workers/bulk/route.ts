@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE } from "@/lib/db/mock";
+import { withError } from "@/lib/api-handler";
 
 const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker"];
 const VALID_PAYMENTS = ["paid", "unpaid"];
@@ -31,7 +32,7 @@ function parseCSV(text: string): { headers: string[]; rows: any[] } {
   return { headers, rows };
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -41,9 +42,9 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="worker-upload-template.csv"' },
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -79,4 +80,4 @@ export async function POST(req: NextRequest) {
   await db.audit({ userId: payload.sub, action: "workers_bulk_import", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Bulk imported ${created.length} workers, ${errors.length} errors` });
 
   return NextResponse.json({ created: created.length, errors, total: rows.length });
-}
+});

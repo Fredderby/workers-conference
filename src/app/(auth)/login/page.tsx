@@ -89,7 +89,7 @@ export default function LoginPage() {
       // All roles go to unified /dashboard — role controls what sections you see
       setTimeout(() => router.push("/dashboard"), 600);
     } catch {
-      setError("Network error. Please try again.");
+      setError("Unable to connect. Please check your connection and try again.");
     } finally { setLoading(false); }
   };
 

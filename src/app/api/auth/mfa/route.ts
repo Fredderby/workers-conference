@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -30,13 +31,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid code" }, { status: 400 });
   }
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-}
+});
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await db.findUserById(payload.sub);
   return NextResponse.json({ mfaEnabled: user?.mfaEnabled || false, secret: user?.mfaSecret });
-}
+});

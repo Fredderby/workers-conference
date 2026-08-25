@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, resetTokens } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const { email, token } = await req.json();
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
   // demo: any token "verify123" is valid, or if email exists
@@ -17,4 +18,4 @@ export async function POST(req: NextRequest) {
   const t = "verify123";
   resetTokens.set(t, { userId: user.id, expires: Date.now() + 15 * 60 * 1000 });
   return NextResponse.json({ ok: true, token: t, expiresIn: "15m", message: "Verification email sent (demo token: verify123)" });
-}
+});

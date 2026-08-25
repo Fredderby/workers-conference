@@ -4,8 +4,9 @@ import { db } from "@/lib/db/pg";
 import { POSITION_LABELS, PAYMENT_LABELS } from "@/lib/db/mock";
 import type { Worker } from "@/lib/db/mock";
 import { isAdmin } from "@/lib/auth/rbac";
+import { withError } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -42,4 +43,4 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="${filename}"` },
   });
-}
+});

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
 const otpStore = new Map<string, { code: string; expires: number }>();
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const { email, code, action } = await req.json();
   if (action === "send") {
     if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
@@ -19,4 +20,4 @@ export async function POST(req: NextRequest) {
   const user = await db.findUserByEmail(email);
   if (user) await db.audit({ userId: user.id, action: "mfa_verify", ip: "otp", device: "otp", browser: "otp", os: "otp", detail: "OTP verified" });
   return NextResponse.json({ ok: true, verified: true });
-}
+});

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyRefreshToken, signAccessToken, signRefreshToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const refresh = req.cookies.get("refresh_token")?.value;
   if (!refresh) return NextResponse.json({ error: "No refresh token" }, { status: 401 });
   const payload = await verifyRefreshToken(refresh);
@@ -10,7 +11,6 @@ export async function POST(req: NextRequest) {
 
   const session = await db.findSession(payload.sid, payload.sub);
   if (!session) return NextResponse.json({ error: "Session not found" }, { status: 401 });
-  // rotate
   const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 401 });
 
@@ -26,4 +26,4 @@ export async function POST(req: NextRequest) {
   res.cookies.set("access_token", accessToken, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 15 * 60 });
   res.cookies.set("refresh_token", newRefresh, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 7 * 24 * 60 * 60 });
   return res;
-}
+});

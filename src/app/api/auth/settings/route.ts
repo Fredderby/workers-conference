@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -11,9 +12,9 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { passwordHash, mfaSecret, ...safe } = user as any;
   return NextResponse.json({ user: safe });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -53,4 +54,4 @@ export async function PATCH(req: NextRequest) {
   const updated = await db.findUserById(user.id);
   const { passwordHash: _, mfaSecret: __, ...safe } = updated as any;
   return NextResponse.json({ user: safe });
-}
+});

@@ -4,8 +4,9 @@ import { db } from "@/lib/db/pg";
 import type { RoleType, User } from "@/lib/db/mock";
 import { hashPassword } from "@/lib/auth/password";
 import { isAdmin } from "@/lib/auth/rbac";
+import { withError } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -15,9 +16,9 @@ export async function GET(req: NextRequest) {
 
   const users = (await db.listUsers()).map(({ passwordHash, mfaSecret, ...u }) => u);
   return NextResponse.json({ users });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -50,9 +51,9 @@ export async function POST(req: NextRequest) {
 
   const { passwordHash, mfaSecret, ...safe } = newUser as any;
   return NextResponse.json({ user: safe, tempPassword: pw }, { status: 201 });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -87,4 +88,4 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
   await db.audit({ userId: currentUser.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Updated ${userId}` });
   return NextResponse.json({ ok: true });
-}
+});

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
 import { verifyPassword, hashPassword, validatePasswordPolicy } from "@/lib/auth/password";
+import { withError } from "@/lib/api-handler";
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -18,4 +19,4 @@ export async function POST(req: NextRequest) {
   await db.updateUser(user.id, { passwordHash: await hashPassword(newPassword), isTempPassword: false });
   await db.audit({ userId: user.id, action: "password_change", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "password-change", browser: "change", os: "unknown" });
   return NextResponse.json({ ok: true });
-}
+});

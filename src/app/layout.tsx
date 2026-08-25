@@ -9,7 +9,13 @@ const display = Plus_Jakarta_Sans({ variable: "--font-display", subsets: ["latin
 export const metadata: Metadata = {
   title: "Workers Conference | Registration & Verification",
   description: "Enterprise Authentication & Conference Management System",
-  icons: { icon: "/dclmlogo.JPG" },
+  icons: {
+    icon: [
+      { url: "/icon.jpg", type: "image/jpeg" },
+      { url: "/dclmlogo.JPG", type: "image/jpeg" },
+    ],
+    apple: "/dclmlogo.JPG",
+  },
 };
 
 import { QueryProvider } from "@/lib/query-provider";

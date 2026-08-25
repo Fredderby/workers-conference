@@ -12,7 +12,10 @@ import type {
   LoginAttempt,
 } from "./mock";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5000,
+});
 
 let initPromise: Promise<void> | null = null;
 

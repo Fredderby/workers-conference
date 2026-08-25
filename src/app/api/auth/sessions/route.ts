@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
+import { withError } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sessions = await db.listSessions(payload.sub);
   return NextResponse.json({ sessions, currentSid: payload.sid });
-}
+});
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   const { sid, all } = await req.json().catch(() => ({ sid: null, all: false }));
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,4 +33,4 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
   return NextResponse.json({ error: "Missing sid" }, { status: 400 });
-}
+});

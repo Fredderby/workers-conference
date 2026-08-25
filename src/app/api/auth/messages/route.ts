@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
 import { isAdmin } from "@/lib/auth/rbac";
+import { withError } from "@/lib/api-handler";
 
-export async function GET(req: NextRequest) {
+export const GET = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -14,9 +15,9 @@ export async function GET(req: NextRequest) {
   const msgs = await db.getMessages(user.id, user.role);
   const unreadCount = await db.getUnreadCount(user.id, user.role);
   return NextResponse.json({ messages: msgs, unreadCount });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -40,9 +41,9 @@ export async function POST(req: NextRequest) {
   await db.audit({ userId: sender.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Broadcast sent: "${title}" to ${targetRole || "all"}` });
 
   return NextResponse.json({ message: msg }, { status: 201 });
-}
+});
 
-export async function PATCH(req: NextRequest) {
+export const PATCH = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
@@ -62,4 +63,4 @@ export async function PATCH(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-}
+});
