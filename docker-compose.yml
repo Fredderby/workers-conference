@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: workers-conf-app
+    container_name: workers-conf-app-v2
     restart: unless-stopped
     ports:
       - "3055:3055"
