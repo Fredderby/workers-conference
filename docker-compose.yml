@@ -10,32 +10,11 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Points at the external Dokploy PostgreSQL (workers-db-p9wou6).
+      # Currently unused — the app runs on the file-backed mock DB (mock.ts)
+      # until PostgreSQL support is wired in. Kept here for when that lands.
       - DATABASE_URL=postgresql://wc_user:xzTUuV0XqlOVPNKnAxd2@workers-db-p9wou6:5432/wc_app
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
-
-  db:
-    image: postgres:16-alpine
-    container_name: workers-conf-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: wc_user
-      POSTGRES_PASSWORD: xzTUuV0XqlOVPNKnAxd2
-      POSTGRES_DB: wc_app
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wc_user -d wc_app"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  pgdata:
