@@ -53,6 +53,7 @@ export const DASHBOARD_SECTIONS: DashboardSection[] = [
   { id: "broadcast", label: "Broadcast", icon: "Send", roles: ["super_admin", "national_officer", "regional_officer", "viewer"] },
   { id: "sessions", label: "Sessions", icon: "Monitor", roles: ["super_admin", "national_officer", "viewer"] },
   { id: "audit", label: "Audit Trail", icon: "ScrollText", roles: ["super_admin", "national_officer", "viewer"] },
+  { id: "reports", label: "Reports", icon: "FileText", roles: ["super_admin", "national_officer", "viewer"] },
   { id: "mfa", label: "Security (MFA)", icon: "ShieldCheck", roles: ["super_admin", "national_officer", "viewer"] },
   { id: "settings", label: "Settings", icon: "Settings" },
 ];

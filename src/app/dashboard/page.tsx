@@ -189,6 +189,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
               {section === "broadcast" && <BroadcastSection user={user} />}
               {section === "sessions" && isAdmin(user.role as RoleType) && <SessionsSection />}
               {section === "audit" && isAdmin(user.role as RoleType) && <AuditSection />}
+              {section === "reports" && isAdmin(user.role as RoleType) && <ReportsSection user={user} />}
               {section === "mfa" && isAdmin(user.role as RoleType) && <MFASection />}
               {section === "settings" && <SettingsSection user={user} setUser={setUser} />}
             </motion.div>
@@ -286,6 +287,246 @@ function DrillIndicator() {
   return (
     <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-end justify-center pb-3">
       <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest bg-white/80 dark:bg-slate-900/80 px-2 py-0.5 rounded-full backdrop-blur-sm">Click to drill</span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPORTS — Professional Print-to-PDF
+   ══════════════════════════════════════════════════════════════ */
+function ReportsSection({ user }: { user: any }) {
+  const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const workers: any[] = data?.workers || [];
+  const [reportType, setReportType] = useState("registration");
+  const [printScope, setPrintScope] = useState("all");
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+  const total = workers.length;
+  const paid = workers.filter(w => w.paymentStatus === "paid").length;
+  const unpaid = workers.filter(w => w.paymentStatus === "unpaid").length;
+  const verified = workers.filter(w => w.verified).length;
+  const male = workers.filter(w => w.gender === "male").length;
+  const female = workers.filter(w => w.gender === "female").length;
+
+  const byZone: Record<string, any[]> = {};
+  workers.forEach(w => { if (!byZone[w.zone]) byZone[w.zone] = []; byZone[w.zone].push(w); });
+
+  const byRegion: Record<string, any[]> = {};
+  workers.forEach(w => { if (!byRegion[w.region]) byRegion[w.region] = []; byRegion[w.region].push(w); });
+
+  const byPosition: Record<string, number> = {};
+  workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
+
+  const handlePrint = () => { window.print(); };
+
+  const reportTitle = {
+    registration: "Registration Summary Report",
+    payment: "Payment Status Report",
+    verification: "Verification Status Report",
+    regional: "Regional Breakdown Report",
+    gender: "Gender Analysis Report",
+  }[reportType];
+
+  return (
+    <div className="space-y-4">
+      {/* Screen-only controls */}
+      <div className="no-print">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-sm">Generate Reports</h3>
+            <p className="text-[11px] text-slate-400">Professional reports ready for PDF export</p>
+          </div>
+          <Button onClick={handlePrint} className="gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Download size={14} /> Export as PDF</Button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
+          {[
+            { id: "registration", label: "Registration", icon: <UserPlus size={14} /> },
+            { id: "payment", label: "Payment", icon: <CreditCard size={14} /> },
+            { id: "verification", label: "Verification", icon: <ScanLine size={14} /> },
+            { id: "regional", label: "Regional", icon: <MapPin size={14} /> },
+            { id: "gender", label: "Gender", icon: <Users size={14} /> },
+          ].map(r => (
+            <button key={r.id} onClick={() => setReportType(r.id)} className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${reportType === r.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600"}`}>
+              {r.icon} {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Print-only report */}
+      <div className="print-report">
+        {/* Report Header */}
+        <div className="report-header">
+          <div className="report-header-left">
+            <div className="report-logo"><img src="/dclmlogo.JPG" alt="DCLM" /></div>
+            <div>
+              <h1 className="report-org">Defence Christian Life Ministry</h1>
+              <p className="report-subtitle">Workers Conference 2026 — National Report</p>
+            </div>
+          </div>
+          <div className="report-header-right">
+            <p className="report-confidential">CONFIDENTIAL</p>
+            <p className="report-date">{dateStr}</p>
+            <p className="report-time">{timeStr}</p>
+          </div>
+        </div>
+
+        {/* Report Title */}
+        <div className="report-title-section">
+          <h2 className="report-title">{reportTitle}</h2>
+          <p className="report-generated">Generated by: {user.displayName} ({user.role?.replace("_", " ")})</p>
+        </div>
+
+        <div className="report-divider" />
+
+        {/* Summary Cards */}
+        <div className="report-summary">
+          <div className="report-stat"><p className="report-stat-label">Total Workers</p><p className="report-stat-value">{total}</p></div>
+          <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paid}</p></div>
+          <div className="report-stat"><p className="report-stat-label">Unpaid</p><p className="report-stat-value" style={{ color: "#f59e0b" }}>{unpaid}</p></div>
+          <div className="report-stat"><p className="report-stat-label">Verified</p><p className="report-stat-value" style={{ color: "#06b6d4" }}>{verified}</p></div>
+          <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{male}</p></div>
+          <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{female}</p></div>
+        </div>
+
+        <div className="report-divider" />
+
+        {/* Registration Summary Report */}
+        {reportType === "registration" && (
+          <div className="report-section">
+            <h3 className="report-section-title">All Registered Workers</h3>
+            <table className="report-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map((w, i) => (
+                  <tr key={w.id}>
+                    <td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td>
+                  </tr>
+                ))}
+                {workers.length === 0 && <tr><td colSpan={9} className="text-center text-slate-400 py-4">No workers registered yet</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Payment Report */}
+        {reportType === "payment" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Payment Status Breakdown</h3>
+            <table className="report-table">
+              <thead><tr><th>Status</th><th>Count</th><th>Percentage</th></tr></thead>
+              <tbody>
+                <tr><td>Paid</td><td>{paid}</td><td>{total > 0 ? ((paid / total) * 100).toFixed(1) : 0}%</td></tr>
+                <tr><td>Unpaid</td><td>{unpaid}</td><td>{total > 0 ? ((unpaid / total) * 100).toFixed(1) : 0}%</td></tr>
+                <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td></tr>
+              </tbody>
+            </table>
+            <h3 className="report-section-title mt-6">Unpaid Workers</h3>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Name</th><th>Zone</th><th>Region</th><th>Position</th></tr></thead>
+              <tbody>
+                {workers.filter(w => w.paymentStatus === "unpaid").map((w, i) => (
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td></tr>
+                ))}
+                {unpaid === 0 && <tr><td colSpan={5} className="text-center text-slate-400 py-4">All workers have paid</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Verification Report */}
+        {reportType === "verification" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Verification Status</h3>
+            <table className="report-table">
+              <thead><tr><th>Status</th><th>Count</th><th>Percentage</th></tr></thead>
+              <tbody>
+                <tr><td>Verified</td><td>{verified}</td><td>{total > 0 ? ((verified / total) * 100).toFixed(1) : 0}%</td></tr>
+                <tr><td>Pending</td><td>{total - verified}</td><td>{total > 0 ? (((total - verified) / total) * 100).toFixed(1) : 0}%</td></tr>
+                <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td></tr>
+              </tbody>
+            </table>
+            <h3 className="report-section-title mt-6">Pending Verification</h3>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Name</th><th>Zone</th><th>Region</th><th>Position</th></tr></thead>
+              <tbody>
+                {workers.filter(w => !w.verified).map((w, i) => (
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td></tr>
+                ))}
+                {verified === total && <tr><td colSpan={5} className="text-center text-slate-400 py-4">All workers verified</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Regional Breakdown Report */}
+        {reportType === "regional" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Workers by Zone</h3>
+            <table className="report-table">
+              <thead><tr><th>Zone</th><th>Workers</th><th>% of Total</th><th>Paid</th><th>Verified</th></tr></thead>
+              <tbody>
+                {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => (
+                  <tr key={zone}><td>{zone}</td><td>{ws.length}</td><td>{total > 0 ? ((ws.length / total) * 100).toFixed(1) : 0}%</td><td>{ws.filter(w => w.paymentStatus === "paid").length}</td><td>{ws.filter(w => w.verified).length}</td></tr>
+                ))}
+                <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td><td>{paid}</td><td>{verified}</td></tr>
+              </tbody>
+            </table>
+            <h3 className="report-section-title mt-6">Workers by Region</h3>
+            <table className="report-table">
+              <thead><tr><th>Region</th><th>Zone</th><th>Workers</th><th>Paid</th><th>Verified</th></tr></thead>
+              <tbody>
+                {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => (
+                  <tr key={region}><td>{region}</td><td>{ws[0]?.zone}</td><td>{ws.length}</td><td>{ws.filter(w => w.paymentStatus === "paid").length}</td><td>{ws.filter(w => w.verified).length}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Gender Analysis Report */}
+        {reportType === "gender" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Gender Distribution</h3>
+            <table className="report-table">
+              <thead><tr><th>Gender</th><th>Count</th><th>Percentage</th><th>Paid</th><th>Verified</th></tr></thead>
+              <tbody>
+                <tr><td>Male</td><td>{male}</td><td>{total > 0 ? ((male / total) * 100).toFixed(1) : 0}%</td><td>{workers.filter(w => w.gender === "male" && w.paymentStatus === "paid").length}</td><td>{workers.filter(w => w.gender === "male" && w.verified).length}</td></tr>
+                <tr><td>Female</td><td>{female}</td><td>{total > 0 ? ((female / total) * 100).toFixed(1) : 0}%</td><td>{workers.filter(w => w.gender === "female" && w.paymentStatus === "paid").length}</td><td>{workers.filter(w => w.gender === "female" && w.verified).length}</td></tr>
+                <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td><td>{paid}</td><td>{verified}</td></tr>
+              </tbody>
+            </table>
+            <h3 className="report-section-title mt-6">Gender by Zone</h3>
+            <table className="report-table">
+              <thead><tr><th>Zone</th><th>Male</th><th>Female</th><th>Ratio (M:F)</th></tr></thead>
+              <tbody>
+                {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                  const zMale = ws.filter(w => w.gender === "male").length;
+                  const zFemale = ws.filter(w => w.gender === "female").length;
+                  return <tr key={zone}><td>{zone}</td><td>{zMale}</td><td>{zFemale}</td><td>{zFemale > 0 ? (zMale / zFemale).toFixed(1) : "—"}</td></tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Report Footer */}
+        <div className="report-footer">
+          <div className="report-divider" />
+          <div className="report-footer-content">
+            <p>Generated by: <strong>Workers Conference Management System</strong></p>
+            <p>Defence Christian Life Ministry — {dateStr} at {timeStr}</p>
+            <p className="report-confidential-footer">This document is confidential. Unauthorized distribution is prohibited.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
