@@ -4,7 +4,7 @@ import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE } from "@/lib/db/mock";
 import { withError } from "@/lib/api-handler";
 
-const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer"];
+const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer", "campus_leader", "campus_worker"];
 const VALID_PAYMENTS = ["paid", "unpaid"];
 const VALID_GENDERS = ["male", "female"];
 
