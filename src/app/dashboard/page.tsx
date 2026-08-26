@@ -200,19 +200,121 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
 }
 
 /* ══════════════════════════════════════════════════════════════
+   POWER BI PRO — Slicer Bar, Goal Progress, Drill Indicator
+   ══════════════════════════════════════════════════════════════ */
+function SlicerBar({ filters, setFilters, workers }: { filters: any; setFilters: any; workers: any[] }) {
+  const zones = [...new Set(workers.map((w: any) => w.zone))].sort();
+  const regions = [...new Set(workers.filter((w: any) => !filters.zone || w.zone === filters.zone).map((w: any) => w.region))].sort();
+  const positions = [...new Set(workers.map((w: any) => w.position))].sort();
+
+  const activeCount = [filters.zone, filters.region, filters.position, filters.payment].filter(Boolean).length;
+
+  return (
+    <div className="card-premium p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center"><Search size={12} className="text-white" /></div>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Slicers</p>
+          {activeCount > 0 && <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 px-1.5 py-0.5 rounded-full font-bold">{activeCount}</span>}
+        </div>
+        {activeCount > 0 && (
+          <button onClick={() => setFilters({ zone: "", region: "", position: "", payment: "" })} className="text-[10px] text-slate-400 hover:text-red-500 transition-colors font-medium">Clear all</button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="relative">
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"><MapPin size={13} /></div>
+          <select value={filters.zone} onChange={e => setFilters({ ...filters, zone: e.target.value, region: "" })} className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-8 text-xs appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+            <option value="">All Zones</option>
+            {zones.map(z => <option key={z} value={z}>{z}</option>)}
+          </select>
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+        <div className="relative">
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"><Building2 size={13} /></div>
+          <select value={filters.region} onChange={e => setFilters({ ...filters, region: e.target.value })} disabled={!filters.zone && regions.length === 0} className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-8 text-xs appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50">
+            <option value="">All Regions</option>
+            {regions.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+        <div className="relative">
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"><Briefcase size={13} /></div>
+          <select value={filters.position} onChange={e => setFilters({ ...filters, position: e.target.value })} className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-8 text-xs appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+            <option value="">All Positions</option>
+            {positions.map(p => <option key={p} value={p}>{POSITION_LABELS[p as keyof typeof POSITION_LABELS] || p}</option>)}
+          </select>
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+        <div className="relative">
+          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10"><CreditCard size={13} /></div>
+          <select value={filters.payment} onChange={e => setFilters({ ...filters, payment: e.target.value })} className="h-9 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-8 pr-8 text-xs appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+            <option value="">All Payment</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GoalProgress({ label, current, target, color }: { label: string; current: number; target: number; color: string }) {
+  const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+  const status = pct >= 80 ? "success" : pct >= 50 ? "warning" : "danger";
+  const statusColor = status === "success" ? "#10b981" : status === "warning" ? "#f59e0b" : "#ef4444";
+  return (
+    <div className="px-4 py-3 sm:px-5 bg-white dark:bg-slate-900 relative group">
+      <div className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: statusColor }} />
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{label}</p>
+        <span className="text-[10px] font-bold tabular-nums" style={{ color: statusColor }}>{pct.toFixed(0)}%</span>
+      </div>
+      <div className="flex items-baseline gap-1.5 mb-1.5">
+        <p className="text-xl kpi-number" style={{ color }}>{current}</p>
+        <span className="text-[10px] text-slate-400">/ {target}</span>
+      </div>
+      <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${statusColor}, ${statusColor}88)` }} />
+      </div>
+    </div>
+  );
+}
+
+function DrillIndicator() {
+  return (
+    <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-slate-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-end justify-center pb-3">
+      <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest bg-white/80 dark:bg-slate-900/80 px-2 py-0.5 rounded-full backdrop-blur-sm">Click to drill</span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    OVERVIEW — Premium Analytics Dashboard
    ══════════════════════════════════════════════════════════════ */
 function OverviewSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const workers: any[] = data?.workers || [];
+  const [filters, setFilters] = useState({ zone: "", region: "", position: "", payment: "" });
+
+  const filteredWorkers = useMemo(() => {
+    return workers.filter((w: any) => {
+      if (filters.zone && w.zone !== filters.zone) return false;
+      if (filters.region && w.region !== filters.region) return false;
+      if (filters.position && w.position !== filters.position) return false;
+      if (filters.payment && w.paymentStatus !== filters.payment) return false;
+      return true;
+    });
+  }, [workers, filters]);
 
   const stats = useMemo(() => {
-    const total = workers.length;
-    const paid = workers.filter(w => w.paymentStatus === "paid");
-    const unpaid = workers.filter(w => w.paymentStatus === "unpaid");
-    const verified = workers.filter(w => w.verified);
-    const male = workers.filter(w => w.gender === "male");
-    const female = workers.filter(w => w.gender === "female");
+    const total = filteredWorkers.length;
+    const paid = filteredWorkers.filter(w => w.paymentStatus === "paid");
+    const unpaid = filteredWorkers.filter(w => w.paymentStatus === "unpaid");
+    const verified = filteredWorkers.filter(w => w.verified);
+    const male = filteredWorkers.filter(w => w.gender === "male");
+    const female = filteredWorkers.filter(w => w.gender === "female");
 
     const paidMale = paid.filter(w => w.gender === "male").length;
     const paidFemale = paid.filter(w => w.gender === "female").length;
@@ -221,21 +323,21 @@ function OverviewSection({ user }: { user: any }) {
 
     // By zone
     const byZone: Record<string, number> = {};
-    workers.forEach(w => { byZone[w.zone] = (byZone[w.zone] || 0) + 1; });
+    filteredWorkers.forEach(w => { byZone[w.zone] = (byZone[w.zone] || 0) + 1; });
 
     // By region (top 10)
     const byRegion: Record<string, number> = {};
-    workers.forEach(w => { byRegion[w.region] = (byRegion[w.region] || 0) + 1; });
+    filteredWorkers.forEach(w => { byRegion[w.region] = (byRegion[w.region] || 0) + 1; });
     const topRegions = Object.entries(byRegion).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }));
 
     // By position
     const byPosition: Record<string, number> = {};
-    workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
+    filteredWorkers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
     const positionData = Object.entries(byPosition).map(([key, value]) => ({ name: POSITION_LABELS[key as keyof typeof POSITION_LABELS] || key, value }));
 
     // By division (top 8)
     const byDivision: Record<string, number> = {};
-    workers.forEach(w => { byDivision[w.division] = (byDivision[w.division] || 0) + 1; });
+    filteredWorkers.forEach(w => { byDivision[w.division] = (byDivision[w.division] || 0) + 1; });
     const topDivisions = Object.entries(byDivision).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
 
     // Verified by day (last 7 days)
@@ -289,10 +391,13 @@ function OverviewSection({ user }: { user: any }) {
       genderPie, paymentPie, zonePie,
       verificationRate, avgPerRegion, paidRate, regionCount,
     };
-  }, [workers]);
+  }, [filteredWorkers]);
 
   return (
     <div className="space-y-5">
+      {/* ── Power BI Slicer Bar ── */}
+      <SlicerBar filters={filters} setFilters={setFilters} workers={workers} />
+
       {/* ── Power BI KPI Banner ── */}
       <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 elevation-1 overflow-hidden">
         <div className="relative bg-gradient-to-r from-[#1a237e] via-[#283593] to-[#3949ab] px-4 sm:px-6 py-5 noise-overlay overflow-hidden">
@@ -326,6 +431,14 @@ function OverviewSection({ user }: { user: any }) {
           <KPIBlock label="Unpaid" value={stats.unpaid} sub={`${(100 - Number(stats.paidRate)).toFixed(1)}% outstanding`} color="#f59e0b" />
           <KPIBlock label="Verified" value={stats.verified} sub={`${stats.verificationRate}% of total`} color="#06b6d4" />
           <KPIBlock label="Regions" value={stats.regionCount} sub={`${stats.avgPerRegion} avg/region`} color="#8b5cf6" />
+        </div>
+        {/* Goal Progress Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-slate-100 dark:bg-slate-800/50">
+          <GoalProgress label="Registration Goal" current={stats.total} target={Math.max(stats.total * 1.5, 100)} color="#6366f1" />
+          <GoalProgress label="Payment Target" current={stats.paid} target={stats.total || 100} color="#10b981" />
+          <GoalProgress label="Verification Target" current={stats.verified} target={stats.total || 100} color="#06b6d4" />
+          <GoalProgress label="Male Target" current={stats.male} target={Math.max(Math.round(stats.total * 0.55), 1)} color="#8b5cf6" />
+          <GoalProgress label="Female Target" current={stats.female} target={Math.max(Math.round(stats.total * 0.45), 1)} color="#ec4899" />
         </div>
       </div>
 
@@ -490,6 +603,16 @@ function OverviewSection({ user }: { user: any }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {/* Data Label Summary */}
+          {stats.topRegions.length > 0 && (
+            <div className="px-4 sm:px-5 pb-3 flex items-center gap-3 text-[10px]">
+              <span className="text-slate-400">Top:</span>
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">{stats.topRegions[0]?.name}</span>
+              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className="text-slate-400">Total regions:</span>
+              <span className="font-semibold">{stats.regionCount}</span>
+            </div>
+          )}
         </div>
 
         <div className="card-premium overflow-hidden">
@@ -642,6 +765,7 @@ function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData
   const total = male + female;
   return (
     <div className="card-premium p-4 sm:p-5 relative overflow-hidden group">
+      <DrillIndicator />
       <div className="accent-bar" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
       <div className="flex items-start justify-between">
         <div>
