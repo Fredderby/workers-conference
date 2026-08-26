@@ -160,12 +160,12 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
 
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-16"}`}>
         <header className="sticky top-0 z-20 h-14 md:h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2 md:gap-3">
-            <button onClick={() => setMobileOpen(true)} className="h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+            <button onClick={() => setMobileOpen(true)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300">
               <Menu size={18} />
             </button>
-            <h1 className="text-sm font-bold tracking-tight capitalize">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
-            <span className="hidden sm:inline text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
+            <h1 className="text-sm font-bold tracking-tight capitalize truncate min-w-0">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
+            <span className="hidden sm:inline shrink-0 text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
             <button onClick={toggleTheme} className="h-8 w-8 md:h-9 md:w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800">{dark ? <Moon size={14} /> : <Sun size={14} />}</button>
@@ -318,7 +318,7 @@ function OverviewSection({ user }: { user: any }) {
           </div>
         </div>
         {/* KPI Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-slate-100 dark:divide-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-slate-100 dark:bg-slate-800">
           <KPIBlock label="Registered" value={stats.total} sub={`${stats.male}M / ${stats.female}F`} color="#6366f1" />
           <KPIBlock label="Paid" value={stats.paid} sub={`${stats.paidRate}% collection`} color="#10b981" delta={Number(stats.paidRate) > 50 ? "+" : "-"} />
           <KPIBlock label="Unpaid" value={stats.unpaid} sub={`${(100 - Number(stats.paidRate)).toFixed(1)}% outstanding`} color="#f59e0b" />
@@ -621,7 +621,7 @@ function OverviewSection({ user }: { user: any }) {
 /* ── Power BI KPI Block ── */
 function KPIBlock({ label, value, sub, color, delta }: { label: string; value: number; sub: string; color: string; delta?: string }) {
   return (
-    <div className="px-5 py-3.5">
+    <div className="px-4 py-3.5 sm:px-5 bg-white dark:bg-slate-900">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{label}</p>
       <p className="text-2xl font-black mt-0.5" style={{ color }}>{value}</p>
       <div className="flex items-center gap-1 mt-0.5">
@@ -746,7 +746,7 @@ function UserManagementSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">All Users ({data?.users?.length || 0})</h3>
         <Button onClick={() => { setShowCreate(true); setTempPw(null); setError(null); }} className="gap-1.5"><UserPlus size={16} /> Create User</Button>
       </div>
@@ -958,7 +958,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h3 className="font-semibold">Registered Workers ({data?.workers?.length || 0})</h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && (
             <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
           )}
@@ -1002,13 +1002,13 @@ function WorkerRegistrationSection({ user }: { user: any }) {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Download Template */}
-                <div className="flex items-center gap-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 px-4 py-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 px-4 py-3">
                   <Download size={18} className="text-indigo-500 shrink-0" />
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">Download CSV Template</p>
                     <p className="text-xs text-slate-500">Get the template with headers and example rows</p>
                   </div>
-                  <a href="/api/auth/workers/bulk" download className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors"><Download size={12} /> Download</a>
+                  <a href="/api/auth/workers/bulk" download className="shrink-0 self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors"><Download size={12} /> Download</a>
                 </div>
                 {/* File Upload Zone */}
                 <div className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors ${bulkFile ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/10" : "border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600"}`}>
@@ -1072,7 +1072,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
       </AnimatePresence>
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /></div> : (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[850px]">
             <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
             <tbody className="divide-y">
               {data?.workers?.map((w: any) => (
@@ -1110,7 +1110,7 @@ function VerificationSection({ user }: { user: any }) {
       </div>
       <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3></CardHeader>
         <CardContent>
-          <form onSubmit={verify} className="flex gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="Enter worker name" className="max-w-xs" /><Button type="submit">Verify</Button></form>
+          <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="Enter worker name" className="w-full sm:max-w-xs" /><Button type="submit" className="shrink-0">Verify</Button></form>
           {result && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 border p-3 text-sm">{result}</div>}
         </CardContent>
       </Card>
@@ -1196,23 +1196,23 @@ function ApprovalSection({ user }: { user: any }) {
       </div>
 
       {/* ── KPI Strip ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden divide-x divide-slate-100 dark:divide-slate-800">
-        <div className="px-5 py-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="px-4 py-3.5 sm:px-5 sm:py-4 bg-white dark:bg-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Total Workers</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: "#6366f1" }}>{totalWorkers}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">{totalVerified} verified</p>
         </div>
-        <div className="px-5 py-4">
+        <div className="px-4 py-3.5 sm:px-5 sm:py-4 bg-white dark:bg-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Current Batch</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: "#f59e0b" }}>{totalCurrentBatch}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">Awaiting approval</p>
         </div>
-        <div className="px-5 py-4">
+        <div className="px-4 py-3.5 sm:px-5 sm:py-4 bg-white dark:bg-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Approved Batches</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: "#10b981" }}>{totalBatches}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">Across all regions</p>
         </div>
-        <div className="px-5 py-4">
+        <div className="px-4 py-3.5 sm:px-5 sm:py-4 bg-white dark:bg-slate-900">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Regions Pending</p>
           <p className="text-2xl font-black mt-0.5" style={{ color: "#8b5cf6" }}>{regionsWithBatch}</p>
           <p className="text-[10px] text-slate-400 mt-0.5">Have new verifications</p>
@@ -1439,7 +1439,7 @@ function AttendanceSection() {
           </div>
         )}
       </div>
-      {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="font-semibold">{selectedWorker.name}</p><p className="text-sm text-slate-500">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)}>{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
+      {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div className="min-w-0"><p className="font-semibold truncate">{selectedWorker.name}</p><p className="text-sm text-slate-500 truncate">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)} className="shrink-0 self-start sm:self-auto">{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
       <h3 className="font-semibold">Check-in Log ({attData?.attendances?.length || 0})</h3>
       {isLoading ? <Skeleton className="h-12 w-full" /> : (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
@@ -1495,7 +1495,7 @@ function BroadcastSection({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <h3 className="font-semibold">Broadcast</h3>
           {unreadCount > 0 && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{unreadCount} unread</span>}
@@ -1595,9 +1595,9 @@ function SessionsSection() {
       <div className="flex items-center justify-between"><h3 className="font-semibold">Active Sessions</h3><Button variant="outline" size="sm" onClick={() => revokeAll.mutate()}>Logout all devices</Button></div>
       <div className="space-y-3">
         {data?.sessions?.map((s: any) => (
-          <div key={s.id} className="flex items-center justify-between rounded-xl border px-4 py-3 bg-white dark:bg-slate-900">
-            <div><p className="text-sm font-medium">{s.browser} • {s.os} {data.currentSid === s.id && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Current</span>}</p><p className="text-xs text-slate-500">{s.ip} • {new Date(s.lastActivity).toLocaleString()}</p></div>
-            <button onClick={() => revokeOne.mutate(s.id)} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><X size={16} /></button>
+          <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 bg-white dark:bg-slate-900">
+            <div className="min-w-0"><p className="text-sm font-medium truncate">{s.browser} • {s.os} {data.currentSid === s.id && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Current</span>}</p><p className="text-xs text-slate-500 truncate">{s.ip} • {new Date(s.lastActivity).toLocaleString()}</p></div>
+            <button onClick={() => revokeOne.mutate(s.id)} className="h-8 w-8 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><X size={16} /></button>
           </div>
         ))}
         {data?.sessions?.length === 0 && <p className="text-sm text-slate-500 text-center py-8">No active sessions.</p>}
@@ -1617,9 +1617,9 @@ function AuditSection() {
       <h3 className="font-semibold">Audit Trail (immutable)</h3>
       <div className="max-h-[400px] overflow-auto divide-y rounded-2xl border bg-white dark:bg-slate-900">
         {data?.logs?.map((l: any) => (
-          <div key={l.id} className="px-4 py-3 flex items-center justify-between text-sm">
-            <div><span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{l.action}</span><span className="ml-2 text-slate-600 dark:text-slate-300">{l.detail || ""}</span></div>
-            <span className="text-xs text-slate-500">{new Date(l.timestamp).toLocaleString()}</span>
+          <div key={l.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 text-sm">
+            <div className="min-w-0"><span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">{l.action}</span><span className="ml-2 text-slate-600 dark:text-slate-300 break-words">{l.detail || ""}</span></div>
+            <span className="text-xs text-slate-500 shrink-0">{new Date(l.timestamp).toLocaleString()}</span>
           </div>
         ))}
         {data?.logs?.length === 0 && <p className="text-sm text-slate-400 py-12 text-center">No logs yet.</p>}
@@ -1643,7 +1643,7 @@ function MFASection() {
       </div>
       <div className="rounded-2xl border bg-white dark:bg-slate-900 p-4">
         <p className="text-sm font-medium">Verify code (demo: 123456)</p>
-        <div className="mt-3 flex gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="6-digit code" className="max-w-xs" maxLength={6} /><Button onClick={async () => { const r = await fetch("/api/auth/mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify", code }) }); const j = await r.json(); setMsg(r.ok ? "✓ Verified" : j.error); }} disabled={code.length !== 6}>Verify</Button></div>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="6-digit code" className="w-full sm:max-w-xs" maxLength={6} /><Button onClick={async () => { const r = await fetch("/api/auth/mfa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verify", code }) }); const j = await r.json(); setMsg(r.ok ? "✓ Verified" : j.error); }} disabled={code.length !== 6} className="shrink-0">Verify</Button></div>
         {msg && <p className="text-sm mt-2 text-slate-600 dark:text-slate-300">{msg}</p>}
       </div>
     </div>
@@ -1696,8 +1696,8 @@ function SettingsSection({ user, setUser }: { user: any; setUser: (u: any) => vo
       <Card className="rounded-2xl">
         <CardHeader><h4 className="font-semibold">Security</h4></CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl border p-3"><div><p className="text-sm font-medium">Password</p><p className="text-xs text-slate-500">Last changed: Unknown</p></div><Button variant="outline" size="sm">Change Password</Button></div>
-          <div className="flex items-center justify-between rounded-xl border p-3"><div><p className="text-sm font-medium">Two-Factor Auth</p><p className="text-xs text-slate-500">{user.mfaEnabled ? "Enabled" : "Disabled"}</p></div><Button variant="outline" size="sm">{user.mfaEnabled ? "Manage" : "Enable"}</Button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="text-sm font-medium">Password</p><p className="text-xs text-slate-500">Last changed: Unknown</p></div><Button variant="outline" size="sm">Change Password</Button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3"><div><p className="text-sm font-medium">Two-Factor Auth</p><p className="text-xs text-slate-500">{user.mfaEnabled ? "Enabled" : "Disabled"}</p></div><Button variant="outline" size="sm">{user.mfaEnabled ? "Manage" : "Enable"}</Button></div>
         </CardContent>
       </Card>
     </div>
