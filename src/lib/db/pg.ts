@@ -20,9 +20,19 @@ function getPool(): Pool {
     if (!process.env.DATABASE_URL) {
       throw new Error("FATAL: DATABASE_URL is not set. The application cannot start without a database connection.");
     }
+    // Sanitize: strip accidental inline comments/trailing junk from env pastes
+    // e.g. ".../app_data#DB_HOST=host.docker.internal"
+    let url = process.env.DATABASE_URL.trim();
+    const hashIdx = url.indexOf("#");
+    if (hashIdx > -1 && !url.includes("%23")) url = url.slice(0, hashIdx).trim();
+    if (!/^postgres(ql)?:\/\//i.test(url)) {
+      throw new Error(`FATAL: DATABASE_URL is invalid (must start with postgresql://). Got: "${url.slice(0, 40)}..."`);
+    }
     _pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: url,
       connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
+      max: 20,
     });
     _pool.on("error", (err) => {
       console.error("[pg] pool error (non-fatal):", err.message);
@@ -168,7 +178,14 @@ async function init(): Promise<void> {
 }
 
 export async function ensureInit(): Promise<void> {
-  if (!initPromise) initPromise = init();
+  if (!initPromise) {
+    initPromise = init().catch((err) => {
+      // Do NOT cache failures — allow retry on the next request
+      initPromise = null;
+      console.error("[pg] init failed (will retry on next request):", err?.message || err);
+      throw err;
+    });
+  }
   return initPromise;
 }
 
