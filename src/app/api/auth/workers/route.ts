@@ -23,7 +23,13 @@ export const GET = withError(async (req: NextRequest) => {
   }
 
   let list = await db.listWorkers();
-  if (!isAdmin(user.role)) {
+  if (isAdmin(user.role) || user.role === "viewer") {
+    // Admins (super_admin, national_officer) + viewers → all workers
+  } else if (user.role === "regional_officer") {
+    list = list.filter(w => w.region === user.region);
+  } else if (user.role === "verifier") {
+    list = list.filter(w => w.registeredBy === user.id);
+  } else {
     list = list.filter(w => w.registeredBy === user.id);
   }
   return NextResponse.json({ workers: list });

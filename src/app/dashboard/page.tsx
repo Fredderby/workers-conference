@@ -300,6 +300,12 @@ function ReportsSection({ user }: { user: any }) {
   const [reportType, setReportType] = useState("registration");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
 
+  const isVerifier = user.role === "verifier";
+  const isRegionalOfficer = user.role === "regional_officer";
+  const isFullAccess = isAdmin(user.role as RoleType) || user.role === "viewer";
+  const showZoneRegionDivision = !isVerifier;
+  const showZoneBreakdown = !isVerifier && !isRegionalOfficer;
+
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
@@ -438,8 +444,8 @@ function ReportsSection({ user }: { user: any }) {
           {reportType === "registration" && (
             <div className="p-5">
               {/* Bar chart — workers by zone */}
-              <div className="mb-5">
-                <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Workers by Zone</h4>
+              {showZoneBreakdown && (<div className="mb-5">
+                <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">{isRegionalOfficer ? "Workers in Your Region" : "Workers by Zone"}</h4>
                 <div className="space-y-2">
                   {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
                     const pct = total > 0 ? (ws.length / total) * 100 : 0;
@@ -457,15 +463,17 @@ function ReportsSection({ user }: { user: any }) {
                   })}
                   {Object.keys(byZone).length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered yet</p>}
                 </div>
-              </div>
+              </div>)}
               {/* Data table — desktop */}
               <div className="overflow-x-auto -mx-5 px-5">
                 <table className="report-table hidden md:table">
-                  <thead><tr><th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+                  <thead><tr><th>#</th><th>Full Name</th><th>Gender</th>{showZoneRegionDivision && <><th>Zone</th><th>Region</th><th>Division</th></>}<th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
                   <tbody>
                     {workers.map((w, i) => (
                       <tr key={w.id}>
-                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
+                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
+                        {showZoneRegionDivision && <><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td></>}
+                        <td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
                         <td><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span></td>
                         <td>{w.verified ? <CheckCircle2 size={14} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
                       </tr>
@@ -485,9 +493,9 @@ function ReportsSection({ user }: { user: any }) {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                      <span>{w.gender === "male" ? "Male" : "Female"}</span><span>{w.zone}</span>
-                      <span>{w.region}</span><span>{w.division}</span>
-                      <span className="col-span-2">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
+                      <span>{w.gender === "male" ? "Male" : "Female"}</span>
+                      {showZoneRegionDivision && <><span>{w.zone}</span><span>{w.region}</span><span>{w.division}</span></>}
+                      <span className={showZoneRegionDivision ? "col-span-2" : ""}>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
                     </div>
                   </div>
                 ))}
@@ -593,7 +601,7 @@ function ReportsSection({ user }: { user: any }) {
           {/* Regional Breakdown */}
           {reportType === "regional" && (
             <div className="p-5">
-              <div className="mb-5">
+              {showZoneBreakdown && (<div className="mb-5">
                 <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Workers by Zone</h4>
                 <div className="space-y-2">
                   {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
@@ -611,16 +619,16 @@ function ReportsSection({ user }: { user: any }) {
                     );
                   })}
                 </div>
-              </div>
+              </div>)}
               <div className="overflow-x-auto -mx-5 px-5">
                 <table className="report-table hidden md:table">
-                  <thead><tr><th>Region</th><th>Zone</th><th>Workers</th><th>Paid</th><th>Unpaid</th><th>Verified</th><th>Payment %</th></tr></thead>
+                  <thead><tr><th>Region</th>{showZoneBreakdown && <th>Zone</th>}<th>Workers</th><th>Paid</th><th>Unpaid</th><th>Verified</th><th>Payment %</th></tr></thead>
                   <tbody>
                     {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
                       const rp = ws.filter(w => w.paymentStatus === "paid").length;
                       return (
                         <tr key={region}>
-                          <td className="font-medium">{region}</td><td>{ws[0]?.zone}</td><td>{ws.length}</td>
+                          <td className="font-medium">{region}</td>{showZoneBreakdown && <td>{ws[0]?.zone}</td>}<td>{ws.length}</td>
                           <td><span className="text-emerald-600 font-semibold">{rp}</span></td>
                           <td><span className="text-amber-600 font-semibold">{ws.length - rp}</span></td>
                           <td><span className="text-cyan-600 font-semibold">{ws.filter(w => w.verified).length}</span></td>
@@ -641,7 +649,7 @@ function ReportsSection({ user }: { user: any }) {
                     <div key={region} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-bold truncate">{region}</span>
-                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{ws[0]?.zone}</span>
+                        {showZoneBreakdown && <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{ws[0]?.zone}</span>}
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-slate-400 uppercase">Workers</p><p className="text-sm font-black">{ws.length}</p></div>
@@ -678,8 +686,8 @@ function ReportsSection({ user }: { user: any }) {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gender by Zone</h4>
-                  {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{showZoneBreakdown ? "Gender by Zone" : "Gender Distribution"}</h4>
+                  {showZoneBreakdown ? Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
                     const zMale = ws.filter(w => w.gender === "male").length;
                     const zFemale = ws.filter(w => w.gender === "female").length;
                     const mPct = ws.length > 0 ? (zMale / ws.length) * 100 : 50;
@@ -695,7 +703,14 @@ function ReportsSection({ user }: { user: any }) {
                         </div>
                       </div>
                     );
-                  })}
+                  }) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Male</span><span className="text-xs font-bold text-indigo-600">{male} ({total > 0 ? ((male/total)*100).toFixed(0) : 0}%)</span></div>
+                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (male/total)*100 : 0}%` }} /></div>
+                      <div className="flex items-center justify-between mb-1 mt-2"><span className="text-xs font-medium">Female</span><span className="text-xs font-bold text-pink-600">{female} ({total > 0 ? ((female/total)*100).toFixed(0) : 0}%)</span></div>
+                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-pink-400 to-pink-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (female/total)*100 : 0}%` }} /></div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -761,8 +776,8 @@ function ReportsSection({ user }: { user: any }) {
             </div>
           )}
 
-          {/* Top Positions — shown for registration, daily, and regional */}
-          {(reportType === "registration" || reportType === "daily" || reportType === "regional") && topPositions.length > 0 && (
+          {/* Top Positions — shown for registration, daily, and regional (not verifier) */}
+          {showZoneBreakdown && (reportType === "registration" || reportType === "daily" || reportType === "regional") && topPositions.length > 0 && (
             <div className="px-5 pb-5">
               <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Top Positions</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
