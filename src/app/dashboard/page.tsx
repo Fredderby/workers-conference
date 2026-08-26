@@ -302,9 +302,11 @@ function ReportsSection({ user }: { user: any }) {
 
   const isVerifier = user.role === "verifier";
   const isRegionalOfficer = user.role === "regional_officer";
-  const isFullAccess = isAdmin(user.role as RoleType) || user.role === "viewer";
+  const isNationalOfficer = user.role === "national_officer";
+  const isSuperAdmin = user.role === "super_admin";
   const showZoneRegionDivision = !isVerifier;
-  const showZoneBreakdown = !isVerifier && !isRegionalOfficer;
+  const showZoneBreakdown = !isVerifier;
+  const showFullNational = isSuperAdmin || user.role === "viewer";
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -445,7 +447,7 @@ function ReportsSection({ user }: { user: any }) {
             <div className="p-5">
               {/* Bar chart — workers by zone */}
               {showZoneBreakdown && (<div className="mb-5">
-                <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">{isRegionalOfficer ? "Workers in Your Region" : "Workers by Zone"}</h4>
+                <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">{isNationalOfficer ? "Verification by Zone" : "Workers by Zone"}</h4>
                 <div className="space-y-2">
                   {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
                     const pct = total > 0 ? (ws.length / total) * 100 : 0;
