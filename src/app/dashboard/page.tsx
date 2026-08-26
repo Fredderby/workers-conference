@@ -951,6 +951,9 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [showCleanup, setShowCleanup] = useState(false);
+  const [cleanupCount, setCleanupCount] = useState<number | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkPreview, setBulkPreview] = useState<{ headers: string[]; rows: any[] } | null>(null);
   const [bulkErrors, setBulkErrors] = useState<{ row: number; message: string }[] | null>(null);
@@ -1026,6 +1029,9 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           {user.role !== "verifier" && (
             <Button variant="outline" size="sm" onClick={() => { setShowBulk(!showBulk); setShowForm(false); setBulkPreview(null); setBulkResult(null); setBulkErrors(null); setBulkFile(null); }} className="gap-1.5"><Upload size={14} /> Bulk Upload</Button>
           )}
+          {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && data?.workers?.some((w: any) => w.registeredByName === "Bulk Import") && (
+            <Button variant="outline" size="sm" onClick={() => setShowCleanup(!showCleanup)} className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/20"><AlertTriangle size={14} /> Clean Up</Button>
+          )}
           <Button onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); }} className="gap-1.5"><UserPlus size={14} /> Register Worker</Button>
         </div>
       </div>
@@ -1087,6 +1093,50 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 {success && <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl px-4 py-2.5"><CheckCircle2 size={14} /> {success}</div>}
                 {/* ── Submit ── */}
                 <Button loading={createWorker.isPending} onClick={() => createWorker.mutate()} disabled={!name || !zone || !region || !division} className="w-full sm:w-auto h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Plus size={16} /> Register Worker</Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ── Cleanup Panel ── */}
+      <AnimatePresence>
+        {showCleanup && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+            <Card className="rounded-2xl overflow-hidden border-amber-200 dark:border-amber-800">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-amber-100 dark:border-amber-900/50 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-transparent">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 grid place-items-center"><AlertTriangle size={18} className="text-amber-600 dark:text-amber-400" /></div>
+                  <div><h4 className="font-semibold text-sm">Clean Up Phantom Workers</h4><p className="text-[11px] text-slate-400">Remove template-imported dummy entries</p></div>
+                </div>
+                <button onClick={() => { setShowCleanup(false); setCleanupCount(null); }} className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><X size={14} /></button>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                {cleanupCount === null ? (
+                  <>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">This will delete all workers registered by <span className="font-semibold text-amber-600">"Bulk Import"</span> — dummy entries created by uploading the unedited CSV template.</p>
+                    <p className="text-xs text-slate-400">Real workers are never affected.</p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setShowCleanup(false); setCleanupCount(null); }} className="gap-1.5">Cancel</Button>
+                      <Button size="sm" loading={cleanupLoading} onClick={async () => {
+                        setCleanupLoading(true);
+                        try {
+                          const res = await fetch("/api/auth/workers?registeredByName=Bulk+Import", { method: "DELETE" });
+                          const j = await res.json();
+                          setCleanupCount(j.deleted || 0);
+                          qc.invalidateQueries({ queryKey: ["workers"] });
+                        } catch { setCleanupCount(0); }
+                        setCleanupLoading(false);
+                      }} className="gap-1.5 bg-amber-600 hover:bg-amber-700"><Trash2 size={14} /> Delete Phantom Workers</Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-2" />
+                    <p className="text-sm font-medium">{cleanupCount} phantom worker{cleanupCount !== 1 ? "s" : ""} deleted</p>
+                    <p className="text-xs text-slate-400 mt-1">Dashboard stats are now accurate</p>
+                    <Button variant="outline" size="sm" onClick={() => { setShowCleanup(false); setCleanupCount(null); }} className="mt-3">Close</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

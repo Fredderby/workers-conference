@@ -36,7 +36,7 @@ export interface Session {
 export interface AuditLog {
   id: string;
   userId: string | null;
-  action: "login_success" | "login_failure" | "logout" | "password_change" | "password_reset" | "mfa_verify" | "session_expire" | "account_lock" | "account_unlock" | "refresh_token" | "user_created" | "user_updated" | "user_deactivated" | "user_activated" | "workers_bulk_import";
+  action: "login_success" | "login_failure" | "logout" | "password_change" | "password_reset" | "mfa_verify" | "session_expire" | "account_lock" | "account_unlock" | "refresh_token" | "user_created" | "user_updated" | "user_deactivated" | "user_activated" | "workers_bulk_import" | "workers_cleanup";
   timestamp: string;
   ip: string;
   device: string;

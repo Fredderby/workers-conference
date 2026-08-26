@@ -84,3 +84,23 @@ export const PATCH = withError(async (req: NextRequest) => {
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 });
+
+export const DELETE = withError(async (req: NextRequest) => {
+  const payload = await auth(req);
+  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await db.findUserById(payload.sub);
+  if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { searchParams } = new URL(req.url);
+  const registeredByName = searchParams.get("registeredByName");
+  if (!registeredByName) return NextResponse.json({ error: "registeredByName required" }, { status: 400 });
+
+  const workers = await db.listWorkers();
+  const targets = workers.filter(w => w.registeredBy === null || w.registeredByName === registeredByName);
+  for (const w of targets) {
+    await db.deleteWorker(w.id);
+  }
+
+  await db.audit({ userId: user.id, action: "workers_cleanup", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Cleaned up ${targets.length} phantom workers (registeredByName="${registeredByName}")` });
+  return NextResponse.json({ deleted: targets.length });
+});
