@@ -185,12 +185,12 @@ body {
    PRINT REPORT — Professional PDF Layout
    ══════════════════════════════════════════════════════════════ */
 .no-print { }
-.print-report { }
+.print-report { display: none; }
 
 @media print {
   /* Hide everything except the report */
   body * { visibility: hidden !important; }
-  .print-report, .print-report * { visibility: visible !important; }
+  .print-report, .print-report * { visibility: visible !important; display: block !important; }
   .no-print { display: none !important; }
 
   /* Reset for print */
