@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu } from "lucide-react";
+import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, ChevronDown, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu, User, MapPin, Building2, Layers, Briefcase, CreditCard } from "lucide-react";
 import { NotificationBell } from "@/components/notification/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -912,6 +912,38 @@ function UserManagementSection() {
   );
 }
 
+function FormSelect({ icon: Icon, label, value, onChange, disabled, placeholder, children, required }: {
+  icon: any;
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  disabled?: boolean;
+  placeholder: string;
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <Label>{label}{required && " *"}</Label>
+      <div className="relative">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none z-10">
+          <Icon size={16} />
+        </div>
+        <select
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+        >
+          <option value="" disabled>{placeholder}</option>
+          {children}
+        </select>
+        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════
    WORKER REGISTRATION
    ══════════════════════════════════════════════════════════════ */
@@ -1000,21 +1032,61 @@ function WorkerRegistrationSection({ user }: { user: any }) {
       <AnimatePresence>
         {showForm && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-            <Card className="rounded-2xl">
-              <CardHeader className="flex flex-row items-center justify-between"><h4 className="font-semibold">Register New Worker</h4><button onClick={() => setShowForm(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button></CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Mensah" /></div>
-                  <div><Label>Gender *</Label><select value={gender} onChange={e => setGender(e.target.value as any)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="male">Male</option><option value="female">Female</option></select></div>
-                  <div><Label>Zone *</Label><select value={zone} onChange={e => { setZone(e.target.value); setRegion(""); setDivision(""); }} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="">Select zone</option>{zones.map(z => <option key={z} value={z}>{z}</option>)}</select></div>
-                  <div><Label>Region *</Label><select value={region} onChange={e => { setRegion(e.target.value); setDivision(""); }} disabled={!zone} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50"><option value="">Select region</option>{regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                  <div><Label>Division *</Label><select value={division} onChange={e => setDivision(e.target.value)} disabled={!region} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 disabled:opacity-50"><option value="">Select division</option>{divisions.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-                   <div><Label>Position *</Label><select value={position} onChange={e => setPosition(e.target.value)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"><option value="" disabled>Select position...</option>{Object.entries(POSITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-                  <div><Label>Payment Status *</Label><select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">{Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <Card className="rounded-2xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-950/20 dark:to-transparent">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 grid place-items-center"><UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" /></div>
+                  <div><h4 className="font-semibold text-sm">Register New Worker</h4><p className="text-[11px] text-slate-400">Fill in the worker details below</p></div>
                 </div>
-                {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
-                {success && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{success}</p>}
-                <Button loading={createWorker.isPending} onClick={() => createWorker.mutate()} disabled={!name || !zone || !region || !division}><Plus size={16} /> Register Worker</Button>
+                <button onClick={() => setShowForm(false)} className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><X size={14} /></button>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-5 space-y-5">
+                {/* ── Personal Info ── */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><User size={12} /> Personal Information</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <Label>Full Name *</Label>
+                      <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Mensah" className="h-11" />
+                    </div>
+                    <FormSelect icon={User} label="Gender" value={gender} onChange={e => setGender(e.target.value as any)} placeholder="Select gender..." required>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </FormSelect>
+                  </div>
+                </div>
+                {/* ── Location ── */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><MapPin size={12} /> Location Details</p>
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    <FormSelect icon={MapPin} label="Zone" value={zone} onChange={e => { setZone(e.target.value); setRegion(""); setDivision(""); }} placeholder="Select zone..." required>
+                      {zones.map(z => <option key={z} value={z}>{z}</option>)}
+                    </FormSelect>
+                    <FormSelect icon={Building2} label="Region" value={region} onChange={e => { setRegion(e.target.value); setDivision(""); }} disabled={!zone} placeholder="Select region..." required>
+                      {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                    </FormSelect>
+                    <FormSelect icon={Layers} label="Division" value={division} onChange={e => setDivision(e.target.value)} disabled={!region} placeholder="Select division..." required>
+                      {divisions.map(d => <option key={d} value={d}>{d}</option>)}
+                    </FormSelect>
+                  </div>
+                </div>
+                {/* ── Role & Status ── */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><Briefcase size={12} /> Role & Payment</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <FormSelect icon={Briefcase} label="Position" value={position} onChange={e => setPosition(e.target.value)} placeholder="Select position..." required>
+                      {Object.entries(POSITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </FormSelect>
+                    <FormSelect icon={CreditCard} label="Payment Status" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} placeholder="Select payment status..." required>
+                      {Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </FormSelect>
+                  </div>
+                </div>
+                {/* ── Messages ── */}
+                {error && <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl px-4 py-2.5"><AlertTriangle size={14} /> {error}</div>}
+                {success && <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl px-4 py-2.5"><CheckCircle2 size={14} /> {success}</div>}
+                {/* ── Submit ── */}
+                <Button loading={createWorker.isPending} onClick={() => createWorker.mutate()} disabled={!name || !zone || !region || !division} className="w-full sm:w-auto h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Plus size={16} /> Register Worker</Button>
               </CardContent>
             </Card>
           </motion.div>
