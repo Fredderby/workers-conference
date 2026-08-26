@@ -4,7 +4,7 @@ import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE } from "@/lib/db/mock";
 import { withError } from "@/lib/api-handler";
 
-const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker"];
+const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer"];
 const VALID_PAYMENTS = ["paid", "unpaid"];
 const VALID_GENDERS = ["male", "female"];
 
@@ -38,7 +38,7 @@ export const GET = withError(async (req: NextRequest) => {
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const csv = "FullName,Gender,Zone,Region,Division,Position,PaymentStatus\nJohn Mensah,male,Central-Western Zone,Tarkwa,Tarkwa div,adult_worker,paid\nGrace Asante,female,Greater Accra Zone,Accra Metro,Abeka-Lapaz,youth_worker,unpaid";
+  const csv = "FullName,Gender,Zone,Region,Division,Position,PaymentStatus\n";
   return new NextResponse(csv, {
     headers: { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="worker-upload-template.csv"' },
   });

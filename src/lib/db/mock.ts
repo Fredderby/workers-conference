@@ -53,7 +53,7 @@ export interface LoginAttempt {
 }
 
 export type Gender = "male" | "female";
-export type Position = "adult_leader" | "adult_worker" | "youth_worker" | "youth_leader" | "children_leader" | "children_worker";
+export type Position = "adult_leader" | "adult_worker" | "youth_worker" | "youth_leader" | "children_leader" | "children_worker" | "zonal_admin" | "regional_admin" | "divisional_admin" | "national_officer";
 export type PaymentStatus = "paid" | "unpaid";
 
 export interface Worker {
@@ -174,6 +174,10 @@ export const POSITION_LABELS: Record<Position, string> = {
   youth_leader: "Youth Leader",
   children_leader: "Children Leader",
   children_worker: "Children Worker",
+  zonal_admin: "Zonal Admin",
+  regional_admin: "Regional Admin",
+  divisional_admin: "Divisional Admin",
+  national_officer: "National Officer",
 };
 
 export const PAYMENT_LABELS: Record<PaymentStatus, string> = {

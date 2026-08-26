@@ -1035,7 +1035,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <Download size={18} className="text-indigo-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">Download CSV Template</p>
-                    <p className="text-xs text-slate-500">Get the template with headers and example rows</p>
+                    <p className="text-xs text-slate-500">Headers only — fill in your own rows before uploading</p>
                   </div>
                   <a href="/api/auth/workers/bulk" download className="shrink-0 self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors"><Download size={12} /> Download</a>
                 </div>
