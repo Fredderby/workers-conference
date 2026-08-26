@@ -86,7 +86,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
           const Icon = ICON_MAP[s.icon] || BarChart3;
           const isBroadcast = s.id === "broadcast";
           return (
-            <button key={s.id} onClick={() => handleNav(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
+            <button key={s.id} onClick={() => handleNav(s.id)} className={`nav-item-premium w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${section === s.id ? "bg-gradient-to-r from-[#1a237e] to-[#283593] text-white shadow-lg shadow-indigo-500/20" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"}`}>
               <Icon size={16} />
               {!collapsed && s.label}
               {!collapsed && isBroadcast && unreadCount > 0 && (
@@ -101,9 +101,9 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
       </nav>
       {!collapsed && (
         <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-          <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-            <p className="text-xs font-medium truncate">{user.displayName}</p>
-            <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
+          <div className="rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-800/40 p-3 border border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-semibold truncate">{user.displayName}</p>
+            <p className="text-[10px] text-slate-400 truncate capitalize">{user.role?.replace("_", " ")}</p>
           </div>
         </div>
       )}
@@ -113,7 +113,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
   return (
     <div className="min-h-screen flex bg-[#f0f2f5] dark:bg-[#020617]">
       {/* Desktop sidebar */}
-      <aside className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-16"}`}>
+      <aside className={`hidden md:flex fixed inset-y-0 left-0 z-30 flex-col bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 transition-all duration-300 ease-[var(--ease-out)] ${sidebarOpen ? "w-64" : "w-[68px]"}`}>
         <SidebarContent collapsed={!sidebarOpen} />
       </aside>
 
@@ -122,13 +122,13 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
         {mobileOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} />
-            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 md:hidden shadow-2xl">
+            <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 md:hidden elevation-3">
               <div className="h-14 flex items-center px-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2.5 flex-1">
-                  <div className="h-8 w-8 rounded-lg overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
-                  <div><p className="text-xs font-semibold leading-none">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
+                  <div className="h-8 w-8 rounded-xl overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+                  <div><p className="text-xs font-semibold leading-none tracking-premium">Workers</p><p className="text-[10px] text-slate-400">Conference</p></div>
                 </div>
-                <button onClick={() => setMobileOpen(false)} className="h-7 w-7 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400">
+                <button onClick={() => setMobileOpen(false)} className="h-8 w-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center text-slate-400 transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -137,7 +137,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
                   const Icon = ICON_MAP[s.icon] || BarChart3;
                   const isBroadcast = s.id === "broadcast";
                   return (
-                    <button key={s.id} onClick={() => handleNav(s.id)} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${section === s.id ? "bg-[#1a237e] text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"}`}>
+                    <button key={s.id} onClick={() => handleNav(s.id)} className={`nav-item-premium w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 ${section === s.id ? "bg-gradient-to-r from-[#1a237e] to-[#283593] text-white shadow-lg shadow-indigo-500/20" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"}`}>
                       <Icon size={18} />
                       <span className="flex-1 text-left">{s.label}</span>
                       {isBroadcast && unreadCount > 0 && (
@@ -148,9 +148,9 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
                 })}
               </nav>
               <div className="p-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
-                  <p className="text-xs font-medium truncate">{user.displayName}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{user.role?.replace("_", " ")}</p>
+                <div className="rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/60 dark:to-slate-800/40 p-3 border border-slate-100 dark:border-slate-800">
+                  <p className="text-xs font-semibold truncate">{user.displayName}</p>
+                  <p className="text-[10px] text-slate-400 truncate capitalize">{user.role?.replace("_", " ")}</p>
                 </div>
               </div>
             </motion.aside>
@@ -158,23 +158,23 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
         )}
       </AnimatePresence>
 
-      <div className={`flex-1 min-w-0 max-w-full transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-16"}`}>
-        <header className="sticky top-0 z-20 h-14 md:h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6">
+      <div className={`flex-1 min-w-0 max-w-full transition-all duration-300 ease-[var(--ease-out)] ${sidebarOpen ? "md:ml-64" : "md:ml-[68px]"}`}>
+        <header className="sticky top-0 z-20 h-14 md:h-16 glass border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-            <button onClick={() => setMobileOpen(true)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300">
+            <button onClick={() => setMobileOpen(true)} className="h-9 w-9 shrink-0 grid place-items-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300 transition-colors">
               <Menu size={18} />
             </button>
-            <h1 className="text-sm font-bold tracking-tight capitalize truncate min-w-0">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
-            <span className="hidden sm:inline shrink-0 text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">DCLM 2026</span>
+            <h1 className="text-sm font-bold tracking-premium capitalize truncate min-w-0">{section === "overview" ? "Dashboard" : section.replace("_", " ")}</h1>
+            <span className="hidden sm:inline shrink-0 text-[10px] bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-2.5 py-0.5 rounded-full font-semibold shadow-sm">DCLM 2026</span>
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
-            <button onClick={toggleTheme} className="h-8 w-8 md:h-9 md:w-9 grid place-items-center rounded-full border bg-white dark:bg-slate-800">{dark ? <Moon size={14} /> : <Sun size={14} />}</button>
+            <button onClick={toggleTheme} className="h-8 w-8 md:h-9 md:w-9 grid place-items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-all duration-200">{dark ? <Moon size={14} /> : <Sun size={14} />}</button>
             <NotificationBell userId={user.id} onNavigateToBroadcast={() => handleNav("broadcast")} />
-            <div className="hidden sm:flex items-center gap-2 rounded-full border bg-white dark:bg-slate-800 px-3 py-1.5">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#1a237e] to-[#7c4dff] grid place-items-center text-white text-xs font-bold">{user.displayName?.[0]}</div>
+            <div className="hidden sm:flex items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-1 pr-3 py-1 hover:shadow-md transition-all duration-200">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#1a237e] to-[#7c4dff] grid place-items-center text-white text-xs font-bold ring-2 ring-white dark:ring-slate-900">{user.displayName?.[0]}</div>
               <div className="text-left leading-none"><p className="text-xs font-semibold">{user.displayName}</p><p className="text-[10px] text-slate-500">{user.email}</p></div>
             </div>
-            <button onClick={logout} className="inline-flex items-center gap-1 md:gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-2.5 md:px-3 py-1.5 md:py-2 text-xs font-medium"><LogOut size={14} /> <span className="hidden sm:inline">Logout</span></button>
+            <button onClick={logout} className="inline-flex items-center gap-1 md:gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-2.5 md:px-3 py-1.5 md:py-2 text-xs font-medium hover:shadow-lg transition-all duration-200"><LogOut size={14} /> <span className="hidden sm:inline">Logout</span></button>
           </div>
         </header>
         <main className="p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
@@ -294,31 +294,33 @@ function OverviewSection({ user }: { user: any }) {
   return (
     <div className="space-y-5">
       {/* ── Power BI KPI Banner ── */}
-      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-[#1a237e] via-[#283593] to-[#3949ab] px-4 sm:px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 elevation-1 overflow-hidden">
+        <div className="relative bg-gradient-to-r from-[#1a237e] via-[#283593] to-[#3949ab] px-4 sm:px-6 py-5 noise-overlay overflow-hidden">
+          <div className="blob absolute -top-20 -right-20 h-40 w-40 bg-indigo-400/30" />
+          <div className="blob absolute -bottom-10 -left-10 h-32 w-32 bg-violet-400/20" style={{ animationDelay: "4s" }} />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded overflow-hidden"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
-                <p className="text-[10px] font-medium text-indigo-200 uppercase tracking-widest">Workers Conference</p>
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl overflow-hidden ring-2 ring-white/20"><img src="/dclmlogo.JPG" alt="Logo" className="h-full w-full object-cover" /></div>
+                <p className="text-[10px] font-semibold text-indigo-200 uppercase tracking-widest">Workers Conference</p>
               </div>
-              <h2 className="text-lg sm:text-xl font-bold text-white mt-1">Registration Analytics — 2026</h2>
-              <p className="text-[11px] sm:text-xs text-indigo-200 mt-0.5">Welcome, {user.displayName} &middot; {user.role?.replace("_", " ")}</p>
+              <h2 className="text-lg sm:text-xl font-bold text-white mt-1.5 tracking-premium">Registration Analytics — 2026</h2>
+              <p className="text-[11px] sm:text-xs text-indigo-200/80 mt-0.5">Welcome, {user.displayName} &middot; <span className="capitalize">{user.role?.replace("_", " ")}</span></p>
             </div>
             <div className="flex sm:hidden items-center gap-4 text-right">
-              <div><p className="text-2xl font-black text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total</p></div>
+              <div><p className="text-2xl kpi-number text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total</p></div>
               <div className="h-8 w-px bg-white/20" />
-              <div><p className="text-2xl font-black text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
+              <div><p className="text-2xl kpi-number text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
             </div>
             <div className="hidden sm:flex items-center gap-4 text-right">
-              <div><p className="text-3xl font-black text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total Registered</p></div>
+              <div><p className="text-3xl kpi-number text-white">{stats.total}</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Total Registered</p></div>
               <div className="h-10 w-px bg-white/20" />
-              <div><p className="text-3xl font-black text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
+              <div><p className="text-3xl kpi-number text-emerald-300">{stats.verificationRate}%</p><p className="text-[10px] text-indigo-200 uppercase tracking-wider">Verified</p></div>
             </div>
           </div>
         </div>
         {/* KPI Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-slate-100 dark:bg-slate-800">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-slate-100 dark:bg-slate-800/50">
           <KPIBlock label="Registered" value={stats.total} sub={`${stats.male}M / ${stats.female}F`} color="#6366f1" />
           <KPIBlock label="Paid" value={stats.paid} sub={`${stats.paidRate}% collection`} color="#10b981" delta={Number(stats.paidRate) > 50 ? "+" : "-"} />
           <KPIBlock label="Unpaid" value={stats.unpaid} sub={`${(100 - Number(stats.paidRate)).toFixed(1)}% outstanding`} color="#f59e0b" />
@@ -373,14 +375,14 @@ function OverviewSection({ user }: { user: any }) {
 
       {/* ── Charts Row 1 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="lg:col-span-2 card-premium overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Area Chart</p>
-                <h3 className="font-semibold text-sm mt-0.5">Verified by Region — 7 Days</h3>
+                <h3 className="font-semibold text-sm mt-0.5 tracking-premium">Verified by Region — 7 Days</h3>
               </div>
-              <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-2.5 py-1 rounded-full font-medium hidden sm:inline">STACKED</span>
+              <span className="text-[10px] bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-2.5 py-1 rounded-full font-semibold hidden sm:inline shadow-sm">STACKED</span>
             </div>
           </div>
           <div className="p-3 sm:p-4 h-64 sm:h-72">
@@ -397,7 +399,7 @@ function OverviewSection({ user }: { user: any }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", backdropFilter: "blur(12px)" }} />
                 {stats.topRegionNames.map((r, i) => (
                   <Area key={r} type="monotone" dataKey={r} stackId="1" stroke={CHART_COLORS[i % CHART_COLORS.length]} fill={`url(#grad-${i})`} strokeWidth={2} />
                 ))}
@@ -407,10 +409,10 @@ function OverviewSection({ user }: { user: any }) {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="card-premium overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Gender Breakdown</p>
-            <h3 className="font-semibold text-sm mt-0.5">Male vs Female</h3>
+            <h3 className="font-semibold text-sm mt-0.5 tracking-premium">Male vs Female</h3>
           </div>
           <div className="p-4 sm:p-5">
             {/* Male Bar */}
@@ -470,10 +472,10 @@ function OverviewSection({ user }: { user: any }) {
 
       {/* ── Charts Row 2 ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="card-premium overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Bar Chart</p>
-            <h3 className="font-semibold text-sm mt-0.5">Workers by Region</h3>
+            <h3 className="font-semibold text-sm mt-0.5 tracking-premium">Workers by Region</h3>
           </div>
           <div className="p-3 sm:p-4 h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -481,7 +483,7 @@ function OverviewSection({ user }: { user: any }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 9, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", backdropFilter: "blur(12px)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
                 <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={16}>
                   {stats.topRegions.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.85} />)}
                 </Bar>
@@ -490,10 +492,10 @@ function OverviewSection({ user }: { user: any }) {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="card-premium overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Donut Chart</p>
-            <h3 className="font-semibold text-sm mt-0.5">Payment Status</h3>
+            <h3 className="font-semibold text-sm mt-0.5 tracking-premium">Payment Status</h3>
           </div>
           <div className="p-3 sm:p-4">
             <div className="h-48">
@@ -502,7 +504,7 @@ function OverviewSection({ user }: { user: any }) {
                   <Pie data={stats.paymentPie} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
                     {stats.paymentPie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12, backdropFilter: "blur(12px)" }} />
                 </RePieChart>
               </ResponsiveContainer>
             </div>
@@ -510,17 +512,17 @@ function OverviewSection({ user }: { user: any }) {
               <span className="flex items-center gap-1.5 font-medium"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "#10b981" }} /> Paid: {stats.paid}</span>
               <span className="flex items-center gap-1.5 font-medium"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "#f59e0b" }} /> Unpaid: {stats.unpaid}</span>
             </div>
-            <div className="mt-3 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-center">
+            <div className="mt-3 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100/50 dark:from-emerald-950/20 dark:to-emerald-900/10 text-center">
               <p className="text-[10px] text-slate-400 uppercase tracking-wider">Collection Rate</p>
-              <p className="text-lg font-bold text-emerald-600">{stats.paidRate}%</p>
+              <p className="text-lg font-bold text-emerald-600 kpi-number">{stats.paidRate}%</p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="card-premium overflow-hidden">
           <div className="px-4 sm:px-5 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Column Chart</p>
-            <h3 className="font-semibold text-sm mt-0.5">By Position</h3>
+            <h3 className="font-semibold text-sm mt-0.5 tracking-premium">By Position</h3>
           </div>
           <div className="p-3 sm:p-4 h-64 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -528,7 +530,7 @@ function OverviewSection({ user }: { user: any }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 9, fill: "#64748b" }} angle={-25} textAnchor="end" height={55} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", backdropFilter: "blur(12px)" }} cursor={{ fill: "rgba(99,102,241,0.05)" }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24}>
                   {stats.positionData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.85} />)}
                 </Bar>
@@ -539,12 +541,12 @@ function OverviewSection({ user }: { user: any }) {
       </div>
 
       {/* ── Power BI Analytical Insights ── */}
-      <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+      <div className="card-premium overflow-hidden">
         <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-gradient-to-br from-amber-400 to-orange-500 grid place-items-center"><BarChart3 size={12} className="text-white" /></div>
+          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 grid place-items-center shadow-sm"><BarChart3 size={14} className="text-white" /></div>
           <div>
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">AI-Powered Insights</p>
-            <h3 className="font-semibold text-sm">Advanced Analytics</h3>
+            <h3 className="font-semibold text-sm tracking-premium">Advanced Analytics</h3>
           </div>
         </div>
         <div className="p-4 sm:p-5">
@@ -621,9 +623,10 @@ function OverviewSection({ user }: { user: any }) {
 /* ── Power BI KPI Block ── */
 function KPIBlock({ label, value, sub, color, delta }: { label: string; value: number; sub: string; color: string; delta?: string }) {
   return (
-    <div className="px-4 py-3.5 sm:px-5 bg-white dark:bg-slate-900">
+    <div className="px-4 py-4 sm:px-5 bg-white dark:bg-slate-900 relative group">
+      <div className="absolute left-0 top-0 h-full w-[3px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: color }} />
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{label}</p>
-      <p className="text-2xl font-black mt-0.5" style={{ color }}>{value}</p>
+      <p className="text-2xl mt-0.5 kpi-number" style={{ color }}>{value}</p>
       <div className="flex items-center gap-1 mt-0.5">
         {delta && <span className={`text-[10px] font-bold ${delta === "+" ? "text-emerald-500" : "text-amber-500"}`}>{delta}</span>}
         <p className="text-[10px] text-slate-400">{sub}</p>
@@ -638,12 +641,12 @@ function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData
   const points = sparkData.map((v, i) => `${(i / (sparkData.length - 1)) * 100},${100 - (v / max) * 80}`).join(" ");
   const total = male + female;
   return (
-    <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 relative overflow-hidden group hover:shadow-md transition-shadow">
-      <div className="absolute top-0 left-0 h-1 w-full" style={{ background: accent }} />
+    <div className="card-premium p-4 sm:p-5 relative overflow-hidden group">
+      <div className="accent-bar" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
-          <p className="text-2xl sm:text-3xl font-black mt-1" style={{ color: accent }}>{value}</p>
+          <p className="text-2xl sm:text-3xl mt-1 kpi-number" style={{ color: accent }}>{value}</p>
         </div>
         {trend && (
           <div className={`flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${trendUp ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-amber-50 dark:bg-amber-950/30 text-amber-600"}`}>
@@ -660,16 +663,16 @@ function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: "#6366f1" }} />M</span>
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-sm" style={{ background: "#ec4899" }} />F</span>
             </span>
-            <span>{male} / {female}</span>
+            <span className="tabular-nums">{male} / {female}</span>
           </div>
           <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-            <div className="h-full rounded-l-full transition-all duration-500" style={{ width: `${(male / total) * 100}%`, background: "#6366f1" }} />
-            <div className="h-full rounded-r-full transition-all duration-500" style={{ width: `${(female / total) * 100}%`, background: "#ec4899" }} />
+            <div className="h-full rounded-l-full transition-all duration-500" style={{ width: `${(male / total) * 100}%`, background: "linear-gradient(90deg, #6366f1, #818cf8)" }} />
+            <div className="h-full rounded-r-full transition-all duration-500" style={{ width: `${(female / total) * 100}%`, background: "linear-gradient(90deg, #ec4899, #f472b6)" }} />
           </div>
         </div>
       )}
       {/* Mini sparkline */}
-      <div className="mt-2.5 h-6 w-full opacity-60">
+      <div className="mt-2.5 h-6 w-full opacity-60 group-hover:opacity-100 transition-opacity">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
           <defs>
             <linearGradient id={`spark-${title}`} x1="0" y1="0" x2="0" y2="1">
@@ -688,17 +691,17 @@ function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData
 /* ── Insight Card ── */
 function InsightCard({ icon, title, value, unit, detail, trend, insight, accent }: { icon: React.ReactNode; title: string; value: string | number; unit: string; detail: string; trend: "up" | "down"; insight: string; accent: string }) {
   return (
-    <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 h-1 w-full" style={{ background: accent }} />
+    <div className="card-premium p-4 relative overflow-hidden group">
+      <div className="accent-bar" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded grid place-items-center" style={{ background: accent + "15", color: accent }}>{icon}</div>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl grid place-items-center transition-transform group-hover:scale-110" style={{ background: accent + "15", color: accent }}>{icon}</div>
           <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">{title}</p>
         </div>
         {trend === "up" ? <TrendingUp size={13} className="text-emerald-500" /> : <TrendingDown size={13} className="text-amber-500" />}
       </div>
       <div className="flex items-baseline gap-1">
-        <p className="text-2xl font-black" style={{ color: accent }}>{value}</p>
+        <p className="text-2xl kpi-number" style={{ color: accent }}>{value}</p>
         <span className="text-xs text-slate-400 font-medium">{unit}</span>
       </div>
       <p className="text-[11px] text-slate-400 mt-0.5">{detail}</p>

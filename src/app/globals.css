@@ -8,6 +8,15 @@
   --primary-foreground: #ffffff;
   --muted: #f1f5f9;
   --border: #e2e8f0;
+
+  --elevation-1: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+  --elevation-2: 0 4px 16px rgba(0,0,0,.08), 0 12px 32px rgba(0,0,0,.05);
+  --elevation-3: 0 8px 24px rgba(0,0,0,.10), 0 20px 48px rgba(0,0,0,.07);
+  --radius-premium: 16px;
+  --radius-premium-lg: 24px;
+  --duration-fast: 160ms;
+  --duration-normal: 200ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -30,9 +39,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* glassmorphism */
+/* ── Premium Typography ── */
+.font-display { font-family: var(--font-geist-sans), system-ui, sans-serif; font-feature-settings: "ss01", "ss02"; }
+.tracking-premium { letter-spacing: -0.025em; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ── Glass ── */
 .glass {
   background: rgba(255,255,255,0.82);
   backdrop-filter: blur(20px) saturate(180%);
@@ -43,7 +60,49 @@ body {
   border-color: rgba(255,255,255,0.08);
 }
 
-/* animated gradient blobs */
+/* ── Glass Subtle ── */
+.glass-subtle {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(255,255,255,0.4);
+}
+.dark .glass-subtle {
+  background: rgba(15,23,42,0.6);
+  border-color: rgba(255,255,255,0.06);
+}
+
+/* ── Card Premium ── */
+.card-premium {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-premium);
+  box-shadow: var(--elevation-1);
+  transition: box-shadow var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out);
+}
+.card-premium:hover {
+  box-shadow: var(--elevation-2);
+  transform: translateY(-2px);
+}
+.dark .card-premium {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+/* ── Elevation utilities ── */
+.elevation-1 { box-shadow: var(--elevation-1); }
+.elevation-2 { box-shadow: var(--elevation-2); }
+.elevation-3 { box-shadow: var(--elevation-3); }
+
+/* ── Accent Bar ── */
+.accent-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 0 0 4px 0;
+}
+
+/* ── Animated gradient blobs ── */
 .blob {
   position: absolute;
   border-radius: 50%;
@@ -51,7 +110,66 @@ body {
   opacity: 0.5;
   animation: float 12s ease-in-out infinite;
 }
+@media (max-width: 768px) {
+  .blob { display: none; }
+}
 @keyframes float {
   0%, 100% { transform: translate(0,0) scale(1); }
   50% { transform: translate(20px, -20px) scale(1.05); }
+}
+
+/* ── Nav Premium ── */
+.nav-item-premium {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.nav-item-premium:hover {
+  transform: translateY(-1px);
+}
+
+/* ── KPI Number ── */
+.kpi-number {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 900;
+}
+
+/* ── Micro Interaction ── */
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-2);
+}
+
+/* ── Chart Tooltip Glass ── */
+.chart-tooltip-glass {
+  background: rgba(255,255,255,0.92) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  border: 1px solid rgba(255,255,255,0.6) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--elevation-2) !important;
+}
+.dark .chart-tooltip-glass {
+  background: rgba(15,23,42,0.92) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+}
+
+/* ── Noise Texture Overlay ── */
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
