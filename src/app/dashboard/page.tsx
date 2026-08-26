@@ -158,7 +158,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
         )}
       </AnimatePresence>
 
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-16"}`}>
+      <div className={`flex-1 min-w-0 max-w-full transition-all duration-300 ${sidebarOpen ? "md:ml-64" : "md:ml-16"}`}>
         <header className="sticky top-0 z-20 h-14 md:h-16 bg-white/80 dark:bg-slate-900/70 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
             <button onClick={() => setMobileOpen(true)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 md:hidden text-slate-600 dark:text-slate-300">
@@ -177,7 +177,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
             <button onClick={logout} className="inline-flex items-center gap-1 md:gap-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-2.5 md:px-3 py-1.5 md:py-2 text-xs font-medium"><LogOut size={14} /> <span className="hidden sm:inline">Logout</span></button>
           </div>
         </header>
-        <main className="p-4 md:p-6">
+        <main className="p-3 sm:p-4 md:p-6 max-w-full overflow-x-hidden">
           <AnimatePresence mode="wait">
             <motion.div key={section} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
               {section === "overview" && <OverviewSection user={user} />}
@@ -797,27 +797,56 @@ function UserManagementSection() {
         )}
       </AnimatePresence>
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-          <table className="w-full text-sm min-w-[700px]">
-            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Email</th><th>Role</th><th>Zone</th><th>Region</th><th>Temp Pw</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody className="divide-y">
-              {data?.users?.map((u: any) => (
-                <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium">{u.displayName}</td><td className="text-slate-500">{u.email}</td>
-                  <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span></td>
-                  <td className="text-slate-500 text-xs">{u.zone || "—"}</td>
-                  <td className="text-slate-500 text-xs">{u.region || "—"}</td>
-                  <td>{u.isTempPassword ? <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Pending</span> : <span className="text-xs text-slate-400">Changed</span>}</td>
-                  <td>{u.isActive ? <span className="text-emerald-600 text-xs font-medium">Active</span> : <span className="text-red-600 text-xs font-medium">Inactive</span>}</td>
-                  <td className="text-right"><div className="flex items-center justify-end gap-1">
-                    <button title="Reset Password" onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                    <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100">{u.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} className="text-red-500" />}</button>
-                  </div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile: card list */}
+          <div className="md:hidden space-y-3">
+            {data?.users?.map((u: any) => (
+              <div key={u.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{u.displayName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
+                  </div>
+                  {u.isActive ? <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600">Active</span> : <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/30 text-red-600">Inactive</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span>
+                  {(u.zone || u.region) && <span className="text-[10px] text-slate-400">{[u.zone, u.region].filter(Boolean).join(" › ")}</span>}
+                  {u.isTempPassword && <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Temp password pending</span>}
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 inline-flex items-center justify-center gap-1.5"><Key size={12} /> Reset Password</button>
+                  <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${u.isActive ? "bg-slate-100 dark:bg-slate-800 text-slate-500" : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"}`}>{u.isActive ? "Deactivate" : "Activate"}</button>
+                </div>
+              </div>
+            ))}
+            {data?.users?.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No users found.</div>
+            )}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Email</th><th>Role</th><th>Zone</th><th>Region</th><th>Temp Pw</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody className="divide-y">
+                {data?.users?.map((u: any) => (
+                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-medium">{u.displayName}</td><td className="text-slate-500">{u.email}</td>
+                    <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span></td>
+                    <td className="text-slate-500 text-xs">{u.zone || "—"}</td>
+                    <td className="text-slate-500 text-xs">{u.region || "—"}</td>
+                    <td>{u.isTempPassword ? <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Pending</span> : <span className="text-xs text-slate-400">Changed</span>}</td>
+                    <td>{u.isActive ? <span className="text-emerald-600 text-xs font-medium">Active</span> : <span className="text-red-600 text-xs font-medium">Inactive</span>}</td>
+                    <td className="text-right"><div className="flex items-center justify-end gap-1">
+                      <button title="Reset Password" onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                      <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100">{u.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} className="text-red-500" />}</button>
+                    </div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {/* Reset Password Modal */}
       <AnimatePresence>
@@ -1071,24 +1100,52 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         )}
       </AnimatePresence>
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /></div> : (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-          <table className="w-full text-sm min-w-[850px]">
-            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
-            <tbody className="divide-y">
-              {data?.workers?.map((w: any) => (
-                <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
-                  <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
-                  <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
-                  <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
-                  <td><button onClick={() => toggleVerify.mutate(w.id)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
-                  <td><button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button></td>
-                </tr>
-              ))}
-              {data?.workers?.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile: card list */}
+          <div className="md:hidden space-y-3">
+            {data?.workers?.map((w: any) => (
+              <div key={w.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm truncate">{w.name}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">{w.zone} › {w.region} › {w.division}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${w.gender === "male" ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600" : "bg-pink-50 dark:bg-pink-900/30 text-pink-600"}`}>{w.gender}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
+                  {w.paymentStatus === "paid" ? <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600">Paid</span> : <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600">Unpaid</span>}
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button onClick={() => toggleVerify.mutate(w.id)} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${w.verified ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "✓ Verified" : "Mark Verified"}</button>
+                  <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+            {data?.workers?.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No workers registered yet.</div>
+            )}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+            <table className="w-full text-sm min-w-[850px]">
+              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
+              <tbody className="divide-y">
+                {data?.workers?.map((w: any) => (
+                  <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
+                    <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
+                    <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                    <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
+                    <td><button onClick={() => toggleVerify.mutate(w.id)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
+                    <td><button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button></td>
+                  </tr>
+                ))}
+                {data?.workers?.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -1236,7 +1293,26 @@ function ApprovalSection({ user }: { user: any }) {
                 </div>
                 <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full">{totalCurrentBatch} workers</span>
               </div>
-              <div className="overflow-x-auto">
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-3 p-3">
+                {regionStats.filter(r => r.currentBatch > 0).map((r) => (
+                  <div key={r.region} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #f59e0b, #f97316)" }}>{r.region.charAt(0)}</div>
+                        <div className="min-w-0"><p className="font-semibold text-sm truncate">{r.region}</p><p className="text-[11px] text-slate-400">{r.verified} verified total</p></div>
+                      </div>
+                      <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-200 dark:border-amber-800">+{r.currentBatch} new</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">{r.lastApproval ? <>Last: Batch {r.lastApproval.batchNumber} ({r.lastApproval.verifiedCount} workers)</> : "Never approved before"}</p>
+                    {!locked && (
+                      <button onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })} disabled={approveMutation.isPending} className="w-full min-h-[38px] rounded-lg text-xs font-semibold text-white shadow-md disabled:opacity-50 inline-flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}><CheckCircle2 size={12} /> Approve Batch</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm min-w-[500px]">
                   <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
                     <tr>
@@ -1305,7 +1381,23 @@ function ApprovalSection({ user }: { user: any }) {
                 </div>
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{allApprovals.length} approvals</span>
               </div>
-              <div className="overflow-x-auto">
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-3 p-3">
+                {allApprovals.map((a: any) => (
+                  <div key={a.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>{a.region.charAt(0)}</div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{a.region}</p>
+                        <p className="text-[11px] text-slate-400 truncate">{a.verifiedCount} workers · {a.approvedByName} · {new Date(a.approvedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">#{a.batchNumber}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm min-w-[600px]">
                   <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
                     <tr>
@@ -1352,7 +1444,26 @@ function ApprovalSection({ user }: { user: any }) {
               </div>
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{regionStats.length} regions</span>
             </div>
-            <div className="overflow-x-auto">
+            {/* Mobile: cards */}
+            <div className="md:hidden space-y-3 p-3">
+              {regionStats.map((r, i) => (
+                <div key={r.region} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#ef4444"][i % 7]}, ${["#818cf8", "#a78bfa", "#f472b6", "#fbbf24", "#34d399", "#22d3ee", "#f87171"][i % 7]})` }}>{r.region.charAt(0)}</div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{r.region}</p>
+                      <p className="text-[11px] text-slate-400">{allApprovals.filter((a: any) => a.region === r.region).length} batches</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold"><span className={r.verified === r.total && r.total > 0 ? "text-emerald-600" : "text-amber-600"}>{r.verified}</span><span className="text-slate-400">/{r.total}</span></p>
+                    {r.currentBatch > 0 && <span className="inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600">+{r.currentBatch}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm min-w-[500px]">
                 <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
                   <tr>
@@ -1442,21 +1553,43 @@ function AttendanceSection() {
       {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div className="min-w-0"><p className="font-semibold truncate">{selectedWorker.name}</p><p className="text-sm text-slate-500 truncate">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)} className="shrink-0 self-start sm:self-auto">{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
       <h3 className="font-semibold">Check-in Log ({attData?.attendances?.length || 0})</h3>
       {isLoading ? <Skeleton className="h-12 w-full" /> : (
-        <div className="rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]">
-            <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody className="divide-y">
-              {(attData?.attendances || []).map((a: any) => (
-                <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium">{a.workerName}</td><td className="text-xs">{a.zone}</td><td className="text-xs">{a.region}</td><td className="text-xs">{new Date(a.checkedInAt).toLocaleString()}</td>
-                  <td>{a.checkedOutAt ? <span className="text-xs text-slate-500">Left</span> : <span className="text-xs text-emerald-600 font-medium">Present</span>}</td>
-                  <td>{!a.checkedOutAt && <button onClick={() => checkOut.mutate(a.workerId)} className="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 hover:bg-red-50">Check Out</button>}</td>
-                </tr>
-              ))}
-              {(!attData?.attendances || attData.attendances.length === 0) && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No check-ins yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile: card list */}
+          <div className="md:hidden space-y-3">
+            {(attData?.attendances || []).map((a: any) => (
+              <div key={a.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm truncate">{a.workerName}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{a.zone} › {a.region}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{new Date(a.checkedInAt).toLocaleString()}</p>
+                </div>
+                <div className="shrink-0 flex flex-col items-end gap-2">
+                  {a.checkedOutAt ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">Left</span> : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600">Present</span>}
+                  {!a.checkedOutAt && <button onClick={() => checkOut.mutate(a.workerId)} className="min-h-[32px] px-3 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600">Check Out</button>}
+                </div>
+              </div>
+            ))}
+            {(!attData?.attendances || attData.attendances.length === 0) && (
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No check-ins yet.</div>
+            )}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody className="divide-y">
+                {(attData?.attendances || []).map((a: any) => (
+                  <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-medium">{a.workerName}</td><td className="text-xs">{a.zone}</td><td className="text-xs">{a.region}</td><td className="text-xs">{new Date(a.checkedInAt).toLocaleString()}</td>
+                    <td>{a.checkedOutAt ? <span className="text-xs text-slate-500">Left</span> : <span className="text-xs text-emerald-600 font-medium">Present</span>}</td>
+                    <td>{!a.checkedOutAt && <button onClick={() => checkOut.mutate(a.workerId)} className="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 hover:bg-red-50">Check Out</button>}</td>
+                  </tr>
+                ))}
+                {(!attData?.attendances || attData.attendances.length === 0) && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No check-ins yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
