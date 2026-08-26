@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, ChevronDown, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu, User, MapPin, Building2, Layers, Briefcase, CreditCard } from "lucide-react";
+import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, ChevronDown, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu, User, MapPin, Building2, Layers, Briefcase, CreditCard, Calendar } from "lucide-react";
 import { NotificationBell } from "@/components/notification/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,13 +292,13 @@ function DrillIndicator() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   REPORTS — Professional Print-to-PDF
+   REPORTS — Premium Power BI Pro Design
    ══════════════════════════════════════════════════════════════ */
 function ReportsSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const workers: any[] = data?.workers || [];
   const [reportType, setReportType] = useState("registration");
-  const [printScope, setPrintScope] = useState("all");
+  const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
 
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -311,6 +311,15 @@ function ReportsSection({ user }: { user: any }) {
   const male = workers.filter(w => w.gender === "male").length;
   const female = workers.filter(w => w.gender === "female").length;
 
+  const dailyWorkers = workers.filter(w => {
+    if (!w.createdAt) return false;
+    return w.createdAt.startsWith(dailyDate);
+  });
+  const dailyPaid = dailyWorkers.filter(w => w.paymentStatus === "paid").length;
+  const dailyVerified = dailyWorkers.filter(w => w.verified).length;
+  const dailyMale = dailyWorkers.filter(w => w.gender === "male").length;
+  const dailyFemale = dailyWorkers.filter(w => w.gender === "female").length;
+
   const byZone: Record<string, any[]> = {};
   workers.forEach(w => { if (!byZone[w.zone]) byZone[w.zone] = []; byZone[w.zone].push(w); });
 
@@ -319,46 +328,460 @@ function ReportsSection({ user }: { user: any }) {
 
   const byPosition: Record<string, number> = {};
   workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
+  const topPositions = Object.entries(byPosition).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
   const handlePrint = () => { window.print(); };
 
-  const reportTitle = {
-    registration: "Registration Summary Report",
-    payment: "Payment Status Report",
-    verification: "Verification Status Report",
-    regional: "Regional Breakdown Report",
-    gender: "Gender Analysis Report",
-  }[reportType];
+  const reportMeta: Record<string, { label: string; title: string; subtitle: string; color: string; icon: any }> = {
+    daily: { label: "Daily", title: "Daily Activity Report", subtitle: "Workers registered, paid, and verified on a specific day", color: "#f59e0b", icon: <Calendar size={18} /> },
+    registration: { label: "Registration", title: "Registration Summary Report", subtitle: "Complete list of all registered workers across all zones", color: "#6366f1", icon: <UserPlus size={18} /> },
+    payment: { label: "Payment", title: "Payment Status Report", subtitle: "Payment collection breakdown and outstanding balances", color: "#10b981", icon: <CreditCard size={18} /> },
+    verification: { label: "Verification", title: "Verification Status Report", subtitle: "Identity verification progress and pending reviews", color: "#06b6d4", icon: <ScanLine size={18} /> },
+    regional: { label: "Regional", title: "Regional Breakdown Report", subtitle: "Worker distribution by zone, region, and division", color: "#8b5cf6", icon: <MapPin size={18} /> },
+    gender: { label: "Gender", title: "Gender Analysis Report", subtitle: "Gender distribution with zone-level ratios", color: "#ec4899", icon: <Users size={18} /> },
+  };
+  const meta = reportMeta[reportType];
 
   return (
-    <div className="space-y-4">
-      {/* Screen-only controls */}
+    <div className="space-y-4 min-w-0">
+      {/* ── Screen-Only Header ── */}
       <div className="no-print">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="font-semibold text-sm">Generate Reports</h3>
-            <p className="text-[11px] text-slate-400">Professional reports ready for PDF export</p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
+                <FileSpreadsheet size={18} className="text-white" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-semibold text-sm tracking-tight">Reports</h2>
+                <p className="text-[11px] text-slate-400 truncate">Professional reports — ready for PDF export</p>
+              </div>
+            </div>
           </div>
-          <Button onClick={handlePrint} className="gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Download size={14} /> Export as PDF</Button>
+          <Button onClick={handlePrint} className="gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20 hover:shadow-xl transition-all flex-shrink-0">
+            <Download size={14} /> Export PDF
+          </Button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
-          {[
-            { id: "registration", label: "Registration", icon: <UserPlus size={14} /> },
-            { id: "payment", label: "Payment", icon: <CreditCard size={14} /> },
-            { id: "verification", label: "Verification", icon: <ScanLine size={14} /> },
-            { id: "regional", label: "Regional", icon: <MapPin size={14} /> },
-            { id: "gender", label: "Gender", icon: <Users size={14} /> },
-          ].map(r => (
-            <button key={r.id} onClick={() => setReportType(r.id)} className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${reportType === r.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600"}`}>
+
+        {/* ── Report Type Tabs ── */}
+        <div className="flex overflow-x-auto gap-1.5 mt-4 pb-1 scrollbar-thin">
+          {Object.entries(reportMeta).map(([id, r]) => (
+            <button key={id} onClick={() => setReportType(id)}
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
+                reportType === id
+                  ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                  : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}>
               {r.icon} {r.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Print-only report */}
+      {/* ════════════════════════════════════════════════════════
+          SCREEN-ONLY — Premium Report Preview
+         ════════════════════════════════════════════════════════ */}
+      <div className="no-print space-y-4">
+        {/* Daily Date Picker (only for daily report) */}
+        {reportType === "daily" && (
+          <div className="flex items-center gap-2.5">
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Report Date:</label>
+            <input type="date" value={dailyDate} onChange={e => setDailyDate(e.target.value)}
+              className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 dark:focus:border-indigo-500 font-medium" />
+          </div>
+        )}
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          {(reportType === "daily" ? [
+            { label: "Daily Total", value: dailyWorkers.length, color: "from-indigo-500 to-indigo-600", icon: <UserPlus size={16} /> },
+            { label: "Paid Today", value: dailyPaid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
+            { label: "Verified", value: dailyVerified, color: "from-cyan-500 to-cyan-600", icon: <ScanLine size={16} /> },
+            { label: "Male", value: dailyMale, color: "from-blue-500 to-blue-600", icon: <User size={16} /> },
+            { label: "Female", value: dailyFemale, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
+            { label: "Conversion", value: dailyWorkers.length > 0 ? `${((dailyPaid / dailyWorkers.length) * 100).toFixed(0)}%` : "—", color: "from-amber-500 to-amber-600", icon: <TrendingUp size={16} /> },
+          ] : [
+            { label: "Total Workers", value: total, color: "from-indigo-500 to-indigo-600", icon: <UserPlus size={16} /> },
+            { label: "Paid", value: paid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
+            { label: "Unpaid", value: unpaid, color: "from-amber-500 to-amber-600", icon: <AlertTriangle size={16} /> },
+            { label: "Verified", value: verified, color: "from-cyan-500 to-cyan-600", icon: <ScanLine size={16} /> },
+            { label: "Male", value: male, color: "from-blue-500 to-blue-600", icon: <User size={16} /> },
+            { label: "Female", value: female, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
+          ]).map((s, i) => (
+            <div key={i} className="relative overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 p-3.5 shadow-sm hover:shadow-md transition-all group hover-lift min-w-0">
+              <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${s.color}`} />
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center shadow-sm flex-shrink-0`}>
+                  <span className="text-white">{s.icon}</span>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">{s.label}</span>
+              </div>
+              <p className="text-xl font-black tracking-tight kpi-number">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Report Content Cards */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm overflow-hidden">
+          {/* Card Header */}
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0" style={{ background: `${meta.color}15` }}>
+              <span style={{ color: meta.color }}>{meta.icon}</span>
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-sm tracking-tight">{meta.title}</h3>
+              <p className="text-[11px] text-slate-400 truncate">{meta.subtitle}</p>
+            </div>
+          </div>
+
+          {/* Registration Summary */}
+          {reportType === "registration" && (
+            <div className="p-5">
+              {/* Bar chart — workers by zone */}
+              <div className="mb-5">
+                <h4 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Workers by Zone</h4>
+                <div className="space-y-2">
+                  {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                    const pct = total > 0 ? (ws.length / total) * 100 : 0;
+                    return (
+                      <div key={zone} className="flex items-center gap-3 group">
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 w-28 truncate text-right flex-shrink-0">{zone}</span>
+                        <div className="flex-1 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative min-w-0">
+                          <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg transition-all flex items-center px-2.5 min-w-0" style={{ width: `${Math.max(pct, 3)}%` }}>
+                            <span className="text-[10px] font-bold text-white whitespace-nowrap">{ws.length}</span>
+                          </div>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 dark:text-slate-500">{pct.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {Object.keys(byZone).length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered yet</p>}
+                </div>
+              </div>
+              {/* Data table — desktop */}
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="report-table hidden md:table">
+                  <thead><tr><th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+                  <tbody>
+                    {workers.map((w, i) => (
+                      <tr key={w.id}>
+                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
+                        <td><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span></td>
+                        <td>{w.verified ? <CheckCircle2 size={14} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2 mt-4">
+                {workers.map((w, i) => (
+                  <div key={w.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold truncate">{w.name}</span>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span>
+                        {w.verified && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">Verified</span>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                      <span>{w.gender === "male" ? "Male" : "Female"}</span><span>{w.zone}</span>
+                      <span>{w.region}</span><span>{w.division}</span>
+                      <span className="col-span-2">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
+                    </div>
+                  </div>
+                ))}
+                {workers.length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered yet</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Payment Report */}
+          {reportType === "payment" && (
+            <div className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Donut visual */}
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative w-40 h-40">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" strokeWidth="3" className="dark:stroke-slate-800" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray={`${total > 0 ? (paid/total)*100 : 0} 100`} className="transition-all duration-700" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f59e0b" strokeWidth="3" strokeDasharray={`${total > 0 ? (unpaid/total)*100 : 0} 100`} strokeDashoffset={`-${total > 0 ? (paid/total)*100 : 0}`} className="transition-all duration-700" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black kpi-number">{total}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /><span className="text-[10px] font-semibold text-slate-500">Paid ({paid})</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /><span className="text-[10px] font-semibold text-slate-500">Unpaid ({unpaid})</span></div>
+                  </div>
+                </div>
+                {/* Breakdown bars */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status Breakdown</h4>
+                  <div>
+                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Paid</span><span className="text-xs font-bold text-emerald-600">{paid} ({total > 0 ? ((paid/total)*100).toFixed(1) : 0}%)</span></div>
+                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (paid/total)*100 : 0}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
+                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
+                  </div>
+                  {/* Top unpaid */}
+                  <div className="mt-4">
+                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Top Unpaid</h4>
+                    {workers.filter(w => w.paymentStatus === "unpaid").slice(0, 5).map(w => (
+                      <div key={w.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                        <span className="text-xs font-medium truncate">{w.name}</span>
+                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{w.zone}</span>
+                      </div>
+                    ))}
+                    {unpaid === 0 && <p className="text-xs text-emerald-500 font-medium">All workers have paid!</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Verification Report */}
+          {reportType === "verification" && (
+            <div className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative w-40 h-40">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" strokeWidth="3" className="dark:stroke-slate-800" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#06b6d4" strokeWidth="3" strokeDasharray={`${total > 0 ? (verified/total)*100 : 0} 100`} />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#94a3b8" strokeWidth="3" strokeDasharray={`${total > 0 ? ((total-verified)/total)*100 : 0} 100`} strokeDashoffset={`-${total > 0 ? (verified/total)*100 : 0}`} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black kpi-number">{total > 0 ? ((verified/total)*100).toFixed(0) : 0}%</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Verified</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-cyan-500" /><span className="text-[10px] font-semibold text-slate-500">Verified ({verified})</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-slate-400" /><span className="text-[10px] font-semibold text-slate-500">Pending ({total - verified})</span></div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Verification</h4>
+                  <div>
+                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Verified</span><span className="text-xs font-bold text-cyan-600">{verified} ({total > 0 ? ((verified/total)*100).toFixed(1) : 0}%)</span></div>
+                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (verified/total)*100 : 0}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Pending</span><span className="text-xs font-bold text-slate-500">{total - verified} ({total > 0 ? (((total-verified)/total)*100).toFixed(1) : 0}%)</span></div>
+                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-slate-400 to-slate-500 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? ((total-verified)/total)*100 : 0}%` }} /></div>
+                  </div>
+                  <div className="mt-4 space-y-1.5">
+                    {workers.filter(w => !w.verified).slice(0, 5).map(w => (
+                      <div key={w.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                        <span className="text-xs font-medium truncate">{w.name}</span>
+                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{w.zone}</span>
+                      </div>
+                    ))}
+                    {verified === total && <p className="text-xs text-cyan-600 font-medium">All workers verified!</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Regional Breakdown */}
+          {reportType === "regional" && (
+            <div className="p-5">
+              <div className="mb-5">
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Workers by Zone</h4>
+                <div className="space-y-2">
+                  {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                    const pct = total > 0 ? (ws.length / total) * 100 : 0;
+                    return (
+                      <div key={zone} className="flex items-center gap-3 group">
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 w-28 truncate text-right flex-shrink-0">{zone}</span>
+                        <div className="flex-1 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative min-w-0">
+                          <div className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg transition-all flex items-center px-2.5 min-w-0" style={{ width: `${Math.max(pct, 3)}%` }}>
+                            <span className="text-[10px] font-bold text-white whitespace-nowrap">{ws.length}</span>
+                          </div>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-400 dark:text-slate-500">{pct.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="report-table hidden md:table">
+                  <thead><tr><th>Region</th><th>Zone</th><th>Workers</th><th>Paid</th><th>Unpaid</th><th>Verified</th><th>Payment %</th></tr></thead>
+                  <tbody>
+                    {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
+                      const rp = ws.filter(w => w.paymentStatus === "paid").length;
+                      return (
+                        <tr key={region}>
+                          <td className="font-medium">{region}</td><td>{ws[0]?.zone}</td><td>{ws.length}</td>
+                          <td><span className="text-emerald-600 font-semibold">{rp}</span></td>
+                          <td><span className="text-amber-600 font-semibold">{ws.length - rp}</span></td>
+                          <td><span className="text-cyan-600 font-semibold">{ws.filter(w => w.verified).length}</span></td>
+                          <td>
+                            <div className="flex items-center gap-2"><div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div><span className="text-[10px] font-bold w-8 text-right">{ws.length > 0 ? ((rp / ws.length) * 100).toFixed(0) : 0}%</span></div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2 mt-4">
+                {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
+                  const rp = ws.filter(w => w.paymentStatus === "paid").length;
+                  return (
+                    <div key={region} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold truncate">{region}</span>
+                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{ws[0]?.zone}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-slate-400 uppercase">Workers</p><p className="text-sm font-black">{ws.length}</p></div>
+                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-emerald-400 uppercase">Paid</p><p className="text-sm font-black text-emerald-600">{rp}</p></div>
+                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-cyan-400 uppercase">Verified</p><p className="text-sm font-black text-cyan-600">{ws.filter(w => w.verified).length}</p></div>
+                      </div>
+                      <div className="mt-2"><div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Gender Analysis */}
+          {reportType === "gender" && (
+            <div className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative w-40 h-40">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" strokeWidth="3" className="dark:stroke-slate-800" />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#6366f1" strokeWidth="3" strokeDasharray={`${total > 0 ? (male/total)*100 : 0} 100`} />
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ec4899" strokeWidth="3" strokeDasharray={`${total > 0 ? (female/total)*100 : 0} 100`} strokeDashoffset={`-${total > 0 ? (male/total)*100 : 0}`} />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black kpi-number">{total > 0 ? ((male/total)*100).toFixed(0) : 0}% / {total > 0 ? ((female/total)*100).toFixed(0) : 0}%</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">M / F</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mt-3">
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500" /><span className="text-[10px] font-semibold text-slate-500">Male ({male})</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-pink-500" /><span className="text-[10px] font-semibold text-slate-500">Female ({female})</span></div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gender by Zone</h4>
+                  {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                    const zMale = ws.filter(w => w.gender === "male").length;
+                    const zFemale = ws.filter(w => w.gender === "female").length;
+                    const mPct = ws.length > 0 ? (zMale / ws.length) * 100 : 50;
+                    return (
+                      <div key={zone}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] font-medium text-slate-500 truncate">{zone}</span>
+                          <span className="text-[10px] font-bold text-slate-400">{zMale}M : {zFemale}F</span>
+                        </div>
+                        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                          <div className="h-full bg-indigo-500 transition-all duration-700" style={{ width: `${mPct}%` }} />
+                          <div className="h-full bg-pink-500 transition-all duration-700" style={{ width: `${100 - mPct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Daily Report */}
+          {reportType === "daily" && (
+            <div className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10 rounded-xl p-4 border border-indigo-200/50 dark:border-indigo-700/30">
+                  <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Registered</p>
+                  <p className="text-3xl font-black kpi-number text-indigo-600 dark:text-indigo-400">{dailyWorkers.length}</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10 rounded-xl p-4 border border-emerald-200/50 dark:border-emerald-700/30">
+                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Paid</p>
+                  <p className="text-3xl font-black kpi-number text-emerald-600 dark:text-emerald-400">{dailyPaid}</p>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/20 dark:to-cyan-800/10 rounded-xl p-4 border border-cyan-200/50 dark:border-cyan-700/30">
+                  <p className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1">Verified</p>
+                  <p className="text-3xl font-black kpi-number text-cyan-600 dark:text-cyan-400">{dailyVerified}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyMale}</p><p className="text-[10px] font-bold text-blue-400 uppercase">Male</p></div>
+                <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyFemale}</p><p className="text-[10px] font-bold text-pink-400 uppercase">Female</p></div>
+                <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyWorkers.length > 0 ? ((dailyPaid / dailyWorkers.length) * 100).toFixed(0) : 0}%</p><p className="text-[10px] font-bold text-emerald-400 uppercase">Paid Rate</p></div>
+                <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyWorkers.length > 0 ? ((dailyVerified / dailyWorkers.length) * 100).toFixed(0) : 0}%</p><p className="text-[10px] font-bold text-cyan-400 uppercase">Verified</p></div>
+              </div>
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Workers Registered on {new Date(dailyDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</h4>
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="report-table hidden md:table">
+                  <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+                  <tbody>
+                    {dailyWorkers.map((w, i) => (
+                      <tr key={w.id}>
+                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
+                        <td><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span></td>
+                        <td>{w.verified ? <CheckCircle2 size={14} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
+                      </tr>
+                    ))}
+                    {dailyWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6 text-xs">No workers registered on this date</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden space-y-2 mt-4">
+                {dailyWorkers.map((w, i) => (
+                  <div key={w.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold truncate">{w.name}</span>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span>
+                        {w.verified && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-cyan-100 text-cyan-700">Verified</span>}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 text-[10px] text-slate-500">
+                      <span>{w.gender === "male" ? "Male" : "Female"}</span><span>{w.zone}</span>
+                      <span className="col-span-2">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
+                    </div>
+                  </div>
+                ))}
+                {dailyWorkers.length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered on this date</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Top Positions — shown for registration, daily, and regional */}
+          {(reportType === "registration" || reportType === "daily" || reportType === "regional") && topPositions.length > 0 && (
+            <div className="px-5 pb-5">
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Top Positions</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {topPositions.map(([pos, count]) => (
+                  <div key={pos} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2.5 border border-slate-100 dark:border-slate-700/50">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{POSITION_LABELS[pos as keyof typeof POSITION_LABELS] || pos}</p>
+                    <p className="text-lg font-black kpi-number">{count}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════
+          PRINT-ONLY — Professional PDF Report
+         ════════════════════════════════════════════════════════ */}
       <div className="print-report">
-        {/* Report Header */}
         <div className="report-header">
           <div className="report-header-left">
             <div className="report-logo"><img src="/dclmlogo.JPG" alt="DCLM" /></div>
@@ -373,42 +796,39 @@ function ReportsSection({ user }: { user: any }) {
             <p className="report-time">{timeStr}</p>
           </div>
         </div>
-
-        {/* Report Title */}
         <div className="report-title-section">
-          <h2 className="report-title">{reportTitle}</h2>
+          <h2 className="report-title">{meta.title}</h2>
           <p className="report-generated">Generated by: {user.displayName} ({user.role?.replace("_", " ")})</p>
         </div>
-
         <div className="report-divider" />
-
-        {/* Summary Cards */}
         <div className="report-summary">
-          <div className="report-stat"><p className="report-stat-label">Total Workers</p><p className="report-stat-value">{total}</p></div>
-          <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paid}</p></div>
-          <div className="report-stat"><p className="report-stat-label">Unpaid</p><p className="report-stat-value" style={{ color: "#f59e0b" }}>{unpaid}</p></div>
-          <div className="report-stat"><p className="report-stat-label">Verified</p><p className="report-stat-value" style={{ color: "#06b6d4" }}>{verified}</p></div>
-          <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{male}</p></div>
-          <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{female}</p></div>
+          {reportType === "daily" ? (<>
+            <div className="report-stat"><p className="report-stat-label">Date</p><p className="report-stat-value" style={{ fontSize: "11pt" }}>{dailyDate}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Registered</p><p className="report-stat-value">{dailyWorkers.length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{dailyPaid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Verified</p><p className="report-stat-value" style={{ color: "#06b6d4" }}>{dailyVerified}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{dailyMale}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{dailyFemale}</p></div>
+          </>) : (<>
+            <div className="report-stat"><p className="report-stat-label">Total Workers</p><p className="report-stat-value">{total}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Unpaid</p><p className="report-stat-value" style={{ color: "#f59e0b" }}>{unpaid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Verified</p><p className="report-stat-value" style={{ color: "#06b6d4" }}>{verified}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{male}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{female}</p></div>
+          </>)}
         </div>
-
         <div className="report-divider" />
 
-        {/* Registration Summary Report */}
+        {/* Print: Registration */}
         {reportType === "registration" && (
           <div className="report-section">
             <h3 className="report-section-title">All Registered Workers</h3>
             <table className="report-table">
-              <thead>
-                <tr>
-                  <th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th>
-                </tr>
-              </thead>
+              <thead><tr><th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
               <tbody>
                 {workers.map((w, i) => (
-                  <tr key={w.id}>
-                    <td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td>
-                  </tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
                 ))}
                 {workers.length === 0 && <tr><td colSpan={9} className="text-center text-slate-400 py-4">No workers registered yet</td></tr>}
               </tbody>
@@ -416,7 +836,7 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Payment Report */}
+        {/* Print: Payment */}
         {reportType === "payment" && (
           <div className="report-section">
             <h3 className="report-section-title">Payment Status Breakdown</h3>
@@ -441,7 +861,7 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Verification Report */}
+        {/* Print: Verification */}
         {reportType === "verification" && (
           <div className="report-section">
             <h3 className="report-section-title">Verification Status</h3>
@@ -466,7 +886,7 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Regional Breakdown Report */}
+        {/* Print: Regional */}
         {reportType === "regional" && (
           <div className="report-section">
             <h3 className="report-section-title">Workers by Zone</h3>
@@ -491,7 +911,7 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Gender Analysis Report */}
+        {/* Print: Gender */}
         {reportType === "gender" && (
           <div className="report-section">
             <h3 className="report-section-title">Gender Distribution</h3>
@@ -517,7 +937,23 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Report Footer */}
+        {/* Print: Daily */}
+        {reportType === "daily" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Workers Registered on {dailyDate}</h3>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+              <tbody>
+                {dailyWorkers.map((w, i) => (
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                ))}
+                {dailyWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">No workers registered on this date</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Print Footer */}
         <div className="report-footer">
           <div className="report-divider" />
           <div className="report-footer-content">
