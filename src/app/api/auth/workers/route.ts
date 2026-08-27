@@ -40,8 +40,27 @@ export const POST = withError(async (req: NextRequest) => {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { name, gender, zone, region, division, position, paymentStatus } = await req.json();
-  if (!name || !gender || !zone || !region || !division || !position) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+
+  const requiredFields: [string, any, string][] = [
+    ["Name", name, "Full name"],
+    ["Gender", gender, "Gender"],
+    ["Zone", zone, "Zone"],
+    ["Region", region, "Region"],
+    ["Division", division, "Division"],
+    ["Position", position, "Position"],
+    ["Payment status", paymentStatus, "Payment status"],
+  ];
+  const missing = requiredFields.filter(([, v]) => !v || !String(v).trim()).map(([, , label]) => label);
+  if (missing.length > 0) {
+    const list = missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
+    return NextResponse.json({ error: `${list} ${missing.length === 1 ? "is" : "are"} required. Please fill in every field before registering.` }, { status: 400 });
+  }
+
+  if (!["male", "female"].includes(String(gender).toLowerCase())) {
+    return NextResponse.json({ error: "Gender must be either \"male\" or \"female\"." }, { status: 400 });
+  }
+  if (paymentStatus && !["paid", "unpaid"].includes(String(paymentStatus).toLowerCase())) {
+    return NextResponse.json({ error: "Payment status must be either \"paid\" or \"unpaid\"." }, { status: 400 });
   }
 
   const worker = await db.createWorker({

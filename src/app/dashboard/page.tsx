@@ -1733,7 +1733,7 @@ function UserManagementSection() {
   );
 }
 
-function FormSelect({ icon: Icon, label, value, onChange, disabled, placeholder, children, required }: {
+function FormSelect({ icon: Icon, label, value, onChange, disabled, placeholder, children, required, error }: {
   icon: any;
   label: string;
   value: string;
@@ -1742,6 +1742,7 @@ function FormSelect({ icon: Icon, label, value, onChange, disabled, placeholder,
   placeholder: string;
   children: React.ReactNode;
   required?: boolean;
+  error?: string;
 }) {
   return (
     <div>
@@ -1754,13 +1755,14 @@ function FormSelect({ icon: Icon, label, value, onChange, disabled, placeholder,
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className="flex h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-9 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 disabled:opacity-50 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+          className={`flex h-11 w-full rounded-xl border pl-10 pr-9 py-2 text-sm bg-white dark:bg-slate-900 disabled:opacity-50 appearance-none cursor-pointer focus:outline-none focus:ring-2 transition-all ${error ? "border-red-400 dark:border-red-500 focus:ring-red-500/20 focus:border-red-400" : "border-slate-200 dark:border-slate-700 focus:ring-indigo-500/20 focus:border-indigo-400"}`}
         >
           <option value="" disabled>{placeholder}</option>
           {children}
         </select>
-        <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${error ? "text-red-400" : "text-slate-400"}`} />
       </div>
+      {error && <p className="text-[11px] font-medium text-red-600 mt-1">{error}</p>}
     </div>
   );
 }
@@ -1781,9 +1783,10 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [bulkResult, setBulkResult] = useState<{ created: number; errors: { row: number; message: string }[]; total: number } | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [zone, setZone] = useState(""); const [region, setRegion] = useState(""); const [division, setDivision] = useState("");
-  const [name, setName] = useState(""); const [gender, setGender] = useState<"male" | "female">("male");
-  const [position, setPosition] = useState<any>("adult_worker"); const [paymentStatus, setPaymentStatus] = useState<any>("unpaid");
+  const [name, setName] = useState(""); const [gender, setGender] = useState<any>("");
+  const [position, setPosition] = useState<any>(""); const [paymentStatus, setPaymentStatus] = useState<any>("");
   const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const zones = Object.keys(ZONE_STRUCTURE);
@@ -1792,14 +1795,33 @@ function WorkerRegistrationSection({ user }: { user: any }) {
 
   const createWorker = useMutation({
     mutationFn: async () => { const r = await fetch("/api/auth/workers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, gender, zone, region, division, position, paymentStatus }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setSuccess(`"${name}" registered`); setName(""); setZone(""); setRegion(""); setDivision(""); setError(null); setTimeout(() => setSuccess(null), 3000); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setSuccess(`"${name}" registered`); setName(""); setZone(""); setRegion(""); setDivision(""); setGender(""); setPosition(""); setPaymentStatus(""); setError(null); setFieldErrors({}); setTimeout(() => setSuccess(null), 3000); },
     onError: (e: any) => setError(e.message),
   });
+
+  function handleRegister() {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = "Full name is required.";
+    if (!gender) errs.gender = "Select the worker's gender.";
+    if (!zone) errs.zone = "Select the worker's zone.";
+    if (!region) errs.region = "Select the worker's region.";
+    if (!division) errs.division = "Select the worker's division.";
+    if (!position) errs.position = "Select the worker's position.";
+    if (!paymentStatus) errs.paymentStatus = "Select the payment status.";
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError("Some details are missing. Fill in every highlighted field, then try again.");
+      setSuccess(null);
+      return;
+    }
+    setError(null);
+    createWorker.mutate();
+  }
   const deleteWorker = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "delete" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
   const toggleVerify = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "toggleVerified" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
 
   function parseCSV(text: string) {
-    const lines = text.trim().split(/\r?\n/).filter((l: string) => l.trim());
+    const lines = text.trim().split(/\r?\n/).filter((l: string) => l.trim() && !l.trim().startsWith("#"));
     if (lines.length < 2) return { headers: [], rows: [] };
     const headers = lines[0].split(",").map((h: string) => h.trim());
     const rows = lines.slice(1).map((line: string) => {
@@ -1822,20 +1844,33 @@ function WorkerRegistrationSection({ user }: { user: any }) {
       const text = ev.target?.result as string;
       const parsed = parseCSV(text);
       setBulkPreview(parsed);
+      if (parsed.headers.length === 0) {
+        setBulkErrors([{ row: 0, message: "This file is empty or has no header row. Download the template, fill in your workers, then upload it." }]);
+        return;
+      }
+      const REQUIRED = ["FullName", "Gender", "Zone", "Region", "Division", "Position", "PaymentStatus"];
+      const missingHeaders = REQUIRED.filter(h => !parsed.headers.includes(h));
+      if (missingHeaders.length > 0) {
+        setBulkErrors([{ row: 0, message: `Your file is missing these required columns: ${missingHeaders.join(", ")}. Download the template and use the exact column names.` }]);
+      }
     };
     reader.readAsText(file);
   }
 
   function handleBulkUpload() {
-    if (!bulkPreview?.rows.length) return;
+    if (!bulkPreview?.rows.length) { setBulkErrors([{ row: 0, message: "Your file has no worker rows. Add at least one row, then upload again." }]); return; }
     setBulkUploading(true);
     fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows: bulkPreview.rows }) })
-      .then(r => r.json())
-      .then(j => {
+      .then(async r => {
+        const j = await r.json();
+        if (!r.ok) {
+          setBulkResult({ created: 0, errors: [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }], total: 0 });
+          return;
+        }
         setBulkResult(j);
         if (j.created > 0) qc.invalidateQueries({ queryKey: ["workers"] });
       })
-      .catch(() => setBulkErrors([{ row: 0, message: "Upload failed" }]))
+      .catch(() => setBulkErrors([{ row: 0, message: "Upload failed. Please check your connection and try again." }]))
       .finally(() => setBulkUploading(false));
   }
 
@@ -1853,7 +1888,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && data?.workers?.some((w: any) => w.registeredByName === "Bulk Import") && (
             <Button variant="outline" size="sm" onClick={() => setShowCleanup(!showCleanup)} className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/20"><AlertTriangle size={14} /> Clean Up</Button>
           )}
-          <Button onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); }} className="gap-1.5"><UserPlus size={14} /> Register Worker</Button>
+          <Button onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); setFieldErrors({}); }} className="gap-1.5"><UserPlus size={14} /> Register Worker</Button>
         </div>
       </div>
       <AnimatePresence>
@@ -1874,9 +1909,10 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
                       <Label>Full Name *</Label>
-                      <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Mensah" className="h-11" />
+                      <Input value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(f => ({ ...f, name: "" })); }} placeholder="e.g. John Mensah" className={`h-11 ${fieldErrors.name ? "border-red-400 focus:ring-red-500/20 focus:border-red-400" : ""}`} />
+                      {fieldErrors.name && <p className="text-[11px] font-medium text-red-600 mt-1">{fieldErrors.name}</p>}
                     </div>
-                    <FormSelect icon={User} label="Gender" value={gender} onChange={e => setGender(e.target.value as any)} placeholder="Select gender..." required>
+                    <FormSelect icon={User} label="Gender" value={gender} onChange={e => { setGender(e.target.value); if (fieldErrors.gender) setFieldErrors(f => ({ ...f, gender: "" })); }} placeholder="Select gender..." required error={fieldErrors.gender}>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                     </FormSelect>
@@ -1886,13 +1922,13 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><MapPin size={12} /> Location Details</p>
                   <div className="grid sm:grid-cols-3 gap-3">
-                    <FormSelect icon={MapPin} label="Zone" value={zone} onChange={e => { setZone(e.target.value); setRegion(""); setDivision(""); }} placeholder="Select zone..." required>
+                    <FormSelect icon={MapPin} label="Zone" value={zone} onChange={e => { setZone(e.target.value); setRegion(""); setDivision(""); setFieldErrors(f => ({ ...f, zone: "", region: "", division: "" })); }} placeholder="Select zone..." required error={fieldErrors.zone}>
                       {zones.map(z => <option key={z} value={z}>{z}</option>)}
                     </FormSelect>
-                    <FormSelect icon={Building2} label="Region" value={region} onChange={e => { setRegion(e.target.value); setDivision(""); }} disabled={!zone} placeholder="Select region..." required>
+                    <FormSelect icon={Building2} label="Region" value={region} onChange={e => { setRegion(e.target.value); setDivision(""); setFieldErrors(f => ({ ...f, region: "", division: "" })); }} disabled={!zone} placeholder="Select region..." required error={fieldErrors.region}>
                       {regions.map(r => <option key={r} value={r}>{r}</option>)}
                     </FormSelect>
-                    <FormSelect icon={Layers} label="Division" value={division} onChange={e => setDivision(e.target.value)} disabled={!region} placeholder="Select division..." required>
+                    <FormSelect icon={Layers} label="Division" value={division} onChange={e => { setDivision(e.target.value); if (fieldErrors.division) setFieldErrors(f => ({ ...f, division: "" })); }} disabled={!region} placeholder="Select division..." required error={fieldErrors.division}>
                       {divisions.map(d => <option key={d} value={d}>{d}</option>)}
                     </FormSelect>
                   </div>
@@ -1901,10 +1937,10 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><Briefcase size={12} /> Role & Payment</p>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <FormSelect icon={Briefcase} label="Position" value={position} onChange={e => setPosition(e.target.value)} placeholder="Select position..." required>
+                    <FormSelect icon={Briefcase} label="Position" value={position} onChange={e => { setPosition(e.target.value); if (fieldErrors.position) setFieldErrors(f => ({ ...f, position: "" })); }} placeholder="Select position..." required error={fieldErrors.position}>
                       {Object.entries(POSITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </FormSelect>
-                    <FormSelect icon={CreditCard} label="Payment Status" value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} placeholder="Select payment status..." required>
+                    <FormSelect icon={CreditCard} label="Payment Status" value={paymentStatus} onChange={e => { setPaymentStatus(e.target.value); if (fieldErrors.paymentStatus) setFieldErrors(f => ({ ...f, paymentStatus: "" })); }} placeholder="Select payment status..." required error={fieldErrors.paymentStatus}>
                       {Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </FormSelect>
                   </div>
@@ -1913,7 +1949,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 {error && <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl px-4 py-2.5"><AlertTriangle size={14} /> {error}</div>}
                 {success && <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl px-4 py-2.5"><CheckCircle2 size={14} /> {success}</div>}
                 {/* ── Submit ── */}
-                <Button loading={createWorker.isPending} onClick={() => createWorker.mutate()} disabled={!name || !zone || !region || !division} className="w-full sm:w-auto h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Plus size={16} /> Register Worker</Button>
+                <Button loading={createWorker.isPending} onClick={handleRegister} className="w-full sm:w-auto h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg shadow-indigo-500/20"><Plus size={16} /> Register Worker</Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -1998,6 +2034,14 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     </div>
                   )}
                 </div>
+                {/* Client-side file errors */}
+                {bulkErrors && !bulkResult && (
+                  <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-4 space-y-1.5">
+                    {bulkErrors.map((e, i) => (
+                      <p key={i} className="text-xs text-red-700 dark:text-red-300 flex items-start gap-2"><AlertTriangle size={14} className="shrink-0 mt-0.5" /> {e.message}</p>
+                    ))}
+                  </div>
+                )}
                 {/* Preview Table */}
                 {bulkPreview && bulkPreview.rows.length > 0 && (
                   <div>

@@ -8,14 +8,32 @@ const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_
 const VALID_PAYMENTS = ["paid", "unpaid"];
 const VALID_GENDERS = ["male", "female"];
 
+function pick(row: any, ...keys: string[]): string {
+  for (const k of keys) {
+    if (row[k] !== undefined && String(row[k]).trim() !== "") return String(row[k]).trim();
+  }
+  return "";
+}
+
+const REQUIRED_HEADERS = ["FullName", "Gender", "Zone", "Region", "Division", "Position", "PaymentStatus"];
+
 function validateRow(row: any, index: number): string | null {
-  if (!row.FullName || !row.FullName.trim()) return `Row ${index + 1}: Full Name is required`;
-  if (!row.Gender || !VALID_GENDERS.includes(row.Gender.toLowerCase())) return `Row ${index + 1}: Gender must be "male" or "female"`;
-  if (!row.Zone || !ZONE_STRUCTURE[row.Zone]) return `Row ${index + 1}: Invalid zone "${row.Zone}"`;
-  if (!row.Region || !ZONE_STRUCTURE[row.Zone]?.[row.Region]) return `Row ${index + 1}: Region "${row.Region}" not found in ${row.Zone}`;
-  if (!row.Division || !(ZONE_STRUCTURE[row.Zone]?.[row.Region] || []).includes(row.Division)) return `Row ${index + 1}: Division "${row.Division}" not found in ${row.Region}`;
-  if (row.Position && !VALID_POSITIONS.includes(row.Position)) return `Row ${index + 1}: Invalid position "${row.Position}"`;
-  if (row.PaymentStatus && !VALID_PAYMENTS.includes(row.PaymentStatus.toLowerCase())) return `Row ${index + 1}: Payment status must be "paid" or "unpaid"`;
+  const missing = REQUIRED_HEADERS.filter(h => pick(row, h) === "").map(h => ({
+    FullName: "Full Name", Gender: "Gender", Zone: "Zone", Region: "Region",
+    Division: "Division", Position: "Position", PaymentStatus: "Payment Status",
+  }[h]));
+  if (missing.length > 0) {
+    const list = missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1];
+    return `Row ${index + 1}: ${list} ${missing.length === 1 ? "is" : "are"} missing. Fill in every column to import this worker.`;
+  }
+
+  const gender = pick(row, "Gender").toLowerCase();
+  if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender must be "male" or "female" — got "${row.Gender}".`;
+  if (!ZONE_STRUCTURE[row.Zone]) return `Row ${index + 1}: Zone "${row.Zone}" is not recognised. Check the template's list of zones.`;
+  if (!ZONE_STRUCTURE[row.Zone]?.[row.Region]) return `Row ${index + 1}: Region "${row.Region}" does not belong to zone "${row.Zone}".`;
+  if (!(ZONE_STRUCTURE[row.Zone]?.[row.Region] || []).includes(row.Division)) return `Row ${index + 1}: Division "${row.Division}" is not in region "${row.Region}".`;
+  if (!VALID_POSITIONS.includes(row.Position)) return `Row ${index + 1}: Position "${row.Position}" is not recognised.`;
+  if (!VALID_PAYMENTS.includes(row.PaymentStatus.toLowerCase())) return `Row ${index + 1}: Payment status must be "paid" or "unpaid" — got "${row.PaymentStatus}".`;
   return null;
 }
 
@@ -38,7 +56,14 @@ export const GET = withError(async (req: NextRequest) => {
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const csv = "FullName,Gender,Zone,Region,Division,Position,PaymentStatus\n";
+  const csv = [
+    "# Workers Conference — Bulk Upload Template",
+    "# Fill in EVERY column for each worker. Do not edit or remove the header row (last line).",
+    "# Zone / Region / Division: use the exact names from the system.",
+    "# Position: adult_leader, adult_worker, youth_worker, youth_leader, children_leader, children_worker, zonal_admin, regional_admin, divisional_admin, national_officer, campus_leader, campus_worker",
+    "# PaymentStatus: paid OR unpaid",
+    "FullName,Gender,Zone,Region,Division,Position,PaymentStatus",
+  ].join("\n");
   return new NextResponse(csv, {
     headers: { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="worker-upload-template.csv"' },
   });
@@ -51,8 +76,8 @@ export const POST = withError(async (req: NextRequest) => {
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { rows } = await req.json();
-  if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "No rows provided" }, { status: 400 });
-  if (rows.length > 500) return NextResponse.json({ error: "Maximum 500 rows per upload" }, { status: 400 });
+  if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
+  if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
 
   const errors: { row: number; message: string }[] = [];
   const created: any[] = [];
@@ -63,13 +88,13 @@ export const POST = withError(async (req: NextRequest) => {
     if (err) { errors.push({ row: i + 1, message: err }); continue; }
 
     const worker = await db.createWorker({
-      name: row.FullName.trim(),
-      gender: row.Gender.toLowerCase(),
-      zone: row.Zone,
-      region: row.Region,
-      division: row.Division,
-      position: row.Position || "adult_worker",
-      paymentStatus: (row.PaymentStatus || "unpaid").toLowerCase(),
+      name: pick(row, "FullName"),
+      gender: pick(row, "Gender").toLowerCase() as "male" | "female",
+      zone: pick(row, "Zone"),
+      region: pick(row, "Region"),
+      division: pick(row, "Division"),
+      position: pick(row, "Position") as any,
+      paymentStatus: pick(row, "PaymentStatus").toLowerCase() as "paid" | "unpaid",
       verified: false,
       registeredBy: payload.sub,
       registeredByName: "Bulk Import",
