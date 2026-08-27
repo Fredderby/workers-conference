@@ -1823,12 +1823,66 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   function parseCSV(text: string) {
     const lines = text.trim().split(/\r?\n/).filter((l: string) => l.trim() && !l.trim().startsWith("#"));
     if (lines.length < 2) return { headers: [], rows: [] };
-    const headers = lines[0].split(",").map((h: string) => h.trim());
+    const rawHeaders = lines[0].split(",").map((h: string) => h.trim());
+    // Handle duplicate Contact columns (second Contact -> Contact_2)
+    const seen: Record<string, number> = {};
+    const headers = rawHeaders.map(h => {
+      const c = seen[h.toLowerCase()] || 0;
+      seen[h.toLowerCase()] = c + 1;
+      if (c > 0 && h.toLowerCase() === "contact") return "Contact_2";
+      return h;
+    });
     const rows = lines.slice(1).map((line: string) => {
       const values = line.split(",").map((v: string) => v.trim());
       const obj: any = {};
       headers.forEach((h: string, i: number) => { obj[h] = values[i] || ""; });
       return obj;
+    });
+    return { headers, rows };
+  }
+
+  async function parseExcelFile(file: File): Promise<{ headers: string[]; rows: any[] }> {
+    const ExcelJS = (await import("exceljs")).default;
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    if (!ws) return { headers: [], rows: [] };
+    // Find header row (row 4 in our template, but scan for Zone header)
+    let headerRowIdx = 1;
+    let headers: string[] = [];
+    ws.eachRow((row, rowNumber) => {
+      const vals = (row.values as any[]).slice(1).map(v => String(v ?? "").trim());
+      if (vals.some(v => v.toLowerCase() === "zone") && vals.some(v => v.toLowerCase().includes("full name"))) {
+        headerRowIdx = rowNumber;
+        // Handle duplicate Contact
+        const seen: Record<string, number> = {};
+        headers = vals.map(h => {
+          const c = seen[h.toLowerCase()] || 0;
+          seen[h.toLowerCase()] = c + 1;
+          if (c > 0 && h.toLowerCase() === "contact") return "Contact_2";
+          return h;
+        });
+      }
+    });
+    if (headers.length === 0) return { headers: [], rows: [] };
+    const rows: any[] = [];
+    ws.eachRow((row, rowNumber) => {
+      if (rowNumber <= headerRowIdx) return;
+      const vals = (row.values as any[]).slice(1).map(v => {
+        if (v == null) return "";
+        if (typeof v === "object" && (v as any).text) return String((v as any).text).trim();
+        return String(v).trim();
+      });
+      // Skip empty rows and example row (first data row is example with John Mensah - only skip if all? Actually include example as detectable)
+      const isEmpty = vals.every(v => !v);
+      if (isEmpty) return;
+      // Skip the example row if it's the immediate row after header and contains John Mensah
+      if (rowNumber === headerRowIdx + 1 && vals.some(v => v.toLowerCase().includes("john mensah"))) return;
+      const obj: any = {};
+      headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+      // Only add rows that have at least one required field filled
+      if (Object.values(obj).some(v => String(v).trim())) rows.push(obj);
     });
     return { headers, rows };
   }
@@ -1839,6 +1893,22 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     setBulkFile(file);
     setBulkResult(null);
     setBulkErrors(null);
+    const isExcel = file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
+    if (isExcel) {
+      parseExcelFile(file).then(parsed => {
+        setBulkPreview(parsed);
+        if (parsed.headers.length === 0) {
+          setBulkErrors([{ row: 0, message: "Could not read the Excel file. Please download the template and fill it correctly." }]);
+          return;
+        }
+        const REQUIRED = ["Zone", "Region", "Division", "Full Name", "Gender", "Position", "Contact", "Payment"];
+        const missingHeaders = REQUIRED.filter(h => !parsed.headers.some(ph => ph.toLowerCase() === h.toLowerCase()));
+        if (missingHeaders.length > 0) {
+          setBulkErrors([{ row: 0, message: `Your file is missing these required columns: ${missingHeaders.join(", ")}. Download the template and use the exact column names.` }]);
+        }
+      }).catch(() => setBulkErrors([{ row: 0, message: "Failed to read Excel file. Please ensure it is a valid .xlsx file." }]));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
@@ -1848,8 +1918,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         setBulkErrors([{ row: 0, message: "This file is empty or has no header row. Download the template, fill in your workers, then upload it." }]);
         return;
       }
-      const REQUIRED = ["FullName", "Gender", "Zone", "Region", "Division", "Position", "PaymentStatus"];
-      const missingHeaders = REQUIRED.filter(h => !parsed.headers.includes(h));
+      const REQUIRED = ["Zone", "Region", "Division", "Full Name", "Gender", "Position", "Contact", "Payment"];
+      const missingHeaders = REQUIRED.filter(h => !parsed.headers.some(ph => ph.toLowerCase() === h.toLowerCase()));
       if (missingHeaders.length > 0) {
         setBulkErrors([{ row: 0, message: `Your file is missing these required columns: ${missingHeaders.join(", ")}. Download the template and use the exact column names.` }]);
       }
@@ -2009,18 +2079,23 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 <button onClick={() => setShowBulk(false)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100"><X size={14} /></button>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Download Template */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 px-4 py-3">
-                  <Download size={18} className="text-indigo-500 shrink-0" />
+                {/* Download Template - Beautiful Excel */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/20 dark:to-violet-950/20 border border-indigo-200 dark:border-indigo-800 px-4 py-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center shrink-0 shadow-lg shadow-indigo-500/20"><FileSpreadsheet size={18} className="text-white" /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Download CSV Template</p>
-                    <p className="text-xs text-slate-500">Headers only — fill in your own rows before uploading</p>
+                    <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">Download Excel Template</p>
+                    <p className="text-xs text-slate-500">Beautifully formatted • 9 columns • Verification is done at event day</p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {["Zone", "Region", "Division", "Full Name", "Gender", "Position", "Contact", "Payment", "Contact"].map(h => (
+                        <span key={h + Math.random()} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">{h}</span>
+                      ))}
+                    </div>
                   </div>
-                  <a href="/api/auth/workers/bulk" download className="shrink-0 self-start sm:self-auto inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors"><Download size={12} /> Download</a>
+                  <a href="/api/auth/workers/bulk" download className="shrink-0 self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2 text-xs font-semibold hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-500/20 transition-all"><Download size={14} /> Download .xlsx</a>
                 </div>
                 {/* File Upload Zone */}
                 <div className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors ${bulkFile ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/10" : "border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-600"}`}>
-                  <input type="file" accept=".csv" onChange={handleBulkFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <input type="file" accept=".csv,.xlsx,.xls" onChange={handleBulkFile} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                   <Upload size={24} className={`mx-auto ${bulkFile ? "text-emerald-500" : "text-slate-400"}`} />
                   {bulkFile ? (
                     <div className="mt-2">
@@ -2029,8 +2104,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     </div>
                   ) : (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Drop CSV file here or click to browse</p>
-                      <p className="text-xs text-slate-400 mt-1">Accepts .csv files only</p>
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Drop Excel or CSV file here or click to browse</p>
+                      <p className="text-xs text-slate-400 mt-1">Accepts .xlsx, .xls and .csv files</p>
                     </div>
                   )}
                 </div>

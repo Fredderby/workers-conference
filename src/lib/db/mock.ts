@@ -64,6 +64,8 @@ export interface Worker {
   region: string;
   division: string;
   position: Position;
+  contact?: string;
+  contact2?: string;
   paymentStatus: PaymentStatus;
   verified: boolean;
   verifiedAt?: string;

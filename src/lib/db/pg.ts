@@ -102,6 +102,8 @@ async function init(): Promise<void> {
       region TEXT,
       division TEXT,
       position TEXT,
+      contact TEXT,
+      contact2 TEXT,
       payment_status TEXT,
       verified BOOLEAN DEFAULT FALSE,
       registered_by TEXT,
@@ -164,6 +166,12 @@ async function init(): Promise<void> {
   try {
     await pool.query("ALTER TABLE workers ADD COLUMN verified_at TEXT");
   } catch {}
+  try {
+    await pool.query("ALTER TABLE workers ADD COLUMN contact TEXT");
+  } catch {}
+  try {
+    await pool.query("ALTER TABLE workers ADD COLUMN contact2 TEXT");
+  } catch {}
 
   const { rows } = await pool.query("SELECT COUNT(*)::int AS c FROM users");
   if (rows[0].c === 0) {
@@ -225,7 +233,7 @@ function mapAudit(r: any): AuditLog {
 function mapWorker(r: any): Worker {
   return {
     id: r.id, name: r.name, gender: r.gender, zone: r.zone, region: r.region, division: r.division,
-    position: r.position, paymentStatus: r.payment_status, verified: r.verified,
+    position: r.position, contact: r.contact ?? undefined, contact2: r.contact2 ?? undefined, paymentStatus: r.payment_status, verified: r.verified,
     verifiedAt: r.verified_at ?? undefined,
     registeredBy: r.registered_by, registeredByName: r.registered_by_name, createdAt: r.created_at,
   };
@@ -359,10 +367,11 @@ export const db = {
     const id = rid("w");
     const now = new Date().toISOString();
     await pool.query(
-      `INSERT INTO workers (id, name, gender, zone, region, division, position, payment_status, verified, registered_by, registered_by_name, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      `INSERT INTO workers (id, name, gender, zone, region, division, position, contact, contact2, payment_status, verified, registered_by, registered_by_name, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [
         id, data.name, data.gender, data.zone, data.region, data.division, data.position,
+        (data as any).contact ?? null, (data as any).contact2 ?? null,
         data.paymentStatus, data.verified, data.registeredBy, data.registeredByName, now,
       ]
     );
@@ -383,6 +392,8 @@ export const db = {
     if (patch.paymentStatus !== undefined) set("payment_status", patch.paymentStatus);
     if (patch.verified !== undefined) set("verified", patch.verified);
     if (patch.verifiedAt !== undefined) set("verified_at", patch.verifiedAt ?? null);
+    if ((patch as any).contact !== undefined) set("contact", (patch as any).contact ?? null);
+    if ((patch as any).contact2 !== undefined) set("contact2", (patch as any).contact2 ?? null);
     if (patch.registeredBy !== undefined) set("registered_by", patch.registeredBy);
     if (patch.registeredByName !== undefined) set("registered_by_name", patch.registeredByName);
     if (fields.length === 0) return this.findWorkerById(id);
