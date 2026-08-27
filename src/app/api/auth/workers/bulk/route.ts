@@ -94,12 +94,12 @@ export const GET = withError(async (req: NextRequest) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "DCLM Workers Conference";
   workbook.created = new Date();
-  const sheet = workbook.addWorksheet("Workers Template", {
+  const sheet = workbook.addWorksheet("Workers", {
     properties: { tabColor: { argb: "FF1e3a8a" } },
     pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  // Column widths - 9 columns as requested
+  // Column widths - 9 columns as requested: headers only
   sheet.columns = [
     { width: 22 }, // Zone
     { width: 20 }, // Region
@@ -112,114 +112,52 @@ export const GET = withError(async (req: NextRequest) => {
     { width: 18 }, // Contact (2nd)
   ];
 
-  // Title row - merged across 9 columns
-  const titleRow = sheet.addRow(["NATIONAL WORKERS CONFERENCE — Bulk Upload Template"]);
-  titleRow.height = 28;
-  sheet.mergeCells("A1:I1");
-  titleRow.getCell(1).font = { name: "Calibri", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
-  titleRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1e3a8a" } };
-  titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-  titleRow.getCell(1).border = { bottom: { style: "thin", color: { argb: "FF1e3a8a" } } };
-
-  // Subtitle
-  const subRow = sheet.addRow(["Fill in EVERY column for each worker. Verification is done during event day — system will indicate verified status."]);
-  subRow.height = 18;
-  sheet.mergeCells("A2:I2");
-  subRow.getCell(1).font = { name: "Calibri", size: 9, italic: true, color: { argb: "FF64748b" } };
-  subRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1f5f9" } };
-  subRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-
-  // Instructions row
-  const instRow = sheet.addRow(["Instructions: Use exact Zone / Region / Division names • Gender: male/female • Position: see list • Payment: paid/unpaid • Contact: phone number"]);
-  instRow.height = 16;
-  sheet.mergeCells("A3:I3");
-  instRow.getCell(1).font = { name: "Calibri", size: 8, color: { argb: "FF475569" } };
-  instRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0f2fe" } };
-  instRow.getCell(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-  instRow.getCell(1).border = { bottom: { style: "thin", color: { argb: "FFcbd5e1" } } };
-
-  // Header row - 9 columns beautifully styled
+  // ONLY column headings - beautifully styled header row
   const headers = ["Zone", "Region", "Division", "Full Name", "Gender", "Position", "Contact", "Payment", "Contact"];
   const headerRow = sheet.addRow(headers);
-  headerRow.height = 22;
+  headerRow.height = 26;
   headerRow.eachCell((cell, colNumber) => {
     cell.font = { name: "Calibri", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1e3a8a" } };
     cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     cell.border = {
-      top: { style: "thin", color: { argb: "FF1e3a8a" } },
-      bottom: { style: "thin", color: { argb: "FF1e3a8a" } },
+      top: { style: "medium", color: { argb: "FF1e3a8a" } },
+      bottom: { style: "medium", color: { argb: "FF1e3a8a" } },
       left: { style: "thin", color: { argb: "FF334155" } },
       right: { style: "thin", color: { argb: "FF334155" } },
     };
   });
-  // Distinguish second Contact with slightly different shade
-  headerRow.getCell(9).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1e40af" } };
-  headerRow.getCell(9).note = "Alternate / emergency contact (optional)";
+  // Second Contact slightly distinct but still part of requested headings
+  headerRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1e3a8a" } };
+  headerRow.getCell(9).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF312e81" } };
+  headerRow.commit();
 
-  // Example data row - light and helpful
-  const exampleRow = sheet.addRow(["Greater Accra Zone", "Accra Metro", "Abeka-Lapaz", "John Mensah", "male", "adult_leader", "0244123456", "paid", "0200123456"]);
-  exampleRow.height = 18;
-  exampleRow.eachCell(cell => {
-    cell.font = { name: "Calibri", size: 9, color: { argb: "FF64748b" }, italic: true };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFf8fafc" } };
-    cell.alignment = { horizontal: "left", vertical: "middle" };
-    cell.border = {
-      top: { style: "thin", color: { argb: "FFe2e8f0" } },
-      bottom: { style: "thin", color: { argb: "FFe2e8f0" } },
-      left: { style: "thin", color: { argb: "FFe2e8f0" } },
-      right: { style: "thin", color: { argb: "FFe2e8f0" } },
-    };
-  });
-  exampleRow.getCell(7).numFmt = "@";
-  exampleRow.getCell(9).numFmt = "@";
+  // Style Contact columns as text to preserve leading zeros
+  sheet.getColumn(7).numFmt = "@";
+  sheet.getColumn(9).numFmt = "@";
 
-  // Add 50 empty styled rows for data entry
-  for (let i = 0; i < 50; i++) {
-    const row = sheet.addRow(["", "", "", "", "", "", "", "", ""]);
-    row.height = 16;
-    const isAlt = i % 2 === 1;
-    row.eachCell(cell => {
-      cell.font = { name: "Calibri", size: 10, color: { argb: "FF1e293b" } };
-      cell.fill = isAlt ? { type: "pattern", pattern: "solid", fgColor: { argb: "FFf1f5f9" } } : { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } };
-      cell.alignment = { horizontal: "left", vertical: "middle" };
-      cell.border = {
-        top: { style: "thin", color: { argb: "FFe2e8f0" } },
-        bottom: { style: "thin", color: { argb: "FFe2e8f0" } },
-        left: { style: "thin", color: { argb: "FFe2e8f0" } },
-        right: { style: "thin", color: { argb: "FFe2e8f0" } },
-      };
-    });
-    row.getCell(7).numFmt = "@";
-    row.getCell(9).numFmt = "@";
-  }
-
-  // Data validations
-  // Gender dropdown
-  for (let r = 6; r <= 55; r++) {
+  // Data validations for dropdowns (rows 2-1000)
+  for (let r = 2; r <= 1000; r++) {
     sheet.getCell(`E${r}`).dataValidation = {
       type: "list",
       formulae: ['"male,female"'],
       showErrorMessage: true,
       errorTitle: "Invalid Gender",
-      error: 'Please select male or female',
+      error: "Please select male or female",
     } as any;
     sheet.getCell(`H${r}`).dataValidation = {
       type: "list",
       formulae: ['"paid,unpaid"'],
       showErrorMessage: true,
       errorTitle: "Invalid Payment",
-      error: 'Please select paid or unpaid',
+      error: "Please select paid or unpaid",
     } as any;
   }
 
-  // Auto filter on header row
-  sheet.autoFilter = { from: "A4", to: "I4" };
-  // Freeze panes at header row
-  sheet.views = [{ state: "frozen", ySplit: 4 }];
+  // Auto filter + freeze header row
+  sheet.autoFilter = { from: "A1", to: "I1" };
+  sheet.views = [{ state: "frozen", ySplit: 1 }];
 
-  // Print settings
-  (sheet.pageSetup as any).printTitlesRow = "1:4";
   sheet.properties.defaultRowHeight = 15;
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -232,49 +170,170 @@ export const GET = withError(async (req: NextRequest) => {
   });
 });
 
+function makeDuplicateKey(row: any): string {
+  const name = pick(row, "Full Name", "FullName", "fullname", "name").toLowerCase().trim();
+  const zone = pick(row, "Zone", "zone").toLowerCase().trim();
+  const division = pick(row, "Division", "division").toLowerCase().trim();
+  return `${name}|${zone}|${division}`;
+}
+
 export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { rows } = await req.json();
+  const body = await req.json();
+  const rows = body.rows;
+  const mode: "append" | "replace" = body.mode === "replace" ? "replace" : "append";
+  const onDuplicate: "skip" | "replace" = body.onDuplicate === "replace" ? "replace" : "skip";
+  const isConfirmed = body.confirmed === true;
+
   if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
   if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
 
-  const errors: { row: number; message: string }[] = [];
-  const created: any[] = [];
-
+  // Step 1: Validate all rows first (do not delete anything before validation)
+  const validationErrors: { row: number; message: string }[] = [];
+  const validRows: { index: number; row: any }[] = [];
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    // Normalize for duplicate Contact: prefer first Contact, fallback to Contact_2 for second
-    if (row["Contact_2"] && !row["Contact"]) { /* keep first */ }
-    // If both Contacts exist, second is contact2
-    const err = validateRow(row, i);
-    if (err) { errors.push({ row: i + 1, message: err }); continue; }
-
-    const contactVal = pick(row, "Contact", "contact");
-    // Second Contact (col I) - check by position if header was duplicate
-    const contact2Val = (row["Contact_2"] || row["Contact2"] || row["_contact2"] || "").toString().trim();
-
-    const worker = await db.createWorker({
-      name: pick(row, "Full Name", "FullName", "fullname", "name"),
-      gender: pick(row, "Gender", "gender").toLowerCase() as "male" | "female",
-      zone: pick(row, "Zone", "zone"),
-      region: pick(row, "Region", "region"),
-      division: pick(row, "Division", "division"),
-      position: pick(row, "Position", "position") as any,
-      contact: contactVal,
-      contact2: contact2Val || undefined,
-      paymentStatus: pick(row, "Payment", "PaymentStatus", "payment").toLowerCase() as "paid" | "unpaid",
-      verified: false, // verification only during event day
-      registeredBy: payload.sub,
-      registeredByName: "Bulk Import",
-    } as any);
-    created.push(worker);
+    const err = validateRow(rows[i], i);
+    if (err) validationErrors.push({ row: i + 1, message: err });
+    else validRows.push({ index: i, row: rows[i] });
+  }
+  if (validationErrors.length > 0 && validRows.length === 0) {
+    return NextResponse.json({ created: 0, errors: validationErrors, total: rows.length, duplicates: [] });
   }
 
-  await db.audit({ userId: payload.sub, action: "workers_bulk_import", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Bulk imported ${created.length} workers, ${errors.length} errors` });
+  // Step 2: Handle replace mode - delete all existing after validation
+  if (mode === "replace") {
+    if (!isConfirmed) {
+      const existing = await db.listWorkers();
+      return NextResponse.json({
+        needsConfirmation: true,
+        confirmationType: "replaceAll",
+        existingCount: existing.length,
+        message: `You have ${existing.length} existing workers. Replace will delete all and import ${validRows.length} new workers.`,
+        validationErrors,
+      });
+    }
+    await db.deleteAllWorkers();
+  }
 
-  return NextResponse.json({ created: created.length, errors, total: rows.length });
+  // Step 3: Duplicate detection for append mode (or replace after delete - no duplicates)
+  let duplicates: { row: number; key: string; existing: any; newRow: any }[] = [];
+  let toCreate: typeof validRows = validRows;
+
+  if (mode === "append") {
+    const existingWorkers = await db.listWorkers();
+    const existingMap = new Map<string, any>();
+    for (const w of existingWorkers) {
+      const k = `${w.name.toLowerCase().trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
+      existingMap.set(k, w);
+      // Also index by contact if present
+      if ((w as any).contact) existingMap.set(`contact:${(w as any).contact.trim()}`, w);
+    }
+
+    // Check for duplicates within file and against DB
+    const fileSeen = new Set<string>();
+    const dupIndices = new Set<number>();
+    const uniqueRows: typeof validRows = [];
+
+    for (const vr of validRows) {
+      const key = makeDuplicateKey(vr.row);
+      const contact = pick(vr.row, "Contact", "contact").trim();
+      const contactKey = contact ? `contact:${contact}` : null;
+
+      const isFileDuplicate = fileSeen.has(key);
+      const isDbDuplicate = existingMap.has(key) || (contactKey && existingMap.has(contactKey));
+
+      if (isFileDuplicate || isDbDuplicate) {
+        const existing = existingMap.get(key) || (contactKey ? existingMap.get(contactKey) : null);
+        duplicates.push({ row: vr.index + 1, key, existing: existing || null, newRow: vr.row });
+        dupIndices.add(vr.index);
+      } else {
+        fileSeen.add(key);
+        if (contactKey) fileSeen.add(contactKey);
+        uniqueRows.push(vr);
+      }
+    }
+
+    if (duplicates.length > 0 && !isConfirmed) {
+      return NextResponse.json({
+        needsConfirmation: true,
+        confirmationType: "duplicates",
+        duplicates: duplicates.map(d => ({
+          row: d.row,
+          name: pick(d.newRow, "Full Name", "FullName", "name"),
+          zone: pick(d.newRow, "Zone"),
+          division: pick(d.newRow, "Division"),
+          existingName: d.existing?.name,
+        })),
+        duplicateCount: duplicates.length,
+        validCount: uniqueRows.length,
+        validationErrors,
+        message: `Found ${duplicates.length} duplicate worker(s) already in the system. Choose to skip them or replace the existing records.`,
+      });
+    }
+
+    // Apply onDuplicate strategy
+    if (onDuplicate === "skip") {
+      toCreate = uniqueRows;
+    } else if (onDuplicate === "replace") {
+      // Delete existing duplicates first, then create all valid rows
+      for (const d of duplicates) {
+        if (d.existing?.id) {
+          try { await db.deleteWorker(d.existing.id); } catch {}
+        }
+      }
+      toCreate = validRows; // all rows will be re-created
+    }
+  }
+
+  // Step 4: Create workers
+  const errors: { row: number; message: string }[] = [...validationErrors];
+  const created: any[] = [];
+  let skipped = 0;
+  if (mode === "append" && onDuplicate === "skip" && duplicates.length > 0) {
+    skipped = duplicates.length;
+  }
+
+  for (const vr of toCreate) {
+    // Skip if this row was a duplicate and we are skipping (already filtered)
+    try {
+      const contactVal = pick(vr.row, "Contact", "contact");
+      const contact2Val = (vr.row["Contact_2"] || vr.row["Contact2"] || vr.row["_contact2"] || "").toString().trim();
+      const worker = await db.createWorker({
+        name: pick(vr.row, "Full Name", "FullName", "fullname", "name"),
+        gender: pick(vr.row, "Gender", "gender").toLowerCase() as "male" | "female",
+        zone: pick(vr.row, "Zone", "zone"),
+        region: pick(vr.row, "Region", "region"),
+        division: pick(vr.row, "Division", "division"),
+        position: pick(vr.row, "Position", "position") as any,
+        contact: contactVal,
+        contact2: contact2Val || undefined,
+        paymentStatus: pick(vr.row, "Payment", "PaymentStatus", "payment").toLowerCase() as "paid" | "unpaid",
+        verified: false,
+        registeredBy: payload.sub,
+        registeredByName: "Bulk Import",
+      } as any);
+      created.push(worker);
+    } catch (e: any) {
+      errors.push({ row: vr.index + 1, message: e?.message || "Failed to create worker" });
+    }
+  }
+
+  const detail = mode === "replace"
+    ? `Bulk replace: deleted all and imported ${created.length} workers, ${errors.length} errors`
+    : `Bulk ${onDuplicate === "replace" ? "replace duplicates" : "append"}: imported ${created.length} workers, skipped ${skipped}, ${errors.length} errors`;
+  await db.audit({ userId: payload.sub, action: "workers_bulk_import", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail });
+
+  return NextResponse.json({
+    created: created.length,
+    skipped,
+    errors,
+    total: rows.length,
+    duplicates: duplicates.length,
+    mode,
+    onDuplicate,
+  });
 });

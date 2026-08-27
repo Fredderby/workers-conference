@@ -1780,8 +1780,11 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkPreview, setBulkPreview] = useState<{ headers: string[]; rows: any[] } | null>(null);
   const [bulkErrors, setBulkErrors] = useState<{ row: number; message: string }[] | null>(null);
-  const [bulkResult, setBulkResult] = useState<{ created: number; errors: { row: number; message: string }[]; total: number } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; skipped?: number; errors: { row: number; message: string }[]; total: number } | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [showModeDialog, setShowModeDialog] = useState(false);
+  const [showDupDialog, setShowDupDialog] = useState(false);
+  const [dupInfo, setDupInfo] = useState<{ duplicates: any[]; validCount: number; duplicateCount: number } | null>(null);
   const [zone, setZone] = useState(""); const [region, setRegion] = useState(""); const [division, setDivision] = useState("");
   const [name, setName] = useState(""); const [gender, setGender] = useState<any>("");
   const [position, setPosition] = useState<any>(""); const [paymentStatus, setPaymentStatus] = useState<any>("");
@@ -1927,21 +1930,63 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     reader.readAsText(file);
   }
 
-  function handleBulkUpload() {
-    if (!bulkPreview?.rows.length) { setBulkErrors([{ row: 0, message: "Your file has no worker rows. Add at least one row, then upload again." }]); return; }
+  function doBulkRequest(payload: any) {
     setBulkUploading(true);
-    fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows: bulkPreview.rows }) })
+    fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       .then(async r => {
         const j = await r.json();
-        if (!r.ok) {
+        if (j.needsConfirmation) {
+          if (j.confirmationType === "replaceAll") {
+            setShowModeDialog(true);
+            (window as any).__pendingBulkPayload = payload;
+            (window as any).__existingCount = j.existingCount;
+            setBulkUploading(false);
+            return;
+          }
+          if (j.confirmationType === "duplicates") {
+            setDupInfo(j);
+            setShowDupDialog(true);
+            (window as any).__pendingBulkPayload = payload;
+            setBulkUploading(false);
+            return;
+          }
+        }
+        if (!r.ok && !j.created) {
           setBulkResult({ created: 0, errors: [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }], total: 0 });
           return;
         }
         setBulkResult(j);
         if (j.created > 0) qc.invalidateQueries({ queryKey: ["workers"] });
+        setShowModeDialog(false);
+        setShowDupDialog(false);
       })
       .catch(() => setBulkErrors([{ row: 0, message: "Upload failed. Please check your connection and try again." }]))
       .finally(() => setBulkUploading(false));
+  }
+
+  function handleBulkUpload() {
+    if (!bulkPreview?.rows.length) { setBulkErrors([{ row: 0, message: "Your file has no worker rows. Add at least one row, then upload again." }]); return; }
+    const existingCount = data?.workers?.length || 0;
+    // Professional UX: if data exists, ask delete-all vs append first
+    if (existingCount > 0) {
+      setShowModeDialog(true);
+      return;
+    }
+    doBulkRequest({ rows: bulkPreview.rows, mode: "append", onDuplicate: "skip", confirmed: true });
+  }
+
+  function handleModeChoice(mode: "replace" | "append") {
+    if (mode === "replace") {
+      // Second confirm for destructive action
+      doBulkRequest({ rows: bulkPreview!.rows, mode, confirmed: true });
+    } else {
+      doBulkRequest({ rows: bulkPreview!.rows, mode: "append", confirmed: false });
+    }
+  }
+
+  function handleDuplicateChoice(action: "skip" | "replace") {
+    const base = (window as any).__pendingBulkPayload || { rows: bulkPreview!.rows, mode: "append" };
+    doBulkRequest({ ...base, onDuplicate: action, confirmed: true });
   }
 
   return (
@@ -2147,7 +2192,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <div className={`rounded-xl p-4 ${bulkResult.errors.length > 0 ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200" : "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200"}`}>
                     <div className="flex items-center gap-2">
                       {bulkResult.errors.length > 0 ? <AlertTriangle size={16} className="text-amber-500" /> : <span className="text-emerald-500 text-lg">&#10003;</span>}
-                      <p className="text-sm font-semibold">{bulkResult.created} of {bulkResult.total} workers imported successfully</p>
+                      <p className="text-sm font-semibold">{bulkResult.created} of {bulkResult.total} workers imported successfully{bulkResult.skipped ? ` • ${bulkResult.skipped} skipped` : ""}</p>
                     </div>
                     {bulkResult.errors.length > 0 && (
                       <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
@@ -2156,6 +2201,85 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     )}
                   </div>
                 )}
+
+                {/* ── Mode Choice Dialog (Delete all vs Add new) ── */}
+                <AnimatePresence>
+                  {showModeDialog && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowModeDialog(false)}>
+                      <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="px-6 pt-6 pb-4">
+                          <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 grid place-items-center mb-4"><AlertTriangle size={22} className="text-amber-600 dark:text-amber-400" /></div>
+                          <h3 className="text-lg font-bold tracking-tight">Existing data found</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+                            You already have <span className="font-semibold text-slate-900 dark:text-white">{data?.workers?.length || 0} workers</span> in the system. How would you like to handle the new upload of <span className="font-semibold text-slate-900 dark:text-white">{bulkPreview?.rows.length || 0} workers</span>?
+                          </p>
+                        </div>
+                        <div className="px-6 pb-6 space-y-3">
+                          <button onClick={() => { setShowModeDialog(false); handleModeChoice("append"); }} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-left group">
+                            <div className="h-10 w-10 rounded-xl bg-emerald-500 grid place-items-center shrink-0"><Plus size={18} className="text-white" /></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Add / Update — Keep existing</p>
+                              <p className="text-xs text-emerald-700 dark:text-emerald-300">Keep all current workers, add new ones. Duplicates will be reviewed next.</p>
+                            </div>
+                            <ChevronRight size={16} className="text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                          </button>
+                          <button onClick={() => { setShowModeDialog(false); handleModeChoice("replace"); }} className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-left group">
+                            <div className="h-10 w-10 rounded-xl bg-red-500 grid place-items-center shrink-0"><Trash2 size={18} className="text-white" /></div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-red-900 dark:text-red-100">Replace All — Delete existing</p>
+                              <p className="text-xs text-red-700 dark:text-red-300">Delete all {data?.workers?.length || 0} existing workers, then import the new {bulkPreview?.rows.length || 0}.</p>
+                            </div>
+                            <ChevronRight size={16} className="text-red-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                          </button>
+                          <button onClick={() => setShowModeDialog(false)} className="w-full py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Cancel</button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Duplicate Handling Dialog ── */}
+                <AnimatePresence>
+                  {showDupDialog && dupInfo && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowDupDialog(false)}>
+                      <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+                          <div className="h-12 w-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 grid place-items-center mb-4"><Users size={22} className="text-indigo-600 dark:text-indigo-400" /></div>
+                          <h3 className="text-lg font-bold tracking-tight">Duplicates found</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+                            <span className="font-semibold text-amber-600">{dupInfo.duplicateCount} worker(s)</span> in your file already exist (same Full Name + Division + Zone). <span className="font-semibold text-emerald-600">{dupInfo.validCount} new</span> workers are ready to add.
+                          </p>
+                        </div>
+                        <div className="px-6 py-4 max-h-48 overflow-y-auto space-y-1.5 bg-slate-50 dark:bg-slate-800/50">
+                          {dupInfo.duplicates.slice(0, 8).map((d: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700">
+                              <span className="text-xs font-medium truncate">{d.name || d.existingName}</span>
+                              <span className="text-[10px] text-slate-400 shrink-0 ml-2">{d.zone} › {d.division}</span>
+                            </div>
+                          ))}
+                          {dupInfo.duplicateCount > 8 && <p className="text-xs text-slate-400 text-center">…and {dupInfo.duplicateCount - 8} more</p>}
+                        </div>
+                        <div className="px-6 py-4 space-y-3 bg-white dark:bg-slate-900">
+                          <button onClick={() => { setShowDupDialog(false); handleDuplicateChoice("skip"); }} className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left">
+                            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-700 grid place-items-center shrink-0"><X size={16} className="text-slate-600 dark:text-slate-300" /></div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold">Skip duplicates</p>
+                              <p className="text-xs text-slate-500">Keep existing records, only add {dupInfo.validCount} new workers</p>
+                            </div>
+                          </button>
+                          <button onClick={() => { setShowDupDialog(false); handleDuplicateChoice("replace"); }} className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-800/30 transition-colors text-left">
+                            <div className="h-9 w-9 rounded-lg bg-indigo-600 grid place-items-center shrink-0"><Trash2 size={16} className="text-white" /></div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">Delete & Replace</p>
+                              <p className="text-xs text-indigo-700 dark:text-indigo-300">Delete {dupInfo.duplicateCount} existing, re-add with new data</p>
+                            </div>
+                          </button>
+                          <button onClick={() => setShowDupDialog(false)} className="w-full py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </CardContent>
             </Card>
           </motion.div>

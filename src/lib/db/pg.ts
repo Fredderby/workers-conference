@@ -405,6 +405,11 @@ export const db = {
     await ensureInit();
     await pool.query("DELETE FROM workers WHERE id=$1", [id]);
   },
+  async deleteAllWorkers(): Promise<number> {
+    await ensureInit();
+    const { rowCount } = await pool.query("DELETE FROM workers");
+    return rowCount ?? 0;
+  },
   async findWorkerByNameOrId(q: string): Promise<Worker[]> {
     await ensureInit();
     const { rows } = await pool.query(
