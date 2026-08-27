@@ -12,7 +12,7 @@ export function withError(handler: Handler): Handler {
       const dbCodes = new Set(["ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "EPIPE", "28P01", "3D000", "42501", "42P01", "42703", "23505", "23502", "23503", "42601"]);
       const msg = err?.message || "";
       const isConnError = dbCodes.has(err?.code)
-        || /timeout exceeded when trying to connect|ENOTFOUND|ECONNREFUSED|connection refused|server closed the connection unexpectedly|remaining connection slots are reserved|too many clients|password authentication failed for user|could not translate host name/i.test(msg);
+        || /timeout exceeded|Connection terminated|connection timeout|ENOTFOUND|ECONNREFUSED|connection refused|server closed the connection unexpectedly|remaining connection slots|too many clients|password authentication failed|could not translate host name/i.test(msg);
       if (isConnError) {
         const u = (() => { try { const raw = process.env.DATABASE_URL?.trim() || ""; const cut = raw.includes("%23") ? raw : raw.split("#")[0]; return new URL(cut); } catch { return undefined; } })();
         console.error(`[db] unreachable — target=${u ? `${u.host}${u.pathname || "/"}` : "n/a"} (check Dokploy DB service name & shared network / VPN)`);
