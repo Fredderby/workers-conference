@@ -10,7 +10,12 @@ export function withError(handler: Handler): Handler {
       console.error(`[api] ${req.nextUrl.pathname} code=${err?.code || "n/a"} message=${err?.message || err}`);
       console.error(`[api] ${req.nextUrl.pathname} stack=${err?.stack || "no stack"}`);
       const dbCodes = new Set(["ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "EPIPE", "28P01", "3D000", "42501", "42P01", "42703", "23505", "23502", "23503", "42601"]);
-      if (dbCodes.has(err?.code)) {
+      const msg = err?.message || "";
+      const isConnError = dbCodes.has(err?.code)
+        || /timeout exceeded|getaddrinfo|connect ec|ecconnrefused|connection refused|server closed the connection|remaining connection slots|too many clients|database .* does not exist|could not connect/i.test(msg);
+      if (isConnError) {
+        const u = (() => { try { return new URL(process.env.DATABASE_URL?.trim().split("#")[0] || ""); } catch { return undefined; } })();
+        console.error(`[db] unreachable — target=${u ? `${u.host}${u.pathname || "/"}` : "n/a"} (check Dokploy DB service name & shared network / VPN)`);
         return NextResponse.json({ error: "Database unavailable. Please try again shortly." }, { status: 503, headers: { "Retry-After": "5" } });
       }
       if (err?.message?.includes("FATAL: DATABASE_URL")) {

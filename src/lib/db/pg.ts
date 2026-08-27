@@ -34,6 +34,10 @@ function getPool(): Pool {
       idleTimeoutMillis: 30000,
       max: 20,
     });
+    try {
+      const u = new URL(url);
+      console.log(`[pg] connecting to ${u.host}${u.pathname || "/"} user=${u.username}`);
+    } catch {}
     _pool.on("error", (err) => {
       console.error("[pg] pool error (non-fatal):", err.message);
     });
