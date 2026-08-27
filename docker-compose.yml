@@ -10,14 +10,37 @@ services:
     ports:
       - "3056:3056"
     environment:
-      - DATABASE_URL=postgresql://app_user:c49t4QO5rTCAQ69AUfnI@workers-data-jdojwz:5432/app_data
+      - DATABASE_URL=postgresql://app_user:c49t4QO5rTCAQ69AUfnI@db:5432/app_data
       - JWT_SECRET=workers-conf-2026-super-secret-key-change-in-prod
       - JWT_REFRESH_SECRET=workers-conf-2026-refresh-secret-change-in-prod
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3056}
       - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/login', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: c49t4QO5rTCAQ69AUfnI
+      POSTGRES_DB: app_data
+    # No host port mapping — the app reaches Postgres over the shared compose
+    # network via the stable service name "db" on internal port 5432.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_data"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
