@@ -12,13 +12,13 @@ export function withError(handler: Handler): Handler {
       const dbCodes = new Set(["ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "EPIPE", "28P01", "3D000", "42501", "42P01", "42703", "23505", "23502", "23503", "42601"]);
       const msg = err?.message || "";
       const isConnError = dbCodes.has(err?.code)
-        || /timeout exceeded|getaddrinfo|connect ec|ecconnrefused|connection refused|server closed the connection|remaining connection slots|too many clients|database .* does not exist|could not connect/i.test(msg);
+        || /timeout exceeded when trying to connect|ENOTFOUND|ECONNREFUSED|connection refused|server closed the connection unexpectedly|remaining connection slots are reserved|too many clients|password authentication failed for user|could not translate host name/i.test(msg);
       if (isConnError) {
-        const u = (() => { try { return new URL(process.env.DATABASE_URL?.trim().split("#")[0] || ""); } catch { return undefined; } })();
+        const u = (() => { try { const raw = process.env.DATABASE_URL?.trim() || ""; const cut = raw.includes("%23") ? raw : raw.split("#")[0]; return new URL(cut); } catch { return undefined; } })();
         console.error(`[db] unreachable — target=${u ? `${u.host}${u.pathname || "/"}` : "n/a"} (check Dokploy DB service name & shared network / VPN)`);
         return NextResponse.json({ error: "Database unavailable. Please try again shortly." }, { status: 503, headers: { "Retry-After": "5" } });
       }
-      if (err?.message?.includes("FATAL: DATABASE_URL")) {
+      if (err?.message?.includes("FATAL: DATABASE_URL") || /database ".*" does not exist|database .* does not exist/i.test(msg)) {
         console.error("[api] misconfigured DATABASE_URL — check Dokploy environment variables");
         return NextResponse.json({ error: "Database configuration error. Contact administrator." }, { status: 500 });
       }
