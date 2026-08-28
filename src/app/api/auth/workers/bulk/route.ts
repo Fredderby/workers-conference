@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE, POSITION_LABELS } from "@/lib/db/mock";
+import { isAdmin } from "@/lib/auth/rbac";
 import { withError } from "@/lib/api-handler";
 import ExcelJS from "exceljs";
 
@@ -166,6 +167,33 @@ function makeDuplicateKey(row: any): string {
   return `${name}|${zone}|${division}`;
 }
 
+function isWithinAccessLevel(user: any, row: any): boolean {
+  if (!user) return false;
+  if (isAdmin(user.role)) return true;
+  if (user.role === "regional_officer") {
+    // If user has no assigned region/zone, allow all (fallback for legacy accounts)
+    if (!user.region && !user.zone) return true;
+    const rowZone = pick(row, "Zone", "zone");
+    const rowRegion = pick(row, "Region", "region");
+    if (user.region && rowRegion !== user.region) return false;
+    if (user.zone && rowZone !== user.zone) return false;
+    return true;
+  }
+  // Verifiers etc. should not bulk upload? Allow but will be filtered
+  return true;
+}
+
+function isWithinWorkerAccessLevel(user: any, worker: any): boolean {
+  if (isAdmin(user.role)) return true;
+  if (user.role === "regional_officer") {
+    if (!user.region && !user.zone) return true;
+    if (user.region && worker.region === user.region) return true;
+    if (user.zone && worker.zone === user.zone) return true;
+    return false;
+  }
+  return false;
+}
+
 export const POST = withError(async (req: NextRequest) => {
   const token = req.cookies.get("access_token")?.value;
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -178,8 +206,20 @@ export const POST = withError(async (req: NextRequest) => {
   const onDuplicate: "skip" | "replace" = body.onDuplicate === "replace" ? "replace" : "skip";
   const isConfirmed = body.confirmed === true;
 
+  const user = await db.findUserById(payload.sub);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
   if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
+
+  // Regional officers can only upload within their assigned region/zone
+  if (user.role === "regional_officer") {
+    const outOfScope = rows.filter(r => !isWithinAccessLevel(user, r));
+    if (outOfScope.length > 0) {
+      const sample = outOfScope.slice(0, 3).map(r => `${pick(r, "Full Name", "FullName")} (${pick(r, "Region")}/${pick(r, "Zone")})`).join(", ");
+      return NextResponse.json({ error: `Forbidden: You can only upload workers within your assigned ${user.region ? `region "${user.region}"` : user.zone ? `zone "${user.zone}"` : "region/zone"}. Rejected ${outOfScope.length} row(s): ${sample}${outOfScope.length > 3 ? "..." : ""}` }, { status: 403 });
+    }
+  }
 
   // Step 1: Validate all rows first (do not delete anything before validation)
   const validationErrors: { row: number; message: string }[] = [];
@@ -193,20 +233,32 @@ export const POST = withError(async (req: NextRequest) => {
     return NextResponse.json({ created: 0, errors: validationErrors, total: rows.length, duplicates: [] });
   }
 
-  // Step 2: Handle replace mode - delete all existing after validation
+  // Step 2: Handle replace mode - delete existing after validation (scoped by role)
   let toCreate: typeof validRows = validRows;
   if (mode === "replace") {
+    const allExisting = await db.listWorkers();
+    const scopedExisting = isAdmin(user.role) ? allExisting : allExisting.filter(w => isWithinWorkerAccessLevel(user, w));
     if (!isConfirmed) {
-      const existing = await db.listWorkers();
+      const scopeLabel = isAdmin(user.role) ? "all" : `your ${user.region ? `region "${user.region}"` : `zone "${user.zone}"`}`;
       return NextResponse.json({
         needsConfirmation: true,
         confirmationType: "replaceAll",
-        existingCount: existing.length,
-        message: `You have ${existing.length} existing workers. Replace will delete all and import ${validRows.length} new workers.`,
+        existingCount: scopedExisting.length,
+        totalExisting: allExisting.length,
+        message: isAdmin(user.role)
+          ? `You have ${scopedExisting.length} existing workers. Replace will delete all and import ${validRows.length} new workers.`
+          : `You have ${scopedExisting.length} workers in ${scopeLabel}. Replace will delete only those and import ${validRows.length} new workers within your access level.`,
         validationErrors,
       });
     }
-    await db.deleteAllWorkers();
+    if (isAdmin(user.role)) {
+      await db.deleteAllWorkers();
+    } else {
+      // Regional officers: delete only workers within their access level
+      for (const w of scopedExisting) {
+        try { await db.deleteWorker(w.id); } catch {}
+      }
+    }
     // Dedupe file-internal duplicates for replace as well (last-write-wins, handles both key and contact)
     const dedupMapR = new Map<string, typeof validRows[0]>();
     const contactToKeyR = new Map<string, string>();
@@ -233,9 +285,11 @@ export const POST = withError(async (req: NextRequest) => {
   let duplicates: { row: number; key: string; existing: any; newRow: any }[] = [];
 
   if (mode === "append") {
-    const existingWorkers = await db.listWorkers();
+    const allExisting = await db.listWorkers();
+    // Regional officers only see duplicates within their access level
+    const scopedExisting = isAdmin(user.role) ? allExisting : allExisting.filter(w => isWithinWorkerAccessLevel(user, w));
     const existingMap = new Map<string, any>();
-    for (const w of existingWorkers) {
+    for (const w of scopedExisting) {
       const k = `${w.name.toLowerCase().trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
       existingMap.set(k, w);
       // Also index by contact if present

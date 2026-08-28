@@ -1937,6 +1937,10 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [position, setPosition] = useState<any>(""); const [paymentStatus, setPaymentStatus] = useState<any>("");
   const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingWorker, setEditingWorker] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const zones = Object.keys(ZONE_STRUCTURE);
@@ -1967,8 +1971,51 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     setError(null);
     createWorker.mutate();
   }
-  const deleteWorker = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "delete" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
+  const deleteWorker = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "delete" }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Delete failed");
+      return j;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }),
+    onError: (e: any) => alert(e.message),
+  });
   const toggleVerify = useMutation({ mutationFn: async (id: string) => fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, action: "toggleVerified" }) }), onSuccess: () => qc.invalidateQueries({ queryKey: ["workers"] }) });
+  const updateWorker = useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: any }) => {
+      const r = await fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: id, patch }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Update failed");
+      return j;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setEditingWorker(null); setEditError(null); },
+    onError: (e: any) => setEditError(e.message),
+  });
+
+  const canDelete = isAdmin(user.role as RoleType);
+  const canEdit = (w: any) => {
+    if (isAdmin(user.role as RoleType)) return true;
+    if (user.role === "regional_officer") {
+      if (!user.region && !user.zone) return true;
+      if (user.region && w.region === user.region) return true;
+      if (user.zone && w.zone === user.zone) return true;
+      return false;
+    }
+    return false;
+  };
+  const filteredWorkers = useMemo(() => {
+    const list = data?.workers || [];
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || (POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position).toLowerCase().includes(q) || w.gender.toLowerCase().includes(q));
+  }, [data?.workers, searchQuery]);
+
+  const startEdit = (w: any) => {
+    setEditingWorker(w);
+    setEditForm({ name: w.name, gender: w.gender, zone: w.zone, region: w.region, division: w.division, position: w.position, paymentStatus: w.paymentStatus, contact: w.contact || "", contact2: w.contact2 || "" });
+    setEditError(null);
+  };
 
   function parseCSV(text: string) {
     const lines = text.trim().split(/\r?\n/).filter((l: string) => l.trim() && !l.trim().startsWith("#"));
@@ -2432,16 +2479,25 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Search — available to all including regional officers */}
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search participants by name, zone, region, division, position..." className="pl-9 h-10 rounded-xl" />
+        {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+      </div>
+      {searchQuery && <p className="text-xs text-slate-500">{filteredWorkers.length} of {data?.workers?.length || 0} workers match &quot;{searchQuery}&quot; {user.role === "regional_officer" ? "• Editing allowed within your region/zone, delete only via reupload" : ""}</p>}
+      {!searchQuery && user.role === "regional_officer" && <p className="text-xs text-slate-500">Regional access: You can search and edit participants within your assigned region/zone. Delete is only available via bulk reupload within your access level. Full delete is reserved for National officers.</p>}
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /></div> : (
         <>
           {/* Mobile: card list */}
           <div className="md:hidden space-y-3">
-            {data?.workers?.map((w: any) => (
+            {filteredWorkers.map((w: any) => (
               <div key={w.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-semibold text-sm truncate">{w.name}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5 truncate">{w.zone} › {w.region} › {w.division}</p>
+                    {(w.contact || w.contact2) && <p className="text-[11px] text-slate-500 mt-0.5 truncate">Contact: {w.contact}{w.contact2 ? `, ${w.contact2}` : ""}</p>}
                   </div>
                   <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${w.gender === "male" ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600" : "bg-pink-50 dark:bg-pink-900/30 text-pink-600"}`}>{w.gender}</span>
                 </div>
@@ -2451,33 +2507,68 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button onClick={() => toggleVerify.mutate(w.id)} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${w.verified ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "✓ Verified" : "Mark Verified"}</button>
-                  <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
+                  {canEdit(w) && <button onClick={() => startEdit(w)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400"><Settings size={14} /></button>}
+                  {canDelete ? (
+                    <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${w.name}"? This is reserved for National officers.`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
+                  ) : (
+                    <span title="Delete via reupload only for regional officers" className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-300 cursor-not-allowed"><Trash2 size={16} /></span>
+                  )}
                 </div>
+                {!canEdit(w) && user.role === "regional_officer" && <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded px-2 py-1">View only — outside your region/zone</p>}
               </div>
             ))}
-            {data?.workers?.length === 0 && (
-              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No workers registered yet.</div>
+            {filteredWorkers.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</div>
             )}
+            {searchQuery && filteredWorkers.length > 0 && filteredWorkers.length !== (data?.workers?.length || 0) && <p className="text-xs text-center text-slate-400">{data?.workers?.length - filteredWorkers.length} workers hidden by search (edit/search is available for regional officers)</p>}
           </div>
           {/* Desktop: table */}
           <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-            <table className="w-full text-sm min-w-[850px]">
+            <table className="w-full text-sm min-w-[900px]">
               <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
               <tbody className="divide-y">
-                {data?.workers?.map((w: any) => (
+                {filteredWorkers.map((w: any) => (
                   <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
                     <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
                     <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                     <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
-                    <td><button onClick={() => toggleVerify.mutate(w.id)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
-                    <td><button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button></td>
+                    <td><button onClick={() => toggleVerify.mutate(w.id)} disabled={!canEdit(w)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${!canEdit(w) ? "opacity-40 cursor-not-allowed" : ""} ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
+                    <td><div className="flex items-center gap-1">
+                      {canEdit(w) ? <button onClick={() => startEdit(w)} className="h-7 w-7 grid place-items-center rounded-md bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600"><Settings size={14} /></button> : <span className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Settings size={14} /></span>}
+                      {canDelete ? <button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button> : <span title="Delete via reupload only" className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Trash2 size={14} /></span>}
+                    </div></td>
                   </tr>
                 ))}
-                {data?.workers?.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
+                {filteredWorkers.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</td></tr>}
               </tbody>
             </table>
           </div>
+          {/* Edit dialog */}
+          {editingWorker && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setEditingWorker(null)}>
+              <div onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border overflow-hidden max-h-[90vh] overflow-y-auto">
+                <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900">
+                  <div><h3 className="font-semibold">Edit Participant</h3><p className="text-xs text-slate-400">{editingWorker.name} • {editingWorker.zone} › {editingWorker.region}</p></div>
+                  <button onClick={() => setEditingWorker(null)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><X size={16} /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div><Label>Full Name</Label><Input value={editForm.name || ""} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))} /></div>
+                  <div className="grid grid-cols-2 gap-3"><div><Label>Gender</Label><select value={editForm.gender || ""} onChange={e => setEditForm((f: any) => ({ ...f, gender: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900"><option value="male">Male</option><option value="female">Female</option></select></div><div><Label>Position</Label><select value={editForm.position || ""} onChange={e => setEditForm((f: any) => ({ ...f, position: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900">{Object.entries(POSITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div></div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div><Label>Zone</Label><select value={editForm.zone || ""} onChange={e => { const z = e.target.value; setEditForm((f: any) => ({ ...f, zone: z, region: "", division: "" })); }} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900">{Object.keys(ZONE_STRUCTURE).map(z => <option key={z} value={z}>{z}</option>)}</select></div>
+                    <div><Label>Region</Label><select value={editForm.region || ""} onChange={e => setEditForm((f: any) => ({ ...f, region: e.target.value, division: "" }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900">{editForm.zone ? Object.keys(ZONE_STRUCTURE[editForm.zone] || {}).map(r => <option key={r} value={r}>{r}</option>) : <option value="">Select region</option>}</select></div>
+                    <div><Label>Division</Label><select value={editForm.division || ""} onChange={e => setEditForm((f: any) => ({ ...f, division: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900">{editForm.zone && editForm.region ? (ZONE_STRUCTURE[editForm.zone]?.[editForm.region] || []).map((d: string) => <option key={d} value={d}>{d}</option>) : <option value="">Select division</option>}</select></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3"><div><Label>Contact</Label><Input value={editForm.contact || ""} onChange={e => setEditForm((f: any) => ({ ...f, contact: e.target.value }))} placeholder="0244..." /></div><div><Label>Contact 2 (optional)</Label><Input value={editForm.contact2 || ""} onChange={e => setEditForm((f: any) => ({ ...f, contact2: e.target.value }))} placeholder="0200..." /></div></div>
+                  <div><Label>Payment</Label><select value={editForm.paymentStatus || ""} onChange={e => setEditForm((f: any) => ({ ...f, paymentStatus: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900"><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
+                  {editError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl px-3 py-2">{editError}</p>}
+                  <div className="flex gap-2 justify-end pt-2"><Button variant="outline" onClick={() => setEditingWorker(null)}>Cancel</Button><Button onClick={() => updateWorker.mutate({ id: editingWorker.id, patch: editForm })} disabled={updateWorker.isPending}>{updateWorker.isPending ? "Saving..." : "Save Changes"}</Button></div>
+                  {!canEdit(editingWorker) && <p className="text-xs text-amber-600">You can only edit workers within your assigned region/zone.</p>}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

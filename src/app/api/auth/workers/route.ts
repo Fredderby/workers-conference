@@ -75,6 +75,26 @@ export const POST = withError(async (req: NextRequest) => {
   return NextResponse.json({ worker }, { status: 201 });
 });
 
+function canEditWorker(user: any, worker: any): boolean {
+  if (!user || !worker) return false;
+  if (isAdmin(user.role)) return true;
+  if (user.role === "regional_officer") {
+    // Regional officers can edit workers within their assigned region/zone
+    // If user has no region/zone assigned, allow edit but log (fallback)
+    if (!user.region && !user.zone) return true;
+    if (user.region && worker.region === user.region) return true;
+    if (user.zone && worker.zone === user.zone) return true;
+    return false;
+  }
+  return false;
+}
+
+function canDeleteWorker(user: any): boolean {
+  // Only National superadmin and National (national_officer) have full delete access
+  // Regional officers cannot delete single workers - only via reupload within their access level
+  return isAdmin(user.role);
+}
+
 export const PATCH = withError(async (req: NextRequest) => {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -85,23 +105,47 @@ export const PATCH = withError(async (req: NextRequest) => {
   const { workerId, action, patch } = body;
 
   if (action === "delete") {
+    if (!canDeleteWorker(user)) {
+      return NextResponse.json({ error: "Forbidden: Regional officers cannot delete workers individually. Use reupload within your access level." }, { status: 403 });
+    }
     await db.deleteWorker(workerId);
+    await db.audit({ userId: user.id, action: "user_created", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Deleted worker ${workerId} by ${user.displayName} (${user.role})` });
     return NextResponse.json({ ok: true });
   }
 
   if (action === "toggleVerified") {
     const w = await db.findWorkerById(workerId);
     if (!w) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
+    if (!canEditWorker(user, w)) {
+      return NextResponse.json({ error: "Forbidden: You can only verify workers within your assigned region/zone." }, { status: 403 });
+    }
     const newVerified = !w.verified;
-    const patch: any = { verified: newVerified };
-    if (newVerified) patch.verifiedAt = new Date().toISOString();
-    else patch.verifiedAt = undefined;
-    const updated = await db.updateWorker(workerId, patch);
+    const patchData: any = { verified: newVerified };
+    if (newVerified) patchData.verifiedAt = new Date().toISOString();
+    else patchData.verifiedAt = undefined;
+    const updated = await db.updateWorker(workerId, patchData);
     return NextResponse.json({ worker: updated });
   }
 
   if (patch) {
+    const existing = await db.findWorkerById(workerId);
+    if (!existing) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
+    if (!canEditWorker(user, existing)) {
+      return NextResponse.json({ error: "Forbidden: You can only edit workers within your assigned region/zone." }, { status: 403 });
+    }
+    // Prevent regional officers from moving worker outside their region via edit
+    if (user.role === "regional_officer") {
+      const newRegion = patch.region ?? existing.region;
+      const newZone = patch.zone ?? existing.zone;
+      if (user.region && newRegion !== user.region) {
+        return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned region." }, { status: 403 });
+      }
+      if (user.zone && !user.region && newZone !== user.zone) {
+        return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned zone." }, { status: 403 });
+      }
+    }
     const w = await db.updateWorker(workerId, patch);
+    await db.audit({ userId: user.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Edited worker ${w?.name} (${workerId})` });
     return NextResponse.json({ worker: w });
   }
 
