@@ -30,7 +30,7 @@ function getPool(): Pool {
     }
     _pool = new Pool({
       connectionString: url,
-      connectionTimeoutMillis: 15000,
+      connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
       max: 20,
     });
