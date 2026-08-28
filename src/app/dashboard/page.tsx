@@ -2725,6 +2725,46 @@ function VerificationSection({ user }: { user: any }) {
           )}
         </CardContent>
       </Card>
+      {/* Premium Verify Table — always visible */}
+      <Card className="rounded-2xl overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center shadow-md"><ScanLine size={16} className="text-white" /></div>
+            <div><h3 className="font-semibold text-sm">Participants to Verify</h3><p className="text-xs text-slate-400">{code.trim() ? `${suggestions.length > 0 ? suggestions.length : workers.filter(w => w.name.toLowerCase().includes(code.toLowerCase())).length} matching` : `All ${workers.length}`} • Tap Verify in the table</p></div>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]"><span className="px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Verified: {workers.filter((w: any) => w.verified).length}</span><span className="px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {workers.filter((w: any) => !w.verified).length}</span></div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-4 py-3 font-semibold">Name</th><th className="text-left px-3 py-3 font-semibold">Zone → Division</th><th className="text-left px-3 py-3 font-semibold">Position</th><th className="text-center px-3 py-3 font-semibold">Payment</th><th className="text-center px-3 py-3 font-semibold">Status</th><th className="text-center px-3 py-3 font-semibold">Verify</th></tr></thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()) || w.id.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 50).map((w: any) => (
+                  <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{w.name[0]}</div><span className="font-medium">{w.name}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
+                    <td className="px-3 py-3 text-xs text-slate-500">{w.zone}<br /><span className="text-[11px] text-slate-400">{w.region} › {w.division}</span></td>
+                    <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                    <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
+                    <td className="px-3 py-3 text-center"><span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold border ${w.verified ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{w.verified ? "Verified" : "Pending"}</span></td>
+                    <td className="px-3 py-3 text-center"><button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={locked || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button></td>
+                  </tr>
+                ))}
+                {workers.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
+                {code.trim() && workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())).length === 0 && workers.length > 0 && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No matches for &quot;{code}&quot;</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+            {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 20).map((w: any) => (
+              <div key={w.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{w.name}</p><p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.division} • {w.paymentStatus}</p></div></div>
+                <button onClick={() => verifyMutation.mutate(w.id)} disabled={locked} className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border ${w.verified ? "bg-white border-slate-200 text-slate-500" : "bg-emerald-500 border-emerald-600 text-white shadow-sm"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+              </div>
+            ))}
+          </div>
+          {workers.length > 50 && !code.trim() && <p className="text-xs text-center text-slate-400 py-3 border-t">Showing 50 of {workers.length} — use search to narrow</p>}
+        </CardContent>
+      </Card>
       {workers.length === 0 && <p className="text-xs text-center text-slate-400">No workers registered yet — upload or register participants first.</p>}
     </div>
   );
@@ -2922,6 +2962,49 @@ function ApprovalSection({ user }: { user: any }) {
               </div>
             </div>
           )}
+
+          {/* ── All Regions — Premium Approve Table (Always Visible) ── */}
+          <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 grid place-items-center shadow-md"><ClipboardCheck size={16} className="text-white" /></div>
+                <div><h3 className="font-semibold text-sm">Approve Souvenirs — All Regions</h3><p className="text-xs text-slate-400">Click <span className="font-bold text-violet-600">Approve</span> in the table to approve verified workers for souvenir distribution</p></div>
+              </div>
+              <div className="flex items-center gap-2 text-[11px]"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span></div>
+            </div>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {regionStats.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No regions yet — register workers first</td></tr> : regionStats.map((r) => (
+                    <tr key={r.region} className="hover:bg-violet-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-5 py-3.5"><div className="flex items-center gap-2.5"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><span className="font-semibold">{r.region}</span><span className="text-[11px] text-slate-400">• {r.total} workers</span></div></td>
+                      <td className="px-3 py-3.5 text-center font-bold">{r.total}</td>
+                      <td className="px-3 py-3.5 text-center"><span className="inline-flex h-6 min-w-[28px] items-center justify-center px-2 rounded-full bg-emerald-500 text-white text-xs font-bold shadow-sm">{r.verified}</span></td>
+                      <td className="px-3 py-3.5 text-center text-xs text-slate-500">{r.lastApproval ? `Batch ${r.lastApproval.batchNumber}` : <span className="text-slate-400">Never</span>}</td>
+                      <td className="px-3 py-3.5 text-center">{r.currentBatch > 0 ? <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm">+{r.currentBatch} new</span> : <span className="text-xs text-slate-400">—</span>}</td>
+                      <td className="px-3 py-3.5 text-center">
+                        {r.currentBatch > 0 ? (
+                          <button onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })} disabled={locked || approveMutation.isPending} className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-xs font-bold text-white shadow-md disabled:opacity-40 hover:shadow-lg transition-all" style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}><ClipboardCheck size={12} /> Approve</button>
+                        ) : (
+                          <span className="inline-flex h-8 items-center px-3 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-400 border">Nothing to approve</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+              {regionStats.map((r) => (
+                <div key={r.region} className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><div className="min-w-0"><p className="text-sm font-bold truncate">{r.region}</p><p className="text-[11px] text-slate-400">{r.verified} verified • {r.currentBatch} new batch</p></div></div>
+                  {r.currentBatch > 0 ? <button onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })} disabled={locked} className="shrink-0 h-8 px-4 rounded-full text-xs font-bold text-white shadow-md disabled:opacity-40" style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}><span className="flex items-center gap-1"><ClipboardCheck size={12} /> Approve</span></button> : <span className="text-xs text-slate-400 shrink-0">—</span>}
+                </div>
+              ))}
+            </div>
+            {locked && <p className="text-xs text-center text-red-600 bg-red-50 dark:bg-red-950/20 border-t py-2">Approval is locked by National Officer — unlock to approve</p>}
+          </div>
 
           {/* ── Approval History ── */}
           {allApprovals.length > 0 && (
