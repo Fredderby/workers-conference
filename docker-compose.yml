@@ -15,22 +15,9 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-workers-conf-2026-refresh-secret-change-in-prod}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3056}
       - NODE_ENV=production
-    networks:
-      - app-network
-      - workers-data-network
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/login', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
-
-networks:
-  app-network:
-    driver: bridge
-  workers-data-network:
-    # Permanent fix: app must share the managed DB's network.
-    # Find exact DB network: docker network ls | grep workers-data
-    # If your DB network is "dokploy-network", change name below to "dokploy-network".
-    name: workers-data-jdojwz_default
-    external: true
