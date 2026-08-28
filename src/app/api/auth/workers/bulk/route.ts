@@ -49,7 +49,7 @@ function validateRow(row: any, index: number): string | null {
     return `Row ${index + 1}: ${list} ${missing.length === 1 ? "is" : "are"} missing. Fill in every column to import this worker.`;
   }
 
-  const gender = pick(row, "Gender", "gender").toLowerCase();
+  const gender = pick(row, "Gender", "gender").toLowerCase().trim();
   if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender must be "male" or "female" — got "${pick(row, "Gender")}".`;
   const zone = pick(row, "Zone", "zone");
   const region = pick(row, "Region", "region");
@@ -57,8 +57,12 @@ function validateRow(row: any, index: number): string | null {
   if (!ZONE_STRUCTURE[zone]) return `Row ${index + 1}: Zone "${zone}" is not recognised. Check the template's list of zones.`;
   if (!ZONE_STRUCTURE[zone]?.[region]) return `Row ${index + 1}: Region "${region}" does not belong to zone "${zone}".`;
   if (!(ZONE_STRUCTURE[zone]?.[region] || []).includes(division)) return `Row ${index + 1}: Division "${division}" is not in region "${region}".`;
-  if (!VALID_POSITIONS.includes(pick(row, "Position", "position"))) return `Row ${index + 1}: Position "${pick(row, "Position")}" is not recognised.`;
-  if (!VALID_PAYMENTS.includes(paymentVal.toLowerCase())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
+  // Position: accept snake_case, labels (Adult Leader), or normalized variants - case-insensitive, spaces/hyphens → underscores
+  const rawPos = pick(row, "Position", "position");
+  const normPos = rawPos.toLowerCase().trim().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
+  const posValid = VALID_POSITIONS.includes(normPos) || VALID_POSITIONS.includes(rawPos.toLowerCase().trim());
+  if (!posValid) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Use one of: ${VALID_POSITIONS.join(", ")} (or labels like "Adult Leader").`;
+  if (!VALID_PAYMENTS.includes(paymentVal.toLowerCase().trim())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
   return null;
 }
 
@@ -136,7 +140,8 @@ export const GET = withError(async (req: NextRequest) => {
   sheet.getColumn(7).numFmt = "@";
   sheet.getColumn(9).numFmt = "@";
 
-  // Data validations for dropdowns (rows 2-1000)
+  // Data validations for dropdowns (rows 2-1000) - Gender, Position, Payment
+  const positionList = VALID_POSITIONS.join(",");
   for (let r = 2; r <= 1000; r++) {
     sheet.getCell(`E${r}`).dataValidation = {
       type: "list",
@@ -144,6 +149,13 @@ export const GET = withError(async (req: NextRequest) => {
       showErrorMessage: true,
       errorTitle: "Invalid Gender",
       error: "Please select male or female",
+    } as any;
+    sheet.getCell(`F${r}`).dataValidation = {
+      type: "list",
+      formulae: [`"${positionList}"`],
+      showErrorMessage: true,
+      errorTitle: "Invalid Position",
+      error: `Please select one of: ${positionList}`,
     } as any;
     sheet.getCell(`H${r}`).dataValidation = {
       type: "list",
@@ -302,16 +314,20 @@ export const POST = withError(async (req: NextRequest) => {
     try {
       const contactVal = pick(vr.row, "Contact", "contact");
       const contact2Val = (vr.row["Contact_2"] || vr.row["Contact2"] || vr.row["_contact2"] || "").toString().trim();
+      // Normalize position: "Adult Leader" -> "adult_leader", case-insensitive, spaces/hyphens → underscores
+      const rawPos2 = pick(vr.row, "Position", "position");
+      const normPos2 = rawPos2.toLowerCase().trim().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
+      const finalPos = VALID_POSITIONS.includes(normPos2) ? normPos2 : rawPos2.toLowerCase().trim();
       const worker = await db.createWorker({
         name: pick(vr.row, "Full Name", "FullName", "fullname", "name"),
-        gender: pick(vr.row, "Gender", "gender").toLowerCase() as "male" | "female",
+        gender: pick(vr.row, "Gender", "gender").toLowerCase().trim() as "male" | "female",
         zone: pick(vr.row, "Zone", "zone"),
         region: pick(vr.row, "Region", "region"),
         division: pick(vr.row, "Division", "division"),
-        position: pick(vr.row, "Position", "position") as any,
-        contact: contactVal,
+        position: finalPos as any,
+        contact: contactVal || undefined,
         contact2: contact2Val || undefined,
-        paymentStatus: pick(vr.row, "Payment", "PaymentStatus", "payment").toLowerCase() as "paid" | "unpaid",
+        paymentStatus: pick(vr.row, "Payment", "PaymentStatus", "payment").toLowerCase().trim() as "paid" | "unpaid",
         verified: false,
         registeredBy: payload.sub,
         registeredByName: "Bulk Import",
