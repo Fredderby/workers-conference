@@ -162,30 +162,60 @@ async function init(): Promise<void> {
     );
   `);
 
-  // Migration: add verified_at column if missing
-  try {
-    await pool.query("ALTER TABLE workers ADD COLUMN verified_at TEXT");
-  } catch {}
-  try {
-    await pool.query("ALTER TABLE workers ADD COLUMN contact TEXT");
-  } catch {}
-  try {
-    await pool.query("ALTER TABLE workers ADD COLUMN contact2 TEXT");
-  } catch {}
+  // Migrations: add columns if missing (IF NOT EXISTS avoids ERROR logs)
+  await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS verified_at TEXT");
+  await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS contact TEXT");
+  await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS contact2 TEXT");
 
   const { rows } = await pool.query("SELECT COUNT(*)::int AS c FROM users");
   if (rows[0].c === 0) {
-    const now = new Date().toISOString();
-    const hash = bcrypt.hashSync("Password123!", 10);
-    await pool.query(
-      `INSERT INTO users (id, email, username, password_hash, display_name, role, is_active, is_temp_password, mfa_enabled, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,TRUE,FALSE,FALSE,$7),
-              ($8,$9,$10,$11,$12,$13,TRUE,FALSE,FALSE,$14)`,
-      [
-        "u1", "admin@dclm.org", "admin", hash, "Super Administrator", "super_admin", now,
-        "u2", "national@dclm.org", "national", hash, "National Officer", "national_officer", now,
-      ]
-    );
+    // Migrate existing data from .db-data.json (local mock DB) into postgres if present
+    let migrated = false;
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), ".db-data.json");
+      if (fs.existsSync(filePath)) {
+        const snap = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        if (snap.users?.length) {
+          for (const u of snap.users) {
+            await pool.query(
+              `INSERT INTO users (id, email, username, password_hash, display_name, role, zone, region, is_active, is_temp_password, mfa_enabled, mfa_secret, created_at, created_by)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+               ON CONFLICT (id) DO NOTHING`,
+              [u.id, u.email, u.username, u.passwordHash, u.displayName, u.role, (u as any).zone ?? null, (u as any).region ?? null, u.isActive, u.isTempPassword, u.mfaEnabled, (u as any).mfaSecret ?? null, u.createdAt, (u as any).createdBy ?? null]
+            );
+          }
+          migrated = true;
+          // Migrate workers if any (preserve verification status for event day)
+          if (snap.workers?.length) {
+            for (const w of snap.workers) {
+              await pool.query(
+                `INSERT INTO workers (id, name, gender, zone, region, division, position, contact, contact2, payment_status, verified, verified_at, registered_by, registered_by_name, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT (id) DO NOTHING`,
+                [w.id, w.name, w.gender, w.zone, w.region, w.division, w.position, (w as any).contact ?? null, (w as any).contact2 ?? null, w.paymentStatus, w.verified, (w as any).verifiedAt ?? null, w.registeredBy, w.registeredByName, w.createdAt]
+              );
+            }
+          }
+          console.log(`[pg] migrated ${snap.users.length} users and ${snap.workers?.length || 0} workers from .db-data.json`);
+        }
+      }
+    } catch (e) {
+      console.error("[pg] migration from .db-data.json failed:", (e as any)?.message);
+    }
+    if (!migrated) {
+      const now = new Date().toISOString();
+      const hash = bcrypt.hashSync("Password123!", 10);
+      await pool.query(
+        `INSERT INTO users (id, email, username, password_hash, display_name, role, is_active, is_temp_password, mfa_enabled, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,TRUE,FALSE,FALSE,$7),
+                ($8,$9,$10,$11,$12,$13,TRUE,FALSE,FALSE,$14)`,
+        [
+          "u1", "admin@dclm.org", "admin", hash, "Super Administrator", "super_admin", now,
+          "u2", "national@dclm.org", "national", hash, "National Officer", "national_officer", now,
+        ]
+      );
+    }
   }
 }
 
