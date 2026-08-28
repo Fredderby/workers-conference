@@ -2581,10 +2581,11 @@ function WorkerRegistrationSection({ user }: { user: any }) {
 function VerificationSection({ user }: { user: any }) {
   const [locked, setLocked] = useState(false);
   const [code, setCode] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ type: "success" | "error" | "info"; title: string; detail: string; worker?: any } | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const inputRef = useState<any>(null)[0];
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const qc = useQueryClient();
   const { data: workerData } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const workers: any[] = workerData?.workers || [];
 
@@ -2602,8 +2603,10 @@ function VerificationSection({ user }: { user: any }) {
 
   const selectSuggestion = (w: any) => {
     setCode(w.name);
+    setSelectedWorker(w);
     setShowSuggestions(false);
     setSelectedIndex(-1);
+    setResult(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -2614,18 +2617,37 @@ function VerificationSection({ user }: { user: any }) {
     else if (e.key === "Escape") { setShowSuggestions(false); setSelectedIndex(-1); }
   };
 
+  const verifyMutation = useMutation({
+    mutationFn: async (workerId: string) => {
+      const r = await fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId, action: "toggleVerified" }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Verification failed");
+      return j.worker;
+    },
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["workers"] });
+      setResult({ type: "success", title: `Verified: ${updated.name}`, detail: `${updated.zone} › ${updated.region} › ${updated.division} • ${POSITION_LABELS[updated.position as keyof typeof POSITION_LABELS] || updated.position} • ${updated.verified ? "Now Verified ✓" : "Verification removed"}`, worker: updated });
+    },
+    onError: (e: any) => setResult({ type: "error", title: "Verification failed", detail: e.message }),
+  });
+
   const verify = (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
-    if (locked) { setResult("Verification window is locked by National Officer."); return; }
-    if (code.length < 2) { setResult("Enter a valid worker name."); return; }
-    const match = workers.find((w: any) => w.name.toLowerCase() === code.toLowerCase() || w.id.toLowerCase() === code.toLowerCase());
+    if (locked) { setResult({ type: "error", title: "Verification locked", detail: "Verification window is locked by National Officer." }); return; }
+    if (code.trim().length < 1) { setResult({ type: "error", title: "Enter a name", detail: "Type a worker name to verify." }); return; }
+    // Prefer selected worker if it matches code, else find best match
+    let match: any = selectedWorker && selectedWorker.name.toLowerCase() === code.toLowerCase().trim() ? selectedWorker : null;
+    if (!match) match = workers.find((w: any) => w.name.toLowerCase() === code.toLowerCase().trim() || w.id.toLowerCase() === code.toLowerCase().trim());
+    if (!match) match = workers.find((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()));
     if (match) {
-      setResult(`Worker "${match.name}" — ${match.verified ? "Already Verified ✓" : "Verified ✓"} • ${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`);
+      if (match.verified) {
+        setResult({ type: "info", title: `Already Verified: ${match.name}`, detail: `${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`, worker: match });
+      } else {
+        verifyMutation.mutate(match.id);
+      }
     } else {
-      const partial = workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase()));
-      if (partial.length > 0) setResult(`No exact match for "${code}". Did you mean: ${partial.slice(0, 3).map((w: any) => w.name).join(", ")}?`);
-      else setResult(`No worker found for "${code}". Check the name or ID.`);
+      setResult({ type: "error", title: `No worker found for "${code}"`, detail: "Check the spelling or select from suggestions. Try typing fewer letters." });
     }
   };
 
@@ -2641,8 +2663,8 @@ function VerificationSection({ user }: { user: any }) {
             <div className="relative flex-1 max-w-md">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input value={code} onChange={e => { setCode(e.target.value); setShowSuggestions(true); setSelectedIndex(-1); setResult(null); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 180)} onKeyDown={handleKeyDown} placeholder="Enter worker name or ID" className="w-full pl-9 pr-8 h-11 rounded-xl" autoComplete="off" />
-                {code && <button type="button" onClick={() => { setCode(""); setShowSuggestions(false); setResult(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+                <Input value={code} onChange={e => { setCode(e.target.value); setShowSuggestions(true); setSelectedIndex(-1); setResult(null); setSelectedWorker(null); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 180)} onKeyDown={handleKeyDown} placeholder="Enter worker name or ID" className="w-full pl-9 pr-8 h-11 rounded-xl" autoComplete="off" />
+                {code && <button type="button" onClick={() => { setCode(""); setShowSuggestions(false); setResult(null); setSelectedWorker(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
               </div>
               {/* Autocomplete dropdown — Premium Pro */}
               <AnimatePresence>
@@ -2654,7 +2676,7 @@ function VerificationSection({ user }: { user: any }) {
                     </div>
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                       {suggestions.map((w: any, idx: number) => (
-                        <button key={w.id} type="button" onMouseDown={e => { e.preventDefault(); selectSuggestion(w); }} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors ${idx === selectedIndex ? "bg-indigo-50 dark:bg-indigo-950/30" : ""}`}>
+                        <button key={w.id} type="button" onClick={() => selectSuggestion(w)} onMouseDown={e => e.preventDefault()} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors ${idx === selectedIndex ? "bg-indigo-50 dark:bg-indigo-950/30" : ""}`}>
                           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate">{highlightMatch(w.name, code)}</p>
@@ -2679,9 +2701,28 @@ function VerificationSection({ user }: { user: any }) {
                 )}
               </AnimatePresence>
             </div>
-            <Button type="submit" className="shrink-0 h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg">Verify</Button>
+            <Button type="submit" disabled={verifyMutation.isPending} className="shrink-0 h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg">{verifyMutation.isPending ? "Verifying..." : "Verify"}</Button>
           </form>
-          {result && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 border p-3 text-sm flex items-start gap-2"><ScanLine size={16} className="text-indigo-500 mt-0.5 shrink-0" /><span>{result}</span></div>}
+          {result && (
+            <div className={`mt-4 rounded-xl border p-4 flex items-start gap-3 ${result.type === "success" ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800" : result.type === "info" ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"}`}>
+              <div className={`h-8 w-8 rounded-full grid place-items-center shrink-0 ${result.type === "success" ? "bg-emerald-500" : result.type === "info" ? "bg-amber-500" : "bg-red-500"}`}>{result.type === "success" ? <CheckCircle2 size={16} className="text-white" /> : result.type === "info" ? <AlertTriangle size={16} className="text-white" /> : <X size={16} className="text-white" />}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold">{result.title}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{result.detail}</p>
+                {result.worker && (
+                  <div className="mt-3 rounded-xl bg-white dark:bg-slate-900 border p-3 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white font-bold shrink-0">{result.worker.name[0]}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate">{result.worker.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{result.worker.zone} › {result.worker.region} › {result.worker.division} • {POSITION_LABELS[result.worker.position as keyof typeof POSITION_LABELS] || result.worker.position}</p>
+                      <p className="text-[11px] text-slate-400 truncate">Contact: {result.worker.contact || "—"}{result.worker.contact2 ? `, ${result.worker.contact2}` : ""} • {result.worker.gender} • {result.worker.paymentStatus}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border ${result.worker.verified ? "bg-emerald-500 text-white border-emerald-600" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{result.worker.verified ? "Verified" : "Pending"}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       {workers.length === 0 && <p className="text-xs text-center text-slate-400">No workers registered yet — upload or register participants first.</p>}
