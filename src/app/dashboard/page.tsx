@@ -1690,7 +1690,18 @@ function UserManagementSection() {
   const [newPassword, setNewPassword] = useState("");
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: async () => fetch("/api/auth/users").then(r => r.json()) });
+  const filteredUsers = useMemo(() => {
+    const list: any[] = data?.users || [];
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((u: any) => u.displayName?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q) || u.zone?.toLowerCase().includes(q) || u.region?.toLowerCase().includes(q));
+  }, [data?.users, searchQuery]);
 
   const createUser = useMutation({
     mutationFn: async (f: typeof form) => { const r = await fetch("/api/auth/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
@@ -1712,11 +1723,42 @@ function UserManagementSection() {
     onError: (e: any) => { setResetError(e.message); setResetSuccess(null); },
   });
 
+  useEffect(() => {
+    if (editingUser) {
+      setEditForm({ displayName: editingUser.displayName || "", username: editingUser.username || "", email: editingUser.email || "", role: editingUser.role, zone: editingUser.zone || "", region: editingUser.region || "" });
+      setEditError(null);
+      setEditSuccess(null);
+    }
+  }, [editingUser]);
+
+  const updateUser = useMutation({
+    mutationFn: async ({ userId, patch }: { userId: string; patch: any }) => {
+      const r = await fetch("/api/auth/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, ...patch }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      return j;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setEditSuccess("User updated successfully"); setEditError(null); setTimeout(() => { setEditingUser(null); setEditSuccess(null); }, 1500); },
+    onError: (e: any) => { setEditError(e.message); setEditSuccess(null); },
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">All Users ({data?.users?.length || 0})</h3>
         <Button onClick={() => { setShowCreate(true); setTempPw(null); setError(null); }} className="gap-1.5"><UserPlus size={16} /> Create User</Button>
+      </div>
+      {/* Premium Search Pane */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name, username, email, role, zone, region..." className="pl-9 pr-9 h-10 rounded-xl" />
+          {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={16} /></button>}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 font-medium">{filteredUsers.length} of {data?.users?.length || 0}</span>
+          <span className="hidden sm:inline">• Click a user to edit details or reset password</span>
+        </div>
       </div>
       <AnimatePresence>
         {showCreate && (
@@ -1766,14 +1808,14 @@ function UserManagementSection() {
       </AnimatePresence>
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div> : (
         <>
-          {/* Mobile: card list */}
+          {/* Mobile: card list — click to edit */}
           <div className="md:hidden space-y-3">
-            {data?.users?.map((u: any) => (
-              <div key={u.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
+            {filteredUsers?.map((u: any) => (
+              <div key={u.id} onClick={() => setEditingUser(u)} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all group">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{u.displayName}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
+                    <p className="font-semibold text-sm truncate flex items-center gap-1.5">{u.displayName} <ChevronRight size={12} className="text-slate-300 group-hover:text-indigo-400 transition-colors" /></p>
+                    <p className="text-[11px] text-slate-400 truncate">{u.email} • @{u.username}</p>
                   </div>
                   {u.isActive ? <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600">Active</span> : <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/30 text-red-600">Inactive</span>}
                 </div>
@@ -1783,39 +1825,86 @@ function UserManagementSection() {
                   {u.isTempPassword && <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">Temp password pending</span>}
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 inline-flex items-center justify-center gap-1.5"><Key size={12} /> Reset Password</button>
-                  <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${u.isActive ? "bg-slate-100 dark:bg-slate-800 text-slate-500" : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"}`}>{u.isActive ? "Deactivate" : "Activate"}</button>
+                  <button onClick={(e) => { e.stopPropagation(); setEditingUser(u); }} className="flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-100 inline-flex items-center justify-center gap-1.5"><Settings size={12} /> Edit Details</button>
+                  <button onClick={(e) => { e.stopPropagation(); setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold bg-amber-50 dark:bg-amber-950/30 text-amber-600 inline-flex items-center justify-center gap-1.5"><Key size={12} /> Reset Password</button>
+                  <button onClick={(e) => { e.stopPropagation(); toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" }); }} className={`px-3 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${u.isActive ? "bg-slate-100 dark:bg-slate-800 text-slate-500" : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600"}`}>{u.isActive ? "Deactivate" : "Activate"}</button>
                 </div>
               </div>
             ))}
-            {data?.users?.length === 0 && (
-              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No users found.</div>
+            {filteredUsers?.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">{searchQuery ? `No users match "${searchQuery}"` : "No users found."}</div>
             )}
           </div>
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px]">
-              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Email</th><th>Role</th><th>Zone</th><th>Region</th><th>Temp Pw</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody className="divide-y">
-                {data?.users?.map((u: any) => (
-                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium">{u.displayName}</td><td className="text-slate-500">{u.email}</td>
-                    <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span></td>
-                    <td className="text-slate-500 text-xs">{u.zone || "—"}</td>
-                    <td className="text-slate-500 text-xs">{u.region || "—"}</td>
-                    <td>{u.isTempPassword ? <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Pending</span> : <span className="text-xs text-slate-400">Changed</span>}</td>
-                    <td>{u.isActive ? <span className="text-emerald-600 text-xs font-medium">Active</span> : <span className="text-red-600 text-xs font-medium">Inactive</span>}</td>
-                    <td className="text-right"><div className="flex items-center justify-end gap-1">
-                      <button title="Reset Password" onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                      <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100">{u.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} className="text-red-500" />}</button>
-                    </div></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Desktop: table — click row to edit */}
+          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[800px]">
+                <thead className="text-left text-white bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700"><tr><th className="px-4 py-3 font-semibold">Name</th><th className="px-3 py-3 font-semibold">Username</th><th className="px-3 py-3 font-semibold">Role</th><th className="px-3 py-3 font-semibold">Zone → Region</th><th className="px-3 py-3 font-semibold">Temp Pw</th><th className="px-3 py-3 font-semibold">Status</th><th className="text-right px-4 py-3 font-semibold">Actions</th></tr></thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredUsers?.map((u: any) => (
+                    <tr key={u.id} onClick={() => setEditingUser(u)} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 cursor-pointer group transition-colors">
+                      <td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{u.displayName[0]}</div><div><p className="font-medium group-hover:text-indigo-600 transition-colors">{u.displayName}</p><p className="text-xs text-slate-400">{u.email}</p></div></div></td>
+                      <td className="px-3 py-3"><span className="px-2 py-1 rounded-full text-xs font-mono bg-slate-100 dark:bg-slate-800 border text-slate-600">@{u.username}</span></td>
+                      <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{u.role?.replace("_", " ")}</span></td>
+                      <td className="px-3 py-3 text-xs text-slate-500">{[u.zone, u.region].filter(Boolean).join(" › ") || "—"}</td>
+                      <td className="px-3 py-3">{u.isTempPassword ? <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 border border-amber-200">Pending</span> : <span className="text-xs text-slate-400">Changed</span>}</td>
+                      <td className="px-3 py-3">{u.isActive ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">● Active</span> : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">● Inactive</span>}</td>
+                      <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}><div className="flex items-center justify-end gap-1">
+                        <button title="Edit details" onClick={() => setEditingUser(u)} className="h-7 w-7 grid place-items-center rounded-md bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600"><Settings size={14} /></button>
+                        <button title="Reset Password" onClick={() => { setResetTarget({ id: u.id, name: u.displayName }); setResetError(null); setResetSuccess(null); setNewPassword(""); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600"><Key size={14} /></button>
+                        <button onClick={() => toggleActive.mutate({ userId: u.id, action: u.isActive ? "deactivate" : "activate" })} className="h-7 w-7 grid place-items-center rounded-md hover:bg-slate-100">{u.isActive ? <ToggleRight size={16} className="text-emerald-500" /> : <ToggleLeft size={16} className="text-red-500" />}</button>
+                      </div></td>
+                    </tr>
+                  ))}
+                  {filteredUsers?.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-sm text-slate-400">{searchQuery ? `No users match "${searchQuery}"` : "No users found."}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            {filteredUsers?.length !== data?.users?.length && <p className="text-xs text-center text-slate-400 py-2 border-t bg-slate-50 dark:bg-slate-800/30">{filteredUsers.length} of {data?.users?.length || 0} shown — filtered by search</p>}
           </div>
         </>
       )}
+      {/* Edit User Modal — premium 25y */}
+      <AnimatePresence>
+        {editingUser && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={() => { if (!updateUser.isPending) setEditingUser(null); }}>
+            <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4 flex items-center justify-between text-white">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-white/20 grid place-items-center"><Settings size={18} className="text-white" /></div>
+                  <div><h4 className="font-semibold">Edit User</h4><p className="text-xs text-white/80 truncate">{editingUser.displayName} • @{editingUser.username}</p></div>
+                </div>
+                <button onClick={() => setEditingUser(null)} className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 grid place-items-center transition-colors"><X size={16} className="text-white" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div><Label>Full Name</Label><Input value={editForm.displayName || ""} onChange={e => setEditForm({ ...editForm, displayName: e.target.value })} placeholder="Full Name" className="mt-1" /></div>
+                  <div><Label>Username *</Label><Input value={editForm.username || ""} onChange={e => setEditForm({ ...editForm, username: e.target.value })} placeholder="username" className="mt-1 font-mono text-sm" /></div>
+                </div>
+                <div><Label>Email</Label><Input type="email" value={editForm.email || ""} onChange={e => setEditForm({ ...editForm, email: e.target.value })} placeholder="user@dclm.org" className="mt-1" /></div>
+                <div><Label>Role</Label><select value={editForm.role || ""} onChange={e => setEditForm({ ...editForm, role: e.target.value, zone: "", region: "" } as any)} className="mt-1 flex h-10 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"><option value="viewer">Viewer</option><option value="verifier">Verifier</option><option value="regional_officer">Regional Officer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option></select></div>
+                {(editForm.role === "regional_officer" || editForm.role === "verifier") && (
+                  <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
+                    <div><Label>Zone</Label><select value={editForm.zone || ""} onChange={e => setEditForm({ ...editForm, zone: e.target.value, region: "" })} className="mt-1 flex h-10 w-full rounded-xl border bg-white dark:bg-slate-900 px-3 text-sm"><option value="">Select zone</option>{Object.keys(ZONE_STRUCTURE).map(z => <option key={z} value={z}>{z}</option>)}</select></div>
+                    <div><Label>Region</Label><select value={editForm.region || ""} onChange={e => setEditForm({ ...editForm, region: e.target.value })} disabled={!editForm.zone} className="mt-1 flex h-10 w-full rounded-xl border bg-white dark:bg-slate-900 px-3 text-sm disabled:opacity-50"><option value="">{editForm.zone ? "Select region" : "Select zone first"}</option>{editForm.zone && Object.keys(ZONE_STRUCTURE[editForm.zone] || {}).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                  </div>
+                )}
+                {editError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/30 rounded-xl px-3 py-2 border border-red-200">{editError}</p>}
+                {editSuccess && <p className="text-sm text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl px-3 py-2 border border-emerald-200 flex items-center gap-2"><CheckCircle2 size={14} /> {editSuccess}</p>}
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 flex items-center justify-between gap-3">
+                  <div><p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Need to reset password?</p><p className="text-[11px] text-amber-700 dark:text-amber-300">Set a new password for this user</p></div>
+                  <Button variant="outline" size="sm" onClick={() => { const u = editingUser; setEditingUser(null); setResetTarget({ id: u.id, name: u.displayName }); setNewPassword(""); setResetError(null); }} className="shrink-0 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-100"><Key size={14} /> Reset Password</Button>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t bg-slate-50 dark:bg-slate-800/30 flex justify-end gap-2 sticky bottom-0">
+                <Button variant="outline" onClick={() => setEditingUser(null)} disabled={updateUser.isPending}>Cancel</Button>
+                <Button onClick={() => updateUser.mutate({ userId: editingUser.id, patch: { username: editForm.username.trim(), displayName: editForm.displayName.trim(), email: editForm.email.trim(), role: editForm.role, zone: editForm.zone || null, region: editForm.region || null } })} disabled={updateUser.isPending || !editForm.username?.trim() || !editForm.displayName?.trim() || !editForm.email?.trim()} className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white gap-1.5">{updateUser.isPending ? "Saving..." : "Save Changes"}</Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Reset Password Modal */}
       <AnimatePresence>
         {resetTarget && (
