@@ -189,7 +189,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
               {section === "broadcast" && <BroadcastSection user={user} />}
               {section === "sessions" && isAdmin(user.role as RoleType) && <SessionsSection />}
               {section === "audit" && isAdmin(user.role as RoleType) && <AuditSection />}
-              {section === "reports" && isAdmin(user.role as RoleType) && <ReportsSection user={user} />}
+              {section === "reports" && (isAdmin(user.role as RoleType) || user.role === "regional_officer" || user.role === "viewer") && <ReportsSection user={user} />}
               {section === "mfa" && isAdmin(user.role as RoleType) && <MFASection />}
               {section === "settings" && <SettingsSection user={user} setUser={setUser} />}
             </motion.div>
@@ -296,7 +296,18 @@ function DrillIndicator() {
    ══════════════════════════════════════════════════════════════ */
 function ReportsSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
-  const workers: any[] = data?.workers || [];
+  const rawWorkers: any[] = data?.workers || [];
+  const isRegional = user.role === "regional_officer";
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const workers: any[] = useMemo(() => {
+    if (!isRegional) return rawWorkers;
+    if (!user.region && !user.zone) return rawWorkers;
+    return rawWorkers.filter((w: any) => {
+      if (user.region) return w.region === user.region;
+      if (user.zone) return w.zone === user.zone;
+      return true;
+    });
+  }, [rawWorkers, user.region, user.zone, isRegional]);
   const [reportType, setReportType] = useState("registration");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -396,6 +407,12 @@ function ReportsSection({ user }: { user: any }) {
           </Button>
         </div>
 
+        {isRegional && (
+          <div className="mt-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
+            <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><MapPin size={16} className="text-white" /></div>
+            <div><p className="text-sm font-bold">Report Limited — {scopeLabel}</p><p className="text-xs text-white/80">All figures below are for your assigned region only. National data is not accessible.</p></div>
+          </div>
+        )}
         {/* ── Report Type Tabs ── */}
         <div className="flex overflow-x-auto gap-1.5 mt-4 pb-1 scrollbar-thin">
           {Object.entries(reportMeta).map(([id, r]) => (
@@ -1136,7 +1153,18 @@ function ReportsSection({ user }: { user: any }) {
    ══════════════════════════════════════════════════════════════ */
 function OverviewSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
-  const workers: any[] = data?.workers || [];
+  const rawWorkers: any[] = data?.workers || [];
+  const isRegional = user.role === "regional_officer";
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const workers: any[] = useMemo(() => {
+    if (!isRegional) return rawWorkers;
+    if (!user.region && !user.zone) return rawWorkers;
+    return rawWorkers.filter(w => {
+      if (user.region) return w.region === user.region;
+      if (user.zone) return w.zone === user.zone;
+      return true;
+    });
+  }, [rawWorkers, user.region, user.zone, isRegional]);
   const [filters, setFilters] = useState({ zone: "", region: "", position: "", payment: "" });
 
   const filteredWorkers = useMemo(() => {
@@ -1236,6 +1264,12 @@ function OverviewSection({ user }: { user: any }) {
 
   return (
     <div className="space-y-5">
+      {isRegional && (
+        <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
+          <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><MapPin size={16} className="text-white" /></div>
+          <div><p className="text-sm font-bold">Your Region Dashboard — {scopeLabel}</p><p className="text-xs text-white/80">All stats and charts below are limited to your assigned region. Full national data is not accessible.</p></div>
+        </div>
+      )}
       {/* ── Power BI Slicer Bar ── */}
       <SlicerBar filters={filters} setFilters={setFilters} workers={workers} />
 
@@ -2032,6 +2066,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const isRegional = user.role === "regional_officer";
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
@@ -2274,8 +2310,14 @@ function WorkerRegistrationSection({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
+      {isRegional && (
+        <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
+          <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><Users size={16} className="text-white" /></div>
+          <div><p className="text-sm font-bold">Worker Registration — {scopeLabel}</p><p className="text-xs text-white/80">You can register, search, and edit workers only in your assigned region. Use bulk reupload to update within your access level.</p></div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h3 className="font-semibold">Registered Workers ({data?.workers?.length || 0})</h3>
+        <h3 className="font-semibold">Registered Workers ({data?.workers?.length || 0}) {isRegional ? `• ${scopeLabel}` : ""}</h3>
         <div className="flex flex-wrap items-center gap-2">
           {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && (
             <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
@@ -2686,7 +2728,18 @@ function VerificationSection({ user }: { user: any }) {
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const qc = useQueryClient();
   const { data: workerData } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
-  const workers: any[] = workerData?.workers || [];
+  const rawWorkers: any[] = workerData?.workers || [];
+  const isRegional = user.role === "regional_officer";
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const workers: any[] = useMemo(() => {
+    if (!isRegional) return rawWorkers;
+    if (!user.region && !user.zone) return rawWorkers;
+    return rawWorkers.filter((w: any) => {
+      if (user.region) return w.region === user.region;
+      if (user.zone) return w.zone === user.zone;
+      return true;
+    });
+  }, [rawWorkers, user.region, user.zone, isRegional]);
 
   const suggestions = useMemo(() => {
     if (!code.trim() || code.trim().length < 1) return [];
@@ -2760,7 +2813,13 @@ function VerificationSection({ user }: { user: any }) {
         <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Verification: {!locked ? "OPEN" : "LOCKED"}</div>
         {isAdmin(user.role as RoleType) && <button onClick={() => setLocked(!locked)} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5">{locked ? "Unlock" : "Lock"}</button>}
       </div>
-      <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3><p className="text-xs text-slate-400">Type to see suggestions from {workers.length} registered workers</p></CardHeader>
+      {isRegional && (
+        <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
+          <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><ScanLine size={16} className="text-white" /></div>
+          <div><p className="text-sm font-bold">Verification — {scopeLabel}</p><p className="text-xs text-white/80">Search and verify participants limited to your assigned region. Other regions are not accessible.</p></div>
+        </div>
+      )}
+      <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3><p className="text-xs text-slate-400">Type to see suggestions from {workers.length} registered workers {isRegional ? `• ${scopeLabel}` : ""}</p></CardHeader>
         <CardContent>
           <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2 relative">
             <div className="relative flex-1 max-w-md">
