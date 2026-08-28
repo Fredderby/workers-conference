@@ -10,7 +10,7 @@ services:
     ports:
       - "3056:3056"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgresql://app_user:c49t4QO5rTCAQ69AUfnI@workers-data-jdojwz:5432/app_data
       - JWT_SECRET=${JWT_SECRET:-workers-conf-2026-super-secret-key-change-in-prod}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-workers-conf-2026-refresh-secret-change-in-prod}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3056}
