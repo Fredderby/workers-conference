@@ -338,6 +338,31 @@ function ReportsSection({ user }: { user: any }) {
   workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
   const topPositions = Object.entries(byPosition).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
+  const [participantsExpanded, setParticipantsExpanded] = useState(true);
+  const [expandedZones, setExpandedZones] = useState<Record<string, boolean>>({});
+  const [reportSearch, setReportSearch] = useState("");
+  const [regionalExpanded, setRegionalExpanded] = useState(true);
+  const [paymentExpanded, setPaymentExpanded] = useState(true);
+  const [verificationExpanded, setVerificationExpanded] = useState(true);
+  const [genderExpanded, setGenderExpanded] = useState(true);
+  const [dailyExpanded, setDailyExpanded] = useState(true);
+
+  // Keep zone expand state in sync when workers change
+  useEffect(() => {
+    if (Object.keys(byZone).length && Object.keys(expandedZones).length === 0) {
+      setExpandedZones(Object.fromEntries(Object.keys(byZone).map(z => [z, true])));
+    }
+  }, [byZone, expandedZones]);
+
+  const toggleZone = (zone: string) => setExpandedZones(prev => ({ ...prev, [zone]: !prev[zone] }));
+  const setAllZones = (expanded: boolean) => setExpandedZones(Object.fromEntries(Object.keys(byZone).map(z => [z, expanded])));
+
+  const filteredWorkers = useMemo(() => {
+    if (!reportSearch.trim()) return workers;
+    const q = reportSearch.toLowerCase();
+    return workers.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || POSITION_LABELS[w.position as keyof typeof POSITION_LABELS]?.toLowerCase().includes(q));
+  }, [workers, reportSearch]);
+
   const handlePrint = () => { window.print(); };
 
   const reportMeta: Record<string, { label: string; title: string; subtitle: string; color: string; icon: any }> = {
@@ -466,42 +491,117 @@ function ReportsSection({ user }: { user: any }) {
                   {Object.keys(byZone).length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered yet</p>}
                 </div>
               </div>)}
-              {/* Data table — desktop */}
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="report-table hidden md:table">
-                  <thead><tr><th>#</th><th>Full Name</th><th>Gender</th>{showZoneRegionDivision && <><th>Zone</th><th>Region</th><th>Division</th></>}<th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
-                  <tbody>
-                    {workers.map((w, i) => (
-                      <tr key={w.id}>
-                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
-                        {showZoneRegionDivision && <><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td></>}
-                        <td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
-                        <td><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span></td>
-                        <td>{w.verified ? <CheckCircle2 size={14} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-2 mt-4">
-                {workers.map((w, i) => (
-                  <div key={w.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold truncate">{w.name}</span>
-                      <div className="flex gap-1.5 flex-shrink-0">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span>
-                        {w.verified && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">Verified</span>}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                      <span>{w.gender === "male" ? "Male" : "Female"}</span>
-                      {showZoneRegionDivision && <><span>{w.zone}</span><span>{w.region}</span><span>{w.division}</span></>}
-                      <span className={showZoneRegionDivision ? "col-span-2" : ""}>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
+              {/* ── Premium Collapsible Participant List ── */}
+              <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                {/* Collapsible Header */}
+                <button onClick={() => setParticipantsExpanded(!participantsExpanded)} className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900 hover:from-indigo-50/50 hover:to-white dark:hover:from-indigo-950/10 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center shadow-md shadow-indigo-500/20"><Users size={14} className="text-white" /></div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold tracking-tight">Registered Participants</p>
+                      <p className="text-[11px] text-slate-400">{filteredWorkers.length} of {total} workers{reportSearch ? " — filtered" : ""} • {verified} verified</p>
                     </div>
                   </div>
-                ))}
-                {workers.length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered yet</p>}
+                  <div className="flex items-center gap-2">
+                    <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">{participantsExpanded ? "Collapse" : "Expand"}</span>
+                    <div className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 grid place-items-center shadow-sm transition-transform ${participantsExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} className="text-slate-500" /></div>
+                  </div>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {participantsExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: "easeInOut" }} className="overflow-hidden">
+                      {/* Controls */}
+                      <div className="px-4 sm:px-5 py-3 bg-slate-50/70 dark:bg-slate-800/30 border-y border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-2.5 sm:items-center justify-between">
+                        <div className="relative flex-1 max-w-sm">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input value={reportSearch} onChange={e => setReportSearch(e.target.value)} placeholder="Search name, zone, region, division, position..." className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400" />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button onClick={() => setAllZones(true)} className="text-[11px] font-semibold px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600 transition-colors">Expand all</button>
+                          <button onClick={() => setAllZones(false)} className="text-[11px] font-semibold px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 hover:text-indigo-600 transition-colors">Collapse all</button>
+                        </div>
+                      </div>
+
+                      {/* Grouped by Zone — Premium Collapsible Cards */}
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                          const zoneFiltered = ws.filter((w: any) => !reportSearch.trim() || w.name.toLowerCase().includes(reportSearch.toLowerCase()) || w.zone.toLowerCase().includes(reportSearch.toLowerCase()) || w.region.toLowerCase().includes(reportSearch.toLowerCase()) || w.division.toLowerCase().includes(reportSearch.toLowerCase()));
+                          if (zoneFiltered.length === 0 && reportSearch) return null;
+                          const expanded = expandedZones[zone] ?? true;
+                          const zPaid = zoneFiltered.filter((w: any) => w.paymentStatus === "paid").length;
+                          const zVerified = zoneFiltered.filter((w: any) => w.verified).length;
+                          return (
+                            <div key={zone} className="bg-white dark:bg-slate-900">
+                              <button onClick={() => toggleZone(zone)} className="w-full flex items-center justify-between px-4 sm:px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <div className="flex items-center gap-3 text-left min-w-0">
+                                  <div className={`h-7 w-7 rounded-lg grid place-items-center shrink-0 transition-transform ${expanded ? "rotate-180" : ""} bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800`}><ChevronDown size={12} className="text-indigo-600 dark:text-indigo-400" /></div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold truncate">{zone}</p>
+                                    <p className="text-[11px] text-slate-400">{zoneFiltered.length} participants • {zPaid} paid • {zVerified} verified</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                  <span className="hidden sm:inline-flex h-6 min-w-[28px] items-center justify-center px-2 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[11px] font-bold shadow-sm">{zoneFiltered.length}</span>
+                                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">{zPaid} paid</span>
+                                </div>
+                              </button>
+                              <AnimatePresence initial={false}>
+                                {expanded && (
+                                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                                    {/* Desktop premium table */}
+                                    <div className="hidden md:block overflow-x-auto">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white">
+                                            <th className="text-left font-semibold px-4 py-2.5 w-10">#</th>
+                                            <th className="text-left font-semibold px-3 py-2.5">Full Name</th>
+                                            <th className="text-left font-semibold px-3 py-2.5">Gender</th>
+                                            {showZoneRegionDivision && <><th className="text-left font-semibold px-3 py-2.5">Region</th><th className="text-left font-semibold px-3 py-2.5">Division</th></>}
+                                            <th className="text-left font-semibold px-3 py-2.5">Position</th>
+                                            <th className="text-left font-semibold px-3 py-2.5">Payment</th>
+                                            <th className="text-center font-semibold px-3 py-2.5 w-16">Verified</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                          {zoneFiltered.map((w: any, i: number) => (
+                                            <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 transition-colors group">
+                                              <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
+                                              <td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{w.name}</span></div></td>
+                                              <td className="px-3 py-2.5"><span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300" : "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/30 dark:text-pink-300"}`}>{w.gender === "male" ? "Male" : "Female"}</span></td>
+                                              {showZoneRegionDivision && <><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.division}</td></>}
+                                              <td className="px-3 py-2.5"><span className="inline-flex px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-medium border border-slate-200 dark:border-slate-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                                              <td className="px-3 py-2.5"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white border-emerald-600 shadow-sm shadow-emerald-500/20" : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300"}`}>{w.paymentStatus === "paid" ? "● Paid" : "○ Unpaid"}</span></td>
+                                              <td className="px-3 py-2.5 text-center">{w.verified ? <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500 shadow-sm"><CheckCircle2 size={12} className="text-white" /></span> : <span className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 inline-flex items-center justify-center text-slate-300">—</span>}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                    {/* Mobile cards */}
+                                    <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/20">
+                                      {zoneFiltered.map((w: any) => (
+                                        <div key={w.id} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                                          <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-bold truncate">{w.name}</span></div>
+                                            <div className="flex gap-1.5 shrink-0">{w.paymentStatus === "paid" ? <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500 text-white">Paid</span> : <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800">Unpaid</span>}{w.verified && <span className="h-5 w-5 rounded-full bg-emerald-500 grid place-items-center"><CheckCircle2 size={10} className="text-white" /></span>}</div>
+                                          </div>
+                                          <div className="flex flex-wrap gap-1.5 text-[10px]"><span className={`px-2 py-0.5 rounded-full border font-medium ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.region}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.division}</span><span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
+                        {filteredWorkers.length === 0 && <p className="text-xs text-slate-400 text-center py-8">No participants match your search</p>}
+                        {workers.length === 0 && <p className="text-xs text-slate-400 text-center py-8">No workers registered yet</p>}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -539,16 +639,27 @@ function ReportsSection({ user }: { user: any }) {
                     <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
                     <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
                   </div>
-                  {/* Top unpaid */}
-                  <div className="mt-4">
-                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Top Unpaid</h4>
-                    {workers.filter(w => w.paymentStatus === "unpaid").slice(0, 5).map(w => (
-                      <div key={w.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                        <span className="text-xs font-medium truncate">{w.name}</span>
-                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{w.zone}</span>
-                      </div>
-                    ))}
-                    {unpaid === 0 && <p className="text-xs text-emerald-500 font-medium">All workers have paid!</p>}
+                  {/* Top unpaid — Premium Collapsible */}
+                  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <button onClick={() => setPaymentExpanded(!paymentExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle size={12} className="text-amber-500" /> Top Unpaid ({unpaid})</span>
+                      <span className={`h-6 w-6 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${paymentExpanded ? "rotate-180" : ""}`}><ChevronDown size={12} /></span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {paymentExpanded && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
+                            {workers.filter(w => w.paymentStatus === "unpaid").slice(0, 20).map(w => (
+                              <div key={w.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors group">
+                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-medium truncate group-hover:text-amber-700 transition-colors">{w.name}</span></div>
+                                <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border text-slate-500 shrink-0 ml-2">{w.zone}</span>
+                              </div>
+                            ))}
+                            {unpaid === 0 && <p className="text-xs text-emerald-600 font-medium text-center py-4 bg-emerald-50 dark:bg-emerald-950/10">All workers have paid!</p>}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>
@@ -586,14 +697,27 @@ function ReportsSection({ user }: { user: any }) {
                     <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Pending</span><span className="text-xs font-bold text-slate-500">{total - verified} ({total > 0 ? (((total-verified)/total)*100).toFixed(1) : 0}%)</span></div>
                     <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-slate-400 to-slate-500 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? ((total-verified)/total)*100 : 0}%` }} /></div>
                   </div>
-                  <div className="mt-4 space-y-1.5">
-                    {workers.filter(w => !w.verified).slice(0, 5).map(w => (
-                      <div key={w.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                        <span className="text-xs font-medium truncate">{w.name}</span>
-                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{w.zone}</span>
-                      </div>
-                    ))}
-                    {verified === total && <p className="text-xs text-cyan-600 font-medium">All workers verified!</p>}
+                  <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <button onClick={() => setVerificationExpanded(!verificationExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-cyan-50 to-white dark:from-cyan-950/20 dark:to-slate-900 hover:from-cyan-100 dark:hover:from-cyan-900/20 transition-colors">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><ScanLine size={12} className="text-cyan-500" /> Pending Verification ({total - verified})</span>
+                      <span className={`h-6 w-6 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${verificationExpanded ? "rotate-180" : ""}`}><ChevronDown size={12} /></span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {verificationExpanded && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
+                            {workers.filter(w => !w.verified).slice(0, 20).map(w => (
+                              <div key={w.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/10 transition-colors group">
+                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-medium truncate group-hover:text-cyan-700 transition-colors">{w.name}</span></div>
+                                <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border text-slate-500 shrink-0 ml-2">{w.zone}</span>
+                              </div>
+                            ))}
+                            {verified === total && <p className="text-xs text-cyan-600 font-medium text-center py-4 bg-cyan-50 dark:bg-cyan-950/10">All workers verified!</p>}
+                            {total - verified === 0 && verified !== total && <p className="text-xs text-slate-400 text-center py-4">No pending</p>}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>
@@ -622,46 +746,58 @@ function ReportsSection({ user }: { user: any }) {
                   })}
                 </div>
               </div>)}
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="report-table hidden md:table">
-                  <thead><tr><th>Region</th>{showZoneBreakdown && <th>Zone</th>}<th>Workers</th><th>Paid</th><th>Unpaid</th><th>Verified</th><th>Payment %</th></tr></thead>
-                  <tbody>
-                    {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
-                      const rp = ws.filter(w => w.paymentStatus === "paid").length;
-                      return (
-                        <tr key={region}>
-                          <td className="font-medium">{region}</td>{showZoneBreakdown && <td>{ws[0]?.zone}</td>}<td>{ws.length}</td>
-                          <td><span className="text-emerald-600 font-semibold">{rp}</span></td>
-                          <td><span className="text-amber-600 font-semibold">{ws.length - rp}</span></td>
-                          <td><span className="text-cyan-600 font-semibold">{ws.filter(w => w.verified).length}</span></td>
-                          <td>
-                            <div className="flex items-center gap-2"><div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div><span className="text-[10px] font-bold w-8 text-right">{ws.length > 0 ? ((rp / ws.length) * 100).toFixed(0) : 0}%</span></div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {/* Mobile cards */}
-              <div className="md:hidden space-y-2 mt-4">
-                {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
-                  const rp = ws.filter(w => w.paymentStatus === "paid").length;
-                  return (
-                    <div key={region} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold truncate">{region}</span>
-                        {showZoneBreakdown && <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{ws[0]?.zone}</span>}
+              {/* Regional Table — Premium Collapsible */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm mt-4">
+                <button onClick={() => setRegionalExpanded(!regionalExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-950/20 dark:to-slate-900 hover:from-purple-100 dark:hover:from-purple-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-purple-600 to-violet-600 grid place-items-center shadow-sm"><MapPin size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Regional Breakdown</p><p className="text-[11px] text-slate-400">{Object.keys(byRegion).length} regions • {total} workers</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline text-[11px] font-semibold text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-2.5 py-1 rounded-full border border-purple-200 dark:border-purple-800">{regionalExpanded ? "Collapse" : "Expand"}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${regionalExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {regionalExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white">
+                              <th className="text-left font-semibold px-4 py-2.5">Region</th>{showZoneBreakdown && <th className="text-left font-semibold px-3 py-2.5">Zone</th>}<th className="text-center font-semibold px-3 py-2.5">Workers</th><th className="text-center font-semibold px-3 py-2.5">Paid</th><th className="text-center font-semibold px-3 py-2.5">Unpaid</th><th className="text-center font-semibold px-3 py-2.5">Verified</th><th className="text-left font-semibold px-4 py-2.5">Payment %</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
+                              const rp = ws.filter(w => w.paymentStatus === "paid").length;
+                              return (
+                                <tr key={region} className="hover:bg-purple-50/50 dark:hover:bg-purple-950/10 transition-colors">
+                                  <td className="px-4 py-2.5 font-semibold">{region}</td>{showZoneBreakdown && <td className="px-3 py-2.5 text-slate-500">{ws[0]?.zone}</td>}<td className="px-3 py-2.5 text-center font-bold">{ws.length}</td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white text-[11px] font-bold shadow-sm">{rp}</span></td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 border border-amber-200 text-[11px] font-bold">{ws.length - rp}</span></td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500 text-white text-[11px] font-bold shadow-sm">{ws.filter(w => w.verified).length}</span></td>
+                                  <td className="px-4 py-2.5"><div className="flex items-center gap-2"><div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div><span className="text-[11px] font-bold w-8 text-right">{ws.length > 0 ? ((rp / ws.length) * 100).toFixed(0) : 0}%</span></div></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-slate-400 uppercase">Workers</p><p className="text-sm font-black">{ws.length}</p></div>
-                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-emerald-400 uppercase">Paid</p><p className="text-sm font-black text-emerald-600">{rp}</p></div>
-                        <div className="bg-white dark:bg-slate-900 rounded-lg py-1.5"><p className="text-[9px] font-bold text-cyan-400 uppercase">Verified</p><p className="text-sm font-black text-cyan-600">{ws.filter(w => w.verified).length}</p></div>
+                      {/* Mobile cards */}
+                      <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/20">
+                        {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => {
+                          const rp = ws.filter(w => w.paymentStatus === "paid").length;
+                          return (
+                            <div key={region} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <div className="flex items-center justify-between mb-2"><span className="text-xs font-bold truncate">{region}</span>{showZoneBreakdown && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/30 border border-purple-200 text-purple-600 text-xs">{ws[0]?.zone}</span>}</div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg py-2 border"><p className="text-[9px] font-bold text-slate-400 uppercase">Workers</p><p className="text-lg font-black">{ws.length}</p></div>
+                                <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg py-2 border border-emerald-200 dark:border-emerald-800"><p className="text-[9px] font-bold text-emerald-600 uppercase">Paid</p><p className="text-lg font-black text-emerald-600">{rp}</p></div>
+                                <div className="bg-cyan-50 dark:bg-cyan-950/20 rounded-lg py-2 border border-cyan-200 dark:border-cyan-800"><p className="text-[9px] font-bold text-cyan-600 uppercase">Verified</p><p className="text-lg font-black text-cyan-600">{ws.filter(w => w.verified).length}</p></div>
+                              </div>
+                              <div className="mt-2"><div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div></div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="mt-2"><div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${ws.length > 0 ? (rp / ws.length) * 100 : 0}%` }} /></div></div>
-                    </div>
-                  );
-                })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -687,32 +823,41 @@ function ReportsSection({ user }: { user: any }) {
                     <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-pink-500" /><span className="text-[10px] font-semibold text-slate-500">Female ({female})</span></div>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{showZoneBreakdown ? "Gender by Zone" : "Gender Distribution"}</h4>
-                  {showZoneBreakdown ? Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
-                    const zMale = ws.filter(w => w.gender === "male").length;
-                    const zFemale = ws.filter(w => w.gender === "female").length;
-                    const mPct = ws.length > 0 ? (zMale / ws.length) * 100 : 50;
-                    return (
-                      <div key={zone}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] font-medium text-slate-500 truncate">{zone}</span>
-                          <span className="text-[10px] font-bold text-slate-400">{zMale}M : {zFemale}F</span>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden mt-1">
+                  <button onClick={() => setGenderExpanded(!genderExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-pink-50 to-white dark:from-pink-950/20 dark:to-slate-900 hover:from-pink-100 dark:hover:from-pink-900/20 transition-colors">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><Users size={12} className="text-pink-500" /> {showZoneBreakdown ? "Gender by Zone" : "Gender Distribution"}</span>
+                    <span className={`h-6 w-6 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${genderExpanded ? "rotate-180" : ""}`}><ChevronDown size={12} /></span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {genderExpanded && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                        <div className="p-3 space-y-3">
+                          {showZoneBreakdown ? Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
+                            const zMale = ws.filter(w => w.gender === "male").length;
+                            const zFemale = ws.filter(w => w.gender === "female").length;
+                            const mPct = ws.length > 0 ? (zMale / ws.length) * 100 : 50;
+                            return (
+                              <div key={zone} className="rounded-xl p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-800 transition-colors">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-xs font-bold truncate">{zone}</span>
+                                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white dark:bg-slate-900 border shadow-sm">{zMale}M : {zFemale}F</span>
+                                </div>
+                                <div className="h-3 bg-white dark:bg-slate-900 rounded-full overflow-hidden flex border shadow-inner">
+                                  <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-700" style={{ width: `${mPct}%` }} />
+                                  <div className="h-full bg-gradient-to-r from-pink-500 to-pink-600 transition-all duration-700" style={{ width: `${100 - mPct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          }) : (
+                            <div className="space-y-3 p-1">
+                              <div className="rounded-xl p-3 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800"><div className="flex items-center justify-between mb-1"><span className="text-xs font-bold">Male</span><span className="text-xs font-bold text-indigo-600">{male} ({total > 0 ? ((male/total)*100).toFixed(0) : 0}%)</span></div><div className="h-3 bg-white dark:bg-slate-900 rounded-full overflow-hidden border"><div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full" style={{ width: `${total > 0 ? (male/total)*100 : 0}%` }} /></div></div>
+                              <div className="rounded-xl p-3 bg-pink-50 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-800"><div className="flex items-center justify-between mb-1"><span className="text-xs font-bold">Female</span><span className="text-xs font-bold text-pink-600">{female} ({total > 0 ? ((female/total)*100).toFixed(0) : 0}%)</span></div><div className="h-3 bg-white dark:bg-slate-900 rounded-full overflow-hidden border"><div className="h-full bg-gradient-to-r from-pink-500 to-pink-600 rounded-full" style={{ width: `${total > 0 ? (female/total)*100 : 0}%` }} /></div></div>
+                            </div>
+                          )}
                         </div>
-                        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-                          <div className="h-full bg-indigo-500 transition-all duration-700" style={{ width: `${mPct}%` }} />
-                          <div className="h-full bg-pink-500 transition-all duration-700" style={{ width: `${100 - mPct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  }) : (
-                    <div>
-                      <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Male</span><span className="text-xs font-bold text-indigo-600">{male} ({total > 0 ? ((male/total)*100).toFixed(0) : 0}%)</span></div>
-                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-indigo-400 to-indigo-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (male/total)*100 : 0}%` }} /></div>
-                      <div className="flex items-center justify-between mb-1 mt-2"><span className="text-xs font-medium">Female</span><span className="text-xs font-bold text-pink-600">{female} ({total > 0 ? ((female/total)*100).toFixed(0) : 0}%)</span></div>
-                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-pink-400 to-pink-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (female/total)*100 : 0}%` }} /></div>
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
@@ -741,39 +886,41 @@ function ReportsSection({ user }: { user: any }) {
                 <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyWorkers.length > 0 ? ((dailyPaid / dailyWorkers.length) * 100).toFixed(0) : 0}%</p><p className="text-[10px] font-bold text-emerald-400 uppercase">Paid Rate</p></div>
                 <div className="text-center"><p className="text-2xl font-black kpi-number">{dailyWorkers.length > 0 ? ((dailyVerified / dailyWorkers.length) * 100).toFixed(0) : 0}%</p><p className="text-[10px] font-bold text-cyan-400 uppercase">Verified</p></div>
               </div>
-              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Workers Registered on {new Date(dailyDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</h4>
-              <div className="overflow-x-auto -mx-5 px-5">
-                <table className="report-table hidden md:table">
-                  <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
-                  <tbody>
-                    {dailyWorkers.map((w, i) => (
-                      <tr key={w.id}>
-                        <td>{i + 1}</td><td className="font-medium">{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
-                        <td><span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>{w.paymentStatus}</span></td>
-                        <td>{w.verified ? <CheckCircle2 size={14} className="text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
-                      </tr>
-                    ))}
-                    {dailyWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6 text-xs">No workers registered on this date</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-              <div className="md:hidden space-y-2 mt-4">
-                {dailyWorkers.map((w, i) => (
-                  <div key={w.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-bold truncate">{w.name}</span>
-                      <div className="flex gap-1.5 flex-shrink-0">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span>
-                        {w.verified && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase bg-cyan-100 text-cyan-700">Verified</span>}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                <button onClick={() => setDailyExpanded(!dailyExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center shadow-sm"><Calendar size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Workers Registered on {new Date(dailyDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</p><p className="text-[11px] text-slate-400">{dailyWorkers.length} participant{dailyWorkers.length !== 1 ? "s" : ""}</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline-flex h-6 min-w-[28px] items-center justify-center px-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[11px] font-bold shadow-sm">{dailyWorkers.length}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${dailyExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {dailyExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead><tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><th className="text-left font-semibold px-4 py-2.5 w-10">#</th><th className="text-left font-semibold px-3 py-2.5">Name</th><th className="text-left font-semibold px-3 py-2.5">Gender</th><th className="text-left font-semibold px-3 py-2.5">Zone</th><th className="text-left font-semibold px-3 py-2.5">Region</th><th className="text-left font-semibold px-3 py-2.5">Position</th><th className="text-left font-semibold px-3 py-2.5">Payment</th><th className="text-center font-semibold px-3 py-2.5">Verified</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {dailyWorkers.map((w, i) => (
+                              <tr key={w.id} className="hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors group">
+                                <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold">{w.name[0]}</div><span className="font-semibold group-hover:text-amber-600 transition-colors">{w.name}</span></div></td><td className="px-3 py-2.5 capitalize"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span></td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.zone}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td><td className="px-3 py-2.5"><span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border text-[11px] font-medium">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                                <td className="px-3 py-2.5"><span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" : "bg-amber-100 text-amber-800 border-amber-200"}`}>{w.paymentStatus}</span></td>
+                                <td className="px-3 py-2.5 text-center">{w.verified ? <span className="inline-flex h-6 w-6 rounded-full bg-emerald-500 grid place-items-center shadow-sm"><CheckCircle2 size={12} className="text-white" /></span> : <span className="text-slate-300">—</span>}</td>
+                              </tr>
+                            ))}
+                            {dailyWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-8 text-xs">No workers registered on this date</td></tr>}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-3 text-[10px] text-slate-500">
-                      <span>{w.gender === "male" ? "Male" : "Female"}</span><span>{w.zone}</span>
-                      <span className="col-span-2">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span>
-                    </div>
-                  </div>
-                ))}
-                {dailyWorkers.length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered on this date</p>}
+                      <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/20">
+                        {dailyWorkers.map((w, i) => (
+                          <div key={w.id} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <div className="flex items-center justify-between mb-1.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-xs font-bold">{w.name[0]}</div><span className="text-xs font-bold truncate">{w.name}</span></div><div className="flex gap-1.5 shrink-0"><span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white" : "bg-amber-100 text-amber-800"}`}>{w.paymentStatus}</span>{w.verified && <span className="h-5 w-5 rounded-full bg-emerald-500 grid place-items-center"><CheckCircle2 size={10} className="text-white" /></span>}</div></div>
+                            <div className="flex flex-wrap gap-1.5 text-[10px]"><span className={`px-2 py-0.5 rounded-full border font-medium ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.zone}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.region}</span><span className="px-2 py-0.5 rounded-full bg-white border text-slate-600">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></div>
+                          </div>
+                        ))}
+                        {dailyWorkers.length === 0 && <p className="text-xs text-slate-400 text-center py-6">No workers registered on this date</p>}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
