@@ -60,7 +60,7 @@ function validateRow(row: any, index: number): string | null {
   // Position: accept snake_case or human labels (Adult Leader) - normalize spaces/hyphens → underscores
   const rawPos = pick(row, "Position", "position");
   const normPos = rawPos.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
-  if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Use one of: ${VALID_POSITIONS.join(", ")} (or labels like "Adult Leader").`;
+  if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Select from dropdown: ${Object.values(POSITION_LABELS).join(", ")}.`;
   if (!VALID_PAYMENTS.includes(paymentVal.trim().toLowerCase())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
   return null;
 }
