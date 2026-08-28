@@ -2506,7 +2506,11 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   {w.paymentStatus === "paid" ? <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600">Paid</span> : <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600">Unpaid</span>}
                 </div>
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button onClick={() => toggleVerify.mutate(w.id)} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold ${w.verified ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "✓ Verified" : "Mark Verified"}</button>
+                  {w.paymentStatus !== "paid" && !w.verified ? (
+                    <span title="Only PAID workers can be verified" className="flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 border border-amber-200 dark:border-amber-800 grid place-items-center cursor-not-allowed">Unpaid — cannot verify</span>
+                  ) : (
+                    <button onClick={() => toggleVerify.mutate(w.id)} disabled={!canEdit(w)} className={`flex-1 min-h-[36px] py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed ${w.verified ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"}`}>{w.verified ? "✓ Verified" : "Mark Verified"}</button>
+                  )}
                   {canEdit(w) && <button onClick={() => startEdit(w)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400"><Settings size={14} /></button>}
                   {canDelete ? (
                     <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${w.name}"? This is reserved for National officers.`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
@@ -2533,7 +2537,13 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
                     <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                     <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
-                    <td><button onClick={() => toggleVerify.mutate(w.id)} disabled={!canEdit(w)} className={`px-2 py-0.5 rounded-full text-xs font-medium ${!canEdit(w) ? "opacity-40 cursor-not-allowed" : ""} ${w.verified ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 dark:bg-slate-800 text-slate-500"}`}>{w.verified ? "Verified" : "Pending"}</button></td>
+                    <td>
+                      {w.paymentStatus !== "paid" && !w.verified ? (
+                        <span title="Only PAID workers can be verified" className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border bg-amber-100 text-amber-700 border-amber-200 cursor-not-allowed">Unpaid</span>
+                      ) : (
+                        <button onClick={() => toggleVerify.mutate(w.id)} disabled={!canEdit(w)} className={`px-2 py-0.5 rounded-full text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed ${!canEdit(w) ? "opacity-40 cursor-not-allowed" : ""} ${w.verified ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200"}`}>{w.verified ? "Verified" : "Pending"}</button>
+                      )}
+                    </td>
                     <td><div className="flex items-center gap-1">
                       {canEdit(w) ? <button onClick={() => startEdit(w)} className="h-7 w-7 grid place-items-center rounded-md bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600"><Settings size={14} /></button> : <span className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Settings size={14} /></span>}
                       {canDelete ? <button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button> : <span title="Delete via reupload only" className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Trash2 size={14} /></span>}
@@ -2641,6 +2651,10 @@ function VerificationSection({ user }: { user: any }) {
     if (!match) match = workers.find((w: any) => w.name.toLowerCase() === code.toLowerCase().trim() || w.id.toLowerCase() === code.toLowerCase().trim());
     if (!match) match = workers.find((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()));
     if (match) {
+      if (match.paymentStatus !== "paid" && !match.verified) {
+        setResult({ type: "error", title: `Cannot verify: ${match.name}`, detail: `Payment status is "${match.paymentStatus}". Only PAID workers can be verified. Collect payment first.` , worker: match});
+        return;
+      }
       if (match.verified) {
         setResult({ type: "info", title: `Already Verified: ${match.name}`, detail: `${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`, worker: match });
       } else {
@@ -2746,7 +2760,13 @@ function VerificationSection({ user }: { user: any }) {
                     <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                     <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
                     <td className="px-3 py-3 text-center"><span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold border ${w.verified ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{w.verified ? "Verified" : "Pending"}</span></td>
-                    <td className="px-3 py-3 text-center"><button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={locked || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button></td>
+                    <td className="px-3 py-3 text-center">
+                      {w.paymentStatus !== "paid" && !w.verified ? (
+                        <span title="Only PAID workers can be verified" className="inline-flex h-8 items-center px-3 rounded-full text-xs font-bold border bg-amber-100 dark:bg-amber-900/30 text-amber-700 border-amber-200 cursor-not-allowed">Unpaid</span>
+                      ) : (
+                        <button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={locked || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {workers.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
@@ -2758,7 +2778,11 @@ function VerificationSection({ user }: { user: any }) {
             {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 20).map((w: any) => (
               <div key={w.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                 <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{w.name}</p><p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.division} • {w.paymentStatus}</p></div></div>
-                <button onClick={() => verifyMutation.mutate(w.id)} disabled={locked} className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border ${w.verified ? "bg-white border-slate-200 text-slate-500" : "bg-emerald-500 border-emerald-600 text-white shadow-sm"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+                {w.paymentStatus !== "paid" && !w.verified ? (
+                  <span title="Only PAID workers can be verified" className="shrink-0 h-8 inline-flex items-center px-3 rounded-full text-xs font-bold border bg-amber-100 text-amber-700 border-amber-200">Unpaid</span>
+                ) : (
+                  <button onClick={() => verifyMutation.mutate(w.id)} disabled={locked || verifyMutation.isPending} className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border ${w.verified ? "bg-white border-slate-200 text-slate-500" : "bg-emerald-500 border-emerald-600 text-white shadow-sm"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+                )}
               </div>
             ))}
           </div>

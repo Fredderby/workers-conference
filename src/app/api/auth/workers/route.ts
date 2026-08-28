@@ -120,6 +120,10 @@ export const PATCH = withError(async (req: NextRequest) => {
       return NextResponse.json({ error: "Forbidden: You can only verify workers within your assigned region/zone." }, { status: 403 });
     }
     const newVerified = !w.verified;
+    // Strict logic: unpaid workers cannot be verified
+    if (newVerified && w.paymentStatus !== "paid") {
+      return NextResponse.json({ error: `Cannot verify "${w.name}" — payment status is "${w.paymentStatus}". Only PAID workers can be verified.` }, { status: 400 });
+    }
     const patchData: any = { verified: newVerified };
     if (newVerified) patchData.verifiedAt = new Date().toISOString();
     else patchData.verifiedAt = undefined;
