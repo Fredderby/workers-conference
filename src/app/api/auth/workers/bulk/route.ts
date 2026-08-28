@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db/pg";
-import { ZONE_STRUCTURE } from "@/lib/db/mock";
+import { ZONE_STRUCTURE, POSITION_LABELS } from "@/lib/db/mock";
 import { withError } from "@/lib/api-handler";
 import ExcelJS from "exceljs";
 
@@ -49,44 +49,20 @@ function validateRow(row: any, index: number): string | null {
     return `Row ${index + 1}: ${list} ${missing.length === 1 ? "is" : "are"} missing. Fill in every column to import this worker.`;
   }
 
-  const gender = pick(row, "Gender", "gender").toLowerCase().trim();
-  if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender must be "male" or "female" — got "${pick(row, "Gender")}".`;
+  const gender = pick(row, "Gender", "gender").trim().toLowerCase();
+  if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender must be "male" or "female" — got "${pick(row, "Gender", "gender")}".`;
   const zone = pick(row, "Zone", "zone");
   const region = pick(row, "Region", "region");
   const division = pick(row, "Division", "division");
   if (!ZONE_STRUCTURE[zone]) return `Row ${index + 1}: Zone "${zone}" is not recognised. Check the template's list of zones.`;
   if (!ZONE_STRUCTURE[zone]?.[region]) return `Row ${index + 1}: Region "${region}" does not belong to zone "${zone}".`;
   if (!(ZONE_STRUCTURE[zone]?.[region] || []).includes(division)) return `Row ${index + 1}: Division "${division}" is not in region "${region}".`;
-  // Position: accept snake_case, labels (Adult Leader), or normalized variants - case-insensitive, spaces/hyphens → underscores
+  // Position: accept snake_case or human labels (Adult Leader) - normalize spaces/hyphens → underscores
   const rawPos = pick(row, "Position", "position");
-  const normPos = rawPos.toLowerCase().trim().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
-  const posValid = VALID_POSITIONS.includes(normPos) || VALID_POSITIONS.includes(rawPos.toLowerCase().trim());
-  if (!posValid) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Use one of: ${VALID_POSITIONS.join(", ")} (or labels like "Adult Leader").`;
-  if (!VALID_PAYMENTS.includes(paymentVal.toLowerCase().trim())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
+  const normPos = rawPos.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
+  if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Use one of: ${VALID_POSITIONS.join(", ")} (or labels like "Adult Leader").`;
+  if (!VALID_PAYMENTS.includes(paymentVal.trim().toLowerCase())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
   return null;
-}
-
-function parseCSV(text: string): { headers: string[]; rows: any[] } {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith("#"));
-  if (lines.length < 2) return { headers: [], rows: [] };
-  const headers = lines[0].split(",").map(h => h.trim());
-  // Handle duplicate Contact headers by making second unique
-  const seen: Record<string, number> = {};
-  const uniqueHeaders = headers.map(h => {
-    const count = seen[h] || 0;
-    seen[h] = count + 1;
-    if (count > 0 && h.toLowerCase() === "contact") return `Contact_2`;
-    return h;
-  });
-  const rows = lines.slice(1).map(line => {
-    const values = line.split(",").map(v => v.trim());
-    const obj: any = {};
-    uniqueHeaders.forEach((h, i) => { obj[h] = values[i] || ""; });
-    // Also keep original duplicate key for compatibility
-    headers.forEach((h, i) => { if (obj[h] === undefined) obj[h] = values[i] || ""; });
-    return obj;
-  });
-  return { headers: uniqueHeaders, rows };
 }
 
 export const GET = withError(async (req: NextRequest) => {
@@ -141,7 +117,8 @@ export const GET = withError(async (req: NextRequest) => {
   sheet.getColumn(9).numFmt = "@";
 
   // Data validations for dropdowns (rows 2-1000) - Gender, Position, Payment
-  const positionList = VALID_POSITIONS.join(",");
+  // Show human labels in Excel dropdown (e.g. Adult Leader) - validation normalizes both forms
+  const positionLabels = Object.values(POSITION_LABELS).join(",");
   for (let r = 2; r <= 1000; r++) {
     sheet.getCell(`E${r}`).dataValidation = {
       type: "list",
@@ -152,10 +129,10 @@ export const GET = withError(async (req: NextRequest) => {
     } as any;
     sheet.getCell(`F${r}`).dataValidation = {
       type: "list",
-      formulae: [`"${positionList}"`],
+      formulae: [`"${positionLabels}"`],
       showErrorMessage: true,
       errorTitle: "Invalid Position",
-      error: `Please select one of: ${positionList}`,
+      error: `Please select one of: ${positionLabels}`,
     } as any;
     sheet.getCell(`H${r}`).dataValidation = {
       type: "list",
@@ -217,6 +194,7 @@ export const POST = withError(async (req: NextRequest) => {
   }
 
   // Step 2: Handle replace mode - delete all existing after validation
+  let toCreate: typeof validRows = validRows;
   if (mode === "replace") {
     if (!isConfirmed) {
       const existing = await db.listWorkers();
@@ -229,11 +207,30 @@ export const POST = withError(async (req: NextRequest) => {
       });
     }
     await db.deleteAllWorkers();
+    // Dedupe file-internal duplicates for replace as well (last-write-wins, handles both key and contact)
+    const dedupMapR = new Map<string, typeof validRows[0]>();
+    const contactToKeyR = new Map<string, string>();
+    for (const vr of validRows) {
+      const k = makeDuplicateKey(vr.row);
+      const c = pick(vr.row, "Contact", "contact").trim();
+      const ck = c ? `contact:${c}` : null;
+      if (ck && contactToKeyR.has(ck)) {
+        const prevKey = contactToKeyR.get(ck)!;
+        if (prevKey !== k) dedupMapR.delete(prevKey);
+      }
+      if (dedupMapR.has(k)) {
+        const prev = dedupMapR.get(k)!;
+        const prevC = pick(prev.row, "Contact", "contact").trim();
+        if (prevC) contactToKeyR.delete(`contact:${prevC}`);
+      }
+      dedupMapR.set(k, vr);
+      if (ck) contactToKeyR.set(ck, k);
+    }
+    toCreate = [...dedupMapR.values()];
   }
 
-  // Step 3: Duplicate detection for append mode (or replace after delete - no duplicates)
+  // Step 3: Duplicate detection for append mode
   let duplicates: { row: number; key: string; existing: any; newRow: any }[] = [];
-  let toCreate: typeof validRows = validRows;
 
   if (mode === "append") {
     const existingWorkers = await db.listWorkers();
@@ -255,16 +252,16 @@ export const POST = withError(async (req: NextRequest) => {
       const contact = pick(vr.row, "Contact", "contact").trim();
       const contactKey = contact ? `contact:${contact}` : null;
 
-      const isFileDuplicate = fileSeen.has(key);
-      const isDbDuplicate = existingMap.has(key) || (contactKey && existingMap.has(contactKey));
+      const isFileDuplicate = fileSeen.has(key) || (contactKey !== null && fileSeen.has(contactKey));
+      const isDbDuplicate = existingMap.has(key) || (contactKey !== null && existingMap.has(contactKey));
 
       if (isFileDuplicate || isDbDuplicate) {
-        const existing = existingMap.get(key) || (contactKey ? existingMap.get(contactKey) : null);
+        const existing = existingMap.get(key) || (contactKey !== null ? existingMap.get(contactKey) : null);
         duplicates.push({ row: vr.index + 1, key, existing: existing || null, newRow: vr.row });
         dupIndices.add(vr.index);
       } else {
         fileSeen.add(key);
-        if (contactKey) fileSeen.add(contactKey);
+        if (contactKey !== null) fileSeen.add(contactKey);
         uniqueRows.push(vr);
       }
     }
@@ -287,17 +284,40 @@ export const POST = withError(async (req: NextRequest) => {
       });
     }
 
-    // Apply onDuplicate strategy
+    // Apply onDuplicate strategy - dedupe file-internal duplicates last-write-wins
     if (onDuplicate === "skip") {
       toCreate = uniqueRows;
     } else if (onDuplicate === "replace") {
-      // Delete existing duplicates first, then create all valid rows
+      // Delete existing duplicates first (dedupe ids)
+      const seenIds = new Set<string>();
       for (const d of duplicates) {
-        if (d.existing?.id) {
+        if (d.existing?.id && !seenIds.has(d.existing.id)) {
+          seenIds.add(d.existing.id);
           try { await db.deleteWorker(d.existing.id); } catch {}
         }
       }
-      toCreate = validRows; // all rows will be re-created
+      // Rebuild toCreate deduped last-write-wins (handles both name|zone|division and contact collisions)
+      const dedupMap = new Map<string, typeof validRows[0]>();
+      const contactToKey = new Map<string, string>();
+      for (const vr of validRows) {
+        const k = makeDuplicateKey(vr.row);
+        const c = pick(vr.row, "Contact", "contact").trim();
+        const ck = c ? `contact:${c}` : null;
+        // If contact already maps to a different main key, remove old entry (last-write-wins for contact)
+        if (ck && contactToKey.has(ck)) {
+          const prevKey = contactToKey.get(ck)!;
+          if (prevKey !== k) dedupMap.delete(prevKey);
+        }
+        // If main key exists, clean its old contact mapping
+        if (dedupMap.has(k)) {
+          const prev = dedupMap.get(k)!;
+          const prevC = pick(prev.row, "Contact", "contact").trim();
+          if (prevC) contactToKey.delete(`contact:${prevC}`);
+        }
+        dedupMap.set(k, vr);
+        if (ck) contactToKey.set(ck, k);
+      }
+      toCreate = [...dedupMap.values()];
     }
   }
 
@@ -310,24 +330,23 @@ export const POST = withError(async (req: NextRequest) => {
   }
 
   for (const vr of toCreate) {
-    // Skip if this row was a duplicate and we are skipping (already filtered)
     try {
       const contactVal = pick(vr.row, "Contact", "contact");
       const contact2Val = (vr.row["Contact_2"] || vr.row["Contact2"] || vr.row["_contact2"] || "").toString().trim();
       // Normalize position: "Adult Leader" -> "adult_leader", case-insensitive, spaces/hyphens → underscores
       const rawPos2 = pick(vr.row, "Position", "position");
-      const normPos2 = rawPos2.toLowerCase().trim().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
-      const finalPos = VALID_POSITIONS.includes(normPos2) ? normPos2 : rawPos2.toLowerCase().trim();
+      const normPos2 = rawPos2.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
+      const finalPos = VALID_POSITIONS.includes(normPos2) ? normPos2 : rawPos2.trim().toLowerCase();
       const worker = await db.createWorker({
         name: pick(vr.row, "Full Name", "FullName", "fullname", "name"),
-        gender: pick(vr.row, "Gender", "gender").toLowerCase().trim() as "male" | "female",
+        gender: pick(vr.row, "Gender", "gender").trim().toLowerCase() as "male" | "female",
         zone: pick(vr.row, "Zone", "zone"),
         region: pick(vr.row, "Region", "region"),
         division: pick(vr.row, "Division", "division"),
         position: finalPos as any,
-        contact: contactVal || undefined,
-        contact2: contact2Val || undefined,
-        paymentStatus: pick(vr.row, "Payment", "PaymentStatus", "payment").toLowerCase().trim() as "paid" | "unpaid",
+        contact: contactVal ? contactVal : undefined,
+        contact2: contact2Val ? contact2Val : undefined,
+        paymentStatus: pick(vr.row, "Payment", "PaymentStatus", "payment").trim().toLowerCase() as "paid" | "unpaid",
         verified: false,
         registeredBy: payload.sub,
         registeredByName: "Bulk Import",

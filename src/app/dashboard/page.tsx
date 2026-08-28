@@ -1851,7 +1851,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     await wb.xlsx.load(buf);
     const ws = wb.worksheets[0];
     if (!ws) return { headers: [], rows: [] };
-    // Find header row (row 4 in our template, but scan for Zone header)
+    // Find header row (headers-only template, row 1, scan for Zone header)
     let headerRowIdx = 1;
     let headers: string[] = [];
     ws.eachRow((row, rowNumber) => {
