@@ -23,8 +23,19 @@ export const GET = withError(async (req: NextRequest) => {
   }
 
   let list = await db.listWorkers();
-  if (isAdmin(user.role) || user.role === "viewer" || user.role === "regional_officer") {
-    // Admins, viewers, and regional officers → all workers
+  if (isAdmin(user.role) || user.role === "viewer") {
+    // National level (super_admin, national_officer, viewer) → full list
+  } else if (user.role === "regional_officer") {
+    // Regional officers → only workers in their assigned region/zone
+    if (!user.region && !user.zone) {
+      list = [];
+    } else {
+      list = list.filter(w => {
+        if (user.region && w.region === user.region) return true;
+        if (user.zone && w.zone === user.zone) return true;
+        return false;
+      });
+    }
   } else if (user.role === "verifier") {
     list = list.filter(w => w.registeredBy === user.id);
   } else {
@@ -61,6 +72,16 @@ export const POST = withError(async (req: NextRequest) => {
   }
   if (paymentStatus && !["paid", "unpaid"].includes(String(paymentStatus).toLowerCase())) {
     return NextResponse.json({ error: "Payment status must be either \"paid\" or \"unpaid\"." }, { status: 400 });
+  }
+
+  // Regional officers can only register workers within their assigned region/zone
+  if (user.role === "regional_officer") {
+    if (user.region && region !== user.region) {
+      return NextResponse.json({ error: `Forbidden: You can only register workers in your assigned region "${user.region}".` }, { status: 403 });
+    }
+    if (user.zone && !user.region && zone !== user.zone) {
+      return NextResponse.json({ error: `Forbidden: You can only register workers in your assigned zone "${user.zone}".` }, { status: 403 });
+    }
   }
 
   const worker = await db.createWorker({
