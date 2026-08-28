@@ -2582,19 +2582,109 @@ function VerificationSection({ user }: { user: any }) {
   const [locked, setLocked] = useState(false);
   const [code, setCode] = useState("");
   const [result, setResult] = useState<string | null>(null);
-  const verify = (e: React.FormEvent) => { e.preventDefault(); if (locked) { setResult("Verification window is locked by National Officer."); return; } if (code.length < 2) { setResult("Enter a valid worker name."); return; } setResult(`Worker "${code}" — Verified ✓`); };
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const inputRef = useState<any>(null)[0];
+  const { data: workerData } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const workers: any[] = workerData?.workers || [];
+
+  const suggestions = useMemo(() => {
+    if (!code.trim() || code.trim().length < 1) return [];
+    const q = code.toLowerCase().trim();
+    return workers.filter((w: any) => w.name.toLowerCase().includes(q) || w.id.toLowerCase().includes(q)).slice(0, 8);
+  }, [code, workers]);
+
+  const highlightMatch = (name: string, query: string) => {
+    const idx = name.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return name;
+    return <>{name.slice(0, idx)}<span className="bg-amber-200 dark:bg-amber-800/50 font-bold rounded px-0.5">{name.slice(idx, idx + query.length)}</span>{name.slice(idx + query.length)}</>;
+  };
+
+  const selectSuggestion = (w: any) => {
+    setCode(w.name);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIndex(prev => (prev + 1) % suggestions.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length); }
+    else if (e.key === "Enter" && selectedIndex >= 0) { e.preventDefault(); selectSuggestion(suggestions[selectedIndex]); }
+    else if (e.key === "Escape") { setShowSuggestions(false); setSelectedIndex(-1); }
+  };
+
+  const verify = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowSuggestions(false);
+    if (locked) { setResult("Verification window is locked by National Officer."); return; }
+    if (code.length < 2) { setResult("Enter a valid worker name."); return; }
+    const match = workers.find((w: any) => w.name.toLowerCase() === code.toLowerCase() || w.id.toLowerCase() === code.toLowerCase());
+    if (match) {
+      setResult(`Worker "${match.name}" — ${match.verified ? "Already Verified ✓" : "Verified ✓"} • ${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`);
+    } else {
+      const partial = workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase()));
+      if (partial.length > 0) setResult(`No exact match for "${code}". Did you mean: ${partial.slice(0, 3).map((w: any) => w.name).join(", ")}?`);
+      else setResult(`No worker found for "${code}". Check the name or ID.`);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
         <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Verification: {!locked ? "OPEN" : "LOCKED"}</div>
         {isAdmin(user.role as RoleType) && <button onClick={() => setLocked(!locked)} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5">{locked ? "Unlock" : "Lock"}</button>}
       </div>
-      <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3></CardHeader>
+      <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Worker</h3><p className="text-xs text-slate-400">Type to see suggestions from {workers.length} registered workers</p></CardHeader>
         <CardContent>
-          <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2"><Input value={code} onChange={e => setCode(e.target.value)} placeholder="Enter worker name" className="w-full sm:max-w-xs" /><Button type="submit" className="shrink-0">Verify</Button></form>
-          {result && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 border p-3 text-sm">{result}</div>}
+          <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2 relative">
+            <div className="relative flex-1 max-w-md">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input value={code} onChange={e => { setCode(e.target.value); setShowSuggestions(true); setSelectedIndex(-1); setResult(null); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 180)} onKeyDown={handleKeyDown} placeholder="Enter worker name or ID" className="w-full pl-9 pr-8 h-11 rounded-xl" autoComplete="off" />
+                {code && <button type="button" onClick={() => { setCode(""); setShowSuggestions(false); setResult(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+              </div>
+              {/* Autocomplete dropdown — Premium Pro */}
+              <AnimatePresence>
+                {showSuggestions && suggestions.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }} className="absolute z-20 mt-2 w-full rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
+                    <div className="px-3 py-2 border-b bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{suggestions.length} match{suggestions.length !== 1 ? "es" : ""} found</span>
+                      <span className="text-[10px] text-slate-400">↑↓ navigate • Enter select</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                      {suggestions.map((w: any, idx: number) => (
+                        <button key={w.id} type="button" onMouseDown={e => { e.preventDefault(); selectSuggestion(w); }} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors ${idx === selectedIndex ? "bg-indigo-50 dark:bg-indigo-950/30" : ""}`}>
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{highlightMatch(w.name, code)}</p>
+                            <p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.region} › {w.division} • {POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold border ${w.verified ? "bg-emerald-500 text-white border-emerald-600" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{w.verified ? "Verified" : "Pending"}</span>
+                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${w.paymentStatus === "paid" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>{w.paymentStatus}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <AnimatePresence>
+                {showSuggestions && code.trim().length >= 1 && suggestions.length === 0 && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="absolute z-20 mt-2 w-full rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 shadow-xl p-4 text-center">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No matches for &quot;{code}&quot;</p>
+                    <p className="text-xs text-slate-400 mt-1">Try a different spelling or check the registered list</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <Button type="submit" className="shrink-0 h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg">Verify</Button>
+          </form>
+          {result && <div className="mt-4 rounded-xl bg-slate-50 dark:bg-slate-800 border p-3 text-sm flex items-start gap-2"><ScanLine size={16} className="text-indigo-500 mt-0.5 shrink-0" /><span>{result}</span></div>}
         </CardContent>
       </Card>
+      {workers.length === 0 && <p className="text-xs text-center text-slate-400">No workers registered yet — upload or register participants first.</p>}
     </div>
   );
 }
