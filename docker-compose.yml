@@ -17,6 +17,9 @@ services:
       - NODE_ENV=production
     networks:
       - workers-data-net
+    depends_on:
+      database:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/login', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
@@ -34,11 +37,28 @@ services:
       POSTGRES_DB: app_data
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
       workers-data-net:
         aliases:
           - workers-data-jdojwz
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_data"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
+  # Not external: Docker auto-creates/reuses this, so the deploy can never fail
+  # with "Could not attach to network ... not found". Both services join it;
+  # the alias gives the app its hostname workers-data-jdojwz:5432.
   workers-data-net:
-    external: true
+    name: workers-data-net
+    driver: bridge
+
+volumes:
+  # Fresh named volume — replaces the corrupted data dir that caused
+  # "PANIC: could not locate a valid checkpoint record".
+  pgdata:
