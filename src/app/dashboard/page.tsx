@@ -18,6 +18,10 @@ const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserP
 
 const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#06b6d4", "#f43f5e", "#10b981"];
 
+// Workers cache is scoped by viewer role+scope so a national full list can never
+// be served from cache to a regional officer (and vice versa).
+const WORKERS_KEY = (user: any) => ["workers", user?.role, user?.region ?? "", user?.zone ?? ""];
+
 export default function DashboardPage() {
   const router = useRouter();
   const [section, setSection] = useState("overview");
@@ -54,7 +58,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
     localStorage.setItem("theme", nd ? "dark" : "light");
   };
 
-  const logout = () => { fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); };
+  const logout = () => { fetch("/api/auth/logout", { method: "POST" }); queryClient.clear(); router.push("/login"); };
 
   const handleNav = (id: string) => {
     setSection(id);
@@ -295,7 +299,7 @@ function DrillIndicator() {
    REPORTS — Premium Power BI Pro Design
    ══════════════════════════════════════════════════════════════ */
 function ReportsSection({ user }: { user: any }) {
-  const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
@@ -1152,7 +1156,7 @@ function ReportsSection({ user }: { user: any }) {
    OVERVIEW — Premium Analytics Dashboard
    ══════════════════════════════════════════════════════════════ */
 function OverviewSection({ user }: { user: any }) {
-  const { data } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
@@ -2065,7 +2069,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [editForm, setEditForm] = useState<any>({});
   const [editError, setEditError] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data, isLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
   const visibleWorkers = useMemo(() => {
@@ -2731,7 +2735,7 @@ function VerificationSection({ user }: { user: any }) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const qc = useQueryClient();
-  const { data: workerData } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: workerData } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = workerData?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
@@ -2952,7 +2956,7 @@ function VerificationSection({ user }: { user: any }) {
 function ApprovalSection({ user }: { user: any }) {
   const [locked, setLocked] = useState(false);
   const qc = useQueryClient();
-  const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const { data: approvalData, isLoading: approvalsLoading } = useQuery({ queryKey: ["approvals"], queryFn: async () => fetch("/api/auth/approvals").then(r => r.json()) });
 
   const isLoading = workersLoading || approvalsLoading;

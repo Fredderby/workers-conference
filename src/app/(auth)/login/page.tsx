@@ -43,26 +43,6 @@ export default function LoginPage() {
     { left: "90%", size: 7, dur: 24, delay: 1 },
   ];
 
-  const rings = [
-    { left: "-40px", top: "15%", size: 110, dur: 18, delay: 0 },
-    { left: "9%", top: "58%", size: 150, dur: 22, delay: 3 },
-    { left: "72%", top: "8%", size: 120, dur: 20, delay: 7 },
-    { left: "80%", top: "72%", size: 70, dur: 16, delay: 5 },
-  ];
-
-  const bubbles = [
-    { left: "8%", top: "12%", size: 34, dur: 9, delay: 0 },
-    { left: "18%", top: "68%", size: 22, dur: 11, delay: 2 },
-    { left: "30%", top: "30%", size: 16, dur: 8, delay: 4 },
-    { left: "48%", top: "22%", size: 26, dur: 10, delay: 1 },
-    { left: "62%", top: "78%", size: 40, dur: 12, delay: 3 },
-    { left: "74%", top: "35%", size: 18, dur: 9, delay: 5 },
-    { left: "84%", top: "15%", size: 28, dur: 11, delay: 6 },
-    { left: "92%", top: "60%", size: 20, dur: 8, delay: 2 },
-    { left: "40%", top: "82%", size: 14, dur: 10, delay: 7 },
-    { left: "55%", top: "52%", size: 24, dur: 9, delay: 4 },
-  ];
-
   const [dark, setDark] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -134,21 +114,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#f6f7ff] dark:bg-[#050a1e] overflow-hidden relative">
-      {/* animated background grid, rings & rising particles */}
+    <div className="min-h-screen flex bg-gradient-to-br from-[#eef1ff] via-[#f6f7ff] to-[#f5f0ff] dark:bg-none dark:bg-[#050a1e] overflow-hidden relative">
+      {/* soft aurora glows & rising particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="bg-grid" />
-        {rings.map((r, i) => (
-          <div key={i} className="ring" style={{ left: r.left, top: r.top, width: r.size, height: r.size, animationDuration: `${r.dur}s`, animationDelay: `${r.delay}s` }} />
-        ))}
+        <div className="glow bg-gradient-to-br from-indigo-200/50 to-violet-200/40 w-[440px] h-[440px] -top-28 -left-28" />
+        <div className="glow bg-gradient-to-br from-sky-200/60 to-cyan-100/50 w-[420px] h-[420px] bottom-0 right-0" style={{ animationDelay: "5s" }} />
+        <div className="glow bg-gradient-to-br from-violet-200/40 to-fuchsia-100/45 w-[360px] h-[360px] top-1/3 left-1/2" style={{ animationDelay: "9s" }} />
         {particles.map((p, i) => (
           <div key={i} className="particle" style={{ left: p.left, width: p.size, height: p.size, animationDuration: `${p.dur}s`, animationDelay: `${p.delay}s` }} />
         ))}
       </div>
-
-      {bubbles.map((b, i) => (
-        <div key={i} className="bubble" style={{ left: b.left, top: b.top, width: b.size, height: b.size, animationDuration: `${b.dur}s`, animationDelay: `${b.delay}s` }} />
-      ))}
 
       {/* Left Panel */}
       <div className="hidden lg:flex flex-1 relative flex-col justify-between p-10 z-10">
