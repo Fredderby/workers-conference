@@ -32,7 +32,9 @@ function getPool(): Pool {
       connectionString: url,
       connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
-      max: 20,
+      max: 50,
+      allowExitOnIdle: true,
+      keepAlive: true,
     });
     try {
       const u = new URL(url);
