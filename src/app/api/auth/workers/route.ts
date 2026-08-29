@@ -177,9 +177,29 @@ export const DELETE = withError(async (req: NextRequest) => {
   const payload = await auth(req);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await db.findUserById(payload.sub);
-  if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+
+  // Red-flag cleanup: delete all workers with missing/invalid 10-digit contact — 25y fix for re-upload flow
+  if (searchParams.get("missingContact") === "1") {
+    if (!isAdmin(user.role) && user.role !== "regional_officer" && user.role !== "national_officer") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const all = await db.listWorkers();
+    let targets = all.filter(w => !w.contact || !/^\d{10}$/.test(String(w.contact).trim()));
+    // Regional officers can only clean their own region
+    if (user.role === "regional_officer" && user.region) {
+      const want = user.region.trim().toLowerCase();
+      targets = targets.filter(w => w.region && w.region.trim().toLowerCase() === want);
+    }
+    for (const w of targets) await db.deleteWorker(w.id);
+    await db.audit({ userId: user.id, action: "workers_cleanup", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Red-flag cleanup: deleted ${targets.length} workers with missing contact by ${user.displayName} (${user.role})` });
+    return NextResponse.json({ deleted: targets.length });
+  }
+
+  if (!isAdmin(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const registeredByName = searchParams.get("registeredByName");
   if (!registeredByName) return NextResponse.json({ error: "registeredByName required" }, { status: 400 });
 

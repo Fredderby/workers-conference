@@ -2145,6 +2145,22 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   }, [visibleWorkers, searchQuery]);
   const missingContactWorkers = useMemo(() => visibleWorkers.filter((w: any) => !w.contact || !/^\d{10}$/.test(String(w.contact).trim())), [visibleWorkers]);
   const [showMissing, setShowMissing] = useState(false);
+  const [deletingMissing, setDeletingMissing] = useState(false);
+
+  const handleDeleteMissing = async () => {
+    if (!confirm(`Delete all ${missingContactWorkers.length} red-flagged workers with missing/invalid contact? This cannot be undone. You can then re-upload the fixed file.`)) return;
+    setDeletingMissing(true);
+    try {
+      const r = await fetch("/api/auth/workers?missingContact=1", { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Delete failed");
+      await qc.invalidateQueries({ queryKey: ["workers"] });
+      setShowMissing(false);
+      setShowBulk(true);
+      setBulkPreview(null); setBulkResult(null); setBulkErrors(null); setBulkFile(null);
+    } catch (e: any) { alert(e.message); }
+    finally { setDeletingMissing(false); }
+  };
 
   const startEdit = (w: any) => {
     setEditingWorker(w);
@@ -2710,6 +2726,11 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                         <button onClick={() => startEdit(w)} className="shrink-0 h-8 px-3 rounded-full bg-red-600 text-white text-xs font-bold">Fix</button>
                       </div>
                     ))}
+                  </div>
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <Button loading={deletingMissing} onClick={handleDeleteMissing} className="gap-1.5 bg-red-600 hover:bg-red-700 text-white"><Trash2 size={14} /> Delete all flagged ({missingContactWorkers.length})</Button>
+                    <Button variant="outline" onClick={() => { setShowMissing(false); setShowBulk(true); }} className="gap-1.5"><Upload size={14} /> Re-upload fixed file</Button>
+                    <span className="text-[11px] text-slate-400">— deletes only missing-contact rows{isRegional ? ` in ${user.region}` : ""}, then upload corrected Excel</span>
                   </div>
                 </div>
               </motion.div>
