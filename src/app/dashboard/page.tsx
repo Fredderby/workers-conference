@@ -2142,7 +2142,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || (POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position).toLowerCase().includes(q) || w.gender.toLowerCase().includes(q));
-  }, [data?.workers, searchQuery]);
+  }, [visibleWorkers, searchQuery]);
 
   const startEdit = (w: any) => {
     setEditingWorker(w);
