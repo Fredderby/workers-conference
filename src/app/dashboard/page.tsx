@@ -302,16 +302,15 @@ function ReportsSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
-  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
-    if (!user.region && !user.zone) return rawWorkers;
+    if (!user.region) return rawWorkers;
     return rawWorkers.filter((w: any) => {
       if (user.region) return w.region === user.region;
-      if (user.zone) return w.zone === user.zone;
       return true;
     });
-  }, [rawWorkers, user.region, user.zone, isRegional]);
+  }, [rawWorkers, user.region, isRegional]);
   const [reportType, setReportType] = useState("registration");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -1159,16 +1158,15 @@ function OverviewSection({ user }: { user: any }) {
   const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
-  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
-    if (!user.region && !user.zone) return rawWorkers;
-    return rawWorkers.filter(w => {
+    if (!user.region) return rawWorkers;
+    return rawWorkers.filter((w: any) => {
       if (user.region) return w.region === user.region;
-      if (user.zone) return w.zone === user.zone;
       return true;
     });
-  }, [rawWorkers, user.region, user.zone, isRegional]);
+  }, [rawWorkers, user.region, isRegional]);
   const [filters, setFilters] = useState({ zone: "", region: "", position: "", payment: "" });
 
   const filteredWorkers = useMemo(() => {
@@ -2071,11 +2069,12 @@ function WorkerRegistrationSection({ user }: { user: any }) {
 
   const { data, isLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const isRegional = user.role === "regional_officer";
-  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
   const visibleWorkers = useMemo(() => {
     if (!isRegional) return data?.workers || [];
-    return (data?.workers || []).filter((w: any) => (user.region && w.region === user.region) || (user.zone && w.zone === user.zone));
-}, [data?.workers, user.region, user.zone, isRegional]);
+    if (!user.region) return data?.workers || [];
+    return (data?.workers || []).filter((w: any) => w.region === user.region);
+  }, [data?.workers, user.region, isRegional]);
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
@@ -2130,9 +2129,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const canEdit = (w: any) => {
     if (isAdmin(user.role as RoleType)) return true;
     if (user.role === "regional_officer") {
-      if (!user.region && !user.zone) return true;
+      if (!user.region) return true;
       if (user.region && w.region === user.region) return true;
-      if (user.zone && w.zone === user.zone) return true;
       return false;
     }
     return false;
@@ -2657,7 +2655,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     <span title="Delete via reupload only for regional officers" className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-300 cursor-not-allowed"><Trash2 size={16} /></span>
                   )}
                 </div>
-                {!canEdit(w) && user.role === "regional_officer" && <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded px-2 py-1">View only — outside your region/zone</p>}
+                {!canEdit(w) && user.role === "regional_officer" && <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded px-2 py-1">View only — outside your region</p>}
               </div>
             ))}
             {filteredWorkers.length === 0 && (
@@ -2713,7 +2711,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <div><Label>Payment</Label><select value={editForm.paymentStatus || ""} onChange={e => setEditForm((f: any) => ({ ...f, paymentStatus: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900"><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
                   {editError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl px-3 py-2">{editError}</p>}
                   <div className="flex gap-2 justify-end pt-2"><Button variant="outline" onClick={() => setEditingWorker(null)}>Cancel</Button><Button onClick={() => updateWorker.mutate({ id: editingWorker.id, patch: editForm })} disabled={updateWorker.isPending}>{updateWorker.isPending ? "Saving..." : "Save Changes"}</Button></div>
-                  {!canEdit(editingWorker) && <p className="text-xs text-amber-600">You can only edit workers within your assigned region/zone.</p>}
+                  {!canEdit(editingWorker) && <p className="text-xs text-amber-600">You can only edit workers within your assigned region.</p>}
                 </div>
               </div>
             </div>
@@ -2738,16 +2736,15 @@ function VerificationSection({ user }: { user: any }) {
   const { data: workerData } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = workerData?.workers || [];
   const isRegional = user.role === "regional_officer";
-  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
-    if (!user.region && !user.zone) return rawWorkers;
+    if (!user.region) return rawWorkers;
     return rawWorkers.filter((w: any) => {
       if (user.region) return w.region === user.region;
-      if (user.zone) return w.zone === user.zone;
       return true;
     });
-  }, [rawWorkers, user.region, user.zone, isRegional]);
+  }, [rawWorkers, user.region, isRegional]);
 
   const suggestions = useMemo(() => {
     if (!code.trim() || code.trim().length < 1) return [];
