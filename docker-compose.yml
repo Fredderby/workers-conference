@@ -35,8 +35,8 @@ services:
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: c49t4QO5rTCAQ69AUfnI
       POSTGRES_DB: app_data
-    ports:
-      - "5432:5432"
+    # NOT published to host: another Postgres owns host 5432 (server-wide port conflict).
+    # App reaches this DB only over the internal bridge at workers-data-jdojwz:5432.
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
