@@ -47,7 +47,7 @@ export const POST = withError(async (req: NextRequest) => {
   const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { name, gender, zone, region, division, position, paymentStatus } = await req.json();
+  const { name, gender, zone, region, division, position, paymentStatus, contact, contact2 } = await req.json();
 
   const requiredFields: [string, any, string][] = [
     ["Name", name, "Full name"],
@@ -57,6 +57,7 @@ export const POST = withError(async (req: NextRequest) => {
     ["Division", division, "Division"],
     ["Position", position, "Position"],
     ["Payment status", paymentStatus, "Payment status"],
+    ["Contact", contact, "Contact number"],
   ];
   const missing = requiredFields.filter(([, v]) => !v || !String(v).trim()).map(([, , label]) => label);
   if (missing.length > 0) {
@@ -70,6 +71,13 @@ export const POST = withError(async (req: NextRequest) => {
   if (paymentStatus && !["paid", "unpaid"].includes(String(paymentStatus).toLowerCase())) {
     return NextResponse.json({ error: "Payment status must be either \"paid\" or \"unpaid\"." }, { status: 400 });
   }
+  const contactStr = String(contact || "").trim();
+  if (!/^\d{10}$/.test(contactStr)) {
+    return NextResponse.json({ error: "Contact must be exactly 10 digits (e.g. 0244123456)." }, { status: 400 });
+  }
+  if (contact2 && String(contact2).trim() && !/^\d{10}$/.test(String(contact2).trim())) {
+    return NextResponse.json({ error: "Second contact must be exactly 10 digits if provided." }, { status: 400 });
+  }
 
   // Regional officers can only register workers within their assigned region — case-insensitive
   if (user.role === "regional_officer" && user.region) {
@@ -79,12 +87,14 @@ export const POST = withError(async (req: NextRequest) => {
   }
 
   const worker = await db.createWorker({
-    name, gender, zone, region, division, position,
-    paymentStatus: paymentStatus || "unpaid",
+    name: String(name).trim(), gender: String(gender).trim().toLowerCase() as any, zone: String(zone).trim(), region: String(region).trim(), division: String(division).trim(), position: String(position).trim().toLowerCase().replace(/[\s\-\/]+/g, "_") as any,
+    paymentStatus: String(paymentStatus).trim().toLowerCase() as any,
     verified: false,
     registeredBy: user.id,
     registeredByName: user.displayName,
-  });
+    contact: contactStr,
+    contact2: contact2 ? String(contact2).trim() : undefined,
+  } as any);
 
   await db.audit({ userId: user.id, action: "user_created", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Registered worker: ${name}` });
   return NextResponse.json({ worker }, { status: 201 });

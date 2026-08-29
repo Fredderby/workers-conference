@@ -2056,6 +2056,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [zone, setZone] = useState(""); const [region, setRegion] = useState(""); const [division, setDivision] = useState("");
   const [name, setName] = useState(""); const [gender, setGender] = useState<any>("");
   const [position, setPosition] = useState<any>(""); const [paymentStatus, setPaymentStatus] = useState<any>("");
+  const [contact, setContact] = useState("");
   const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -2077,8 +2078,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
 
   const createWorker = useMutation({
-    mutationFn: async () => { const r = await fetch("/api/auth/workers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, gender, zone, region, division, position, paymentStatus }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setSuccess(`"${name}" registered`); setName(""); setZone(""); setRegion(""); setDivision(""); setGender(""); setPosition(""); setPaymentStatus(""); setError(null); setFieldErrors({}); setTimeout(() => setSuccess(null), 3000); },
+    mutationFn: async () => { const r = await fetch("/api/auth/workers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, gender, zone, region, division, position, paymentStatus, contact }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setSuccess(`"${name}" registered`); setName(""); setZone(""); setRegion(""); setDivision(""); setGender(""); setPosition(""); setPaymentStatus(""); setContact(""); setError(null); setFieldErrors({}); setTimeout(() => setSuccess(null), 3000); },
     onError: (e: any) => setError(e.message),
   });
 
@@ -2091,6 +2092,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     if (!division) errs.division = "Select the worker's division.";
     if (!position) errs.position = "Select the worker's position.";
     if (!paymentStatus) errs.paymentStatus = "Select the payment status.";
+    if (!contact.trim()) errs.contact = "Contact number is required (10 digits).";
+    else if (!/^\d{10}$/.test(contact.trim())) errs.contact = "Contact must be exactly 10 digits (e.g. 0244123456).";
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
       setError("Some details are missing. Fill in every highlighted field, then try again.");
@@ -2361,6 +2364,17 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                     </FormSelect>
+                  </div>
+                </div>
+                {/* ── Contact — compulsory 10-digit ── */}
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5"><CreditCard size={12} /> Contact Details</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Contact Number *</Label>
+                      <Input value={contact} onChange={e => { const v = e.target.value.replace(/\D/g, "").slice(0, 10); setContact(v); if (fieldErrors.contact) setFieldErrors(f => ({ ...f, contact: "" })); }} placeholder="0244123456" inputMode="numeric" maxLength={10} className={`h-11 ${fieldErrors.contact ? "border-red-400 focus:ring-red-500/20 focus:border-red-400" : ""}`} />
+                      {fieldErrors.contact ? <p className="text-[11px] font-medium text-red-600 mt-1">{fieldErrors.contact}</p> : <p className="text-[10px] text-slate-400 mt-1">{contact.length}/10 digits</p>}
+                    </div>
                   </div>
                 </div>
                 {/* ── Location ── */}

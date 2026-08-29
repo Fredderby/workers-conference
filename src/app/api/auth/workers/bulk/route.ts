@@ -83,6 +83,9 @@ function validateRow(row: any, index: number): string | null {
     const validDivs = (ZONE_STRUCTURE[zoneKey]?.[regionKey] || []).join(", ");
     return `Row ${index + 1}: Division "${rawDivision}" is not in Region "${regionKey}". For "${regionKey}", please choose one of: ${validDivs}.`;
   }
+  const contact2Raw = (row["Contact_2"] || (row as any)["Contact2"] || "").toString().trim();
+  if (contactVal && !/^\d{10}$/.test(contactVal.trim())) return `Row ${index + 1}: Contact should be exactly 10 digits (e.g. 0244123456). You wrote "${contactVal}". Please fix it to 10 digits.`;
+  if (contact2Raw && !/^\d{10}$/.test(contact2Raw)) return `Row ${index + 1}: Second Contact should be exactly 10 digits if provided. You wrote "${contact2Raw}".`;
   const rawPos = pick(row, "Position", "position");
   const normPos = rawPos.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
   if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not on our list. Please pick one of: ${Object.values(POSITION_LABELS).join(", ")}. You can type "Adult Leader" or "adult_leader" — both work.`;
@@ -185,7 +188,8 @@ export const GET = withError(async (req: NextRequest) => {
 });
 
 function makeDuplicateKey(row: any): string {
-  const name = pick(row, "Full Name", "FullName", "fullname", "name").toLowerCase().trim();
+  // Exact name match only (trimmed, case-sensitive) — "John Doe" !== "john doe"
+  const name = pick(row, "Full Name", "FullName", "fullname", "name").trim();
   const zone = pick(row, "Zone", "zone").toLowerCase().trim();
   const division = pick(row, "Division", "division").toLowerCase().trim();
   return `${name}|${zone}|${division}`;
@@ -352,7 +356,7 @@ export const POST = withError(async (req: NextRequest) => {
     const scopedExisting = isAdmin(user.role) ? allExisting : allExisting.filter(w => isWithinWorkerAccessLevel(user, w));
     const existingMap = new Map<string, any>();
     for (const w of scopedExisting) {
-      const k = `${w.name.toLowerCase().trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
+      const k = `${w.name.trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
       existingMap.set(k, w);
       // Also index by contact if present
       if ((w as any).contact) existingMap.set(`contact:${(w as any).contact.trim()}`, w);
