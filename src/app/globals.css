@@ -205,11 +205,130 @@ body {
 }
 
 /* ── Scrollbar Thin ── */
-.scrollbar-thin::-webkit-scrollbar { height: 4px; }
+.scrollbar-thin::-webkit-scrollbar { height: 4px; width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 .dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM TABLE SYSTEM — 25y professional polish
+   Consistent elevation, sticky header, zebra, hover, empty state
+   ══════════════════════════════════════════════════════════════ */
+.table-premium-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+}
+.dark .table-premium-wrap { background: #0f172a; border-color: #1e293b; }
+.table-premium-wrap .table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.table-premium-wrap .table-scroll::-webkit-scrollbar { height: 6px; }
+.table-premium-wrap .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.dark .table-premium-wrap .table-scroll::-webkit-scrollbar-thumb { background: #334155; }
+/* subtle right fade to hint horizontal scroll */
+.table-premium-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 24px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.dark .table-premium-wrap::after { background: linear-gradient(90deg, transparent, rgba(15,23,42,0.9)); }
+.table-premium-wrap.has-scroll::after { opacity: 1; }
+@media (max-width: 768px) { .table-premium-wrap::after { display: none; } }
+
+.table-premium {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.table-premium thead { position: sticky; top: 0; z-index: 2; }
+.table-premium thead th {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: #f8fafc;
+  color: #64748b;
+}
+.dark .table-premium thead th { background: #1e293b; color: #94a3b8; border-bottom-color: rgba(255,255,255,0.06); }
+/* dark gradient variant — add class thead-dark on thead */
+.table-premium thead.thead-dark th {
+  background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+  color: #f1f5f9;
+  border-bottom: none;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.table-premium tbody td {
+  padding: 11px 14px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+.dark .table-premium tbody td { border-bottom-color: #1e293b; color: #cbd5e1; }
+.table-premium tbody tr:last-child td { border-bottom: none; }
+.table-premium tbody tr:nth-child(even) { background: #f8fafc; }
+.dark .table-premium tbody tr:nth-child(even) { background: rgba(30,41,59,0.35); }
+.table-premium tbody tr { transition: background 0.15s ease, transform 0.15s ease; }
+.table-premium tbody tr:hover { background: rgba(99,102,241,0.06) !important; }
+.dark .table-premium tbody tr:hover { background: rgba(99,102,241,0.10) !important; }
+.table-premium tbody tr:active { background: rgba(99,102,241,0.10) !important; }
+/* numeric alignment helper */
+.table-premium .cell-num { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+.table-premium .cell-center { text-align: center; }
+/* footer bar under table */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+}
+.dark .table-footer { background: #0f172a; border-top-color: #1e293b; color: #94a3b8; }
+/* empty state inside table */
+.table-empty {
+  padding: 36px 24px;
+  text-align: center;
+  color: #94a3b8;
+}
+.table-empty-icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  display: grid; place-items: center;
+  margin: 0 auto 10px;
+  color: #94a3b8;
+}
+.dark .table-empty-icon { background: #1e293b; }
+/* sticky first col on mobile horizontal scroll (optional helper) */
+@media (max-width: 640px) {
+  .table-premium th:first-child, .table-premium td:first-child { position: sticky; left: 0; z-index: 1; }
+  .table-premium thead th:first-child { z-index: 3; }
+  .table-premium td:first-child { background: inherit; }
+}
 
 /* ══════════════════════════════════════════════════════════════
    PRINT REPORT — Professional PDF Layout

@@ -569,10 +569,10 @@ function ReportsSection({ user }: { user: any }) {
                               <AnimatePresence initial={false}>
                                 {expanded && (
                                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                                    {/* Desktop premium table */}
-                                    <div className="hidden md:block overflow-x-auto">
-                                      <table className="w-full text-xs">
-                                        <thead>
+                                    {/* Desktop premium table — upgraded */}
+                                    <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+                                      <table className="table-premium w-full text-xs">
+                                        <thead className="thead-dark">
                                           <tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white">
                                             <th className="text-left font-semibold px-4 py-2.5 w-10">#</th>
                                             <th className="text-left font-semibold px-3 py-2.5">Full Name</th>
@@ -775,9 +775,9 @@ function ReportsSection({ user }: { user: any }) {
                 <AnimatePresence initial={false}>
                   {regionalExpanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-xs">
+                          <thead className="thead-dark">
                             <tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white">
                               <th className="text-left font-semibold px-4 py-2.5">Region</th>{showZoneBreakdown && <th className="text-left font-semibold px-3 py-2.5">Zone</th>}<th className="text-center font-semibold px-3 py-2.5">Workers</th><th className="text-center font-semibold px-3 py-2.5">Paid</th><th className="text-center font-semibold px-3 py-2.5">Unpaid</th><th className="text-center font-semibold px-3 py-2.5">Verified</th><th className="text-left font-semibold px-4 py-2.5">Payment %</th>
                             </tr>
@@ -914,9 +914,9 @@ function ReportsSection({ user }: { user: any }) {
                 <AnimatePresence initial={false}>
                   {dailyExpanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead><tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><th className="text-left font-semibold px-4 py-2.5 w-10">#</th><th className="text-left font-semibold px-3 py-2.5">Name</th><th className="text-left font-semibold px-3 py-2.5">Gender</th><th className="text-left font-semibold px-3 py-2.5">Zone</th><th className="text-left font-semibold px-3 py-2.5">Region</th><th className="text-left font-semibold px-3 py-2.5">Position</th><th className="text-left font-semibold px-3 py-2.5">Payment</th><th className="text-center font-semibold px-3 py-2.5">Verified</th></tr></thead>
+                      <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-xs">
+                          <thead className="thead-dark"><tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><th className="text-left font-semibold px-4 py-2.5 w-10">#</th><th className="text-left font-semibold px-3 py-2.5">Name</th><th className="text-left font-semibold px-3 py-2.5">Gender</th><th className="text-left font-semibold px-3 py-2.5">Zone</th><th className="text-left font-semibold px-3 py-2.5">Region</th><th className="text-left font-semibold px-3 py-2.5">Position</th><th className="text-left font-semibold px-3 py-2.5">Payment</th><th className="text-center font-semibold px-3 py-2.5">Verified</th></tr></thead>
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {dailyWorkers.map((w, i) => (
                               <tr key={w.id} className="hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors group">
@@ -1871,11 +1871,11 @@ function UserManagementSection() {
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">{searchQuery ? `No users match "${searchQuery}"` : "No users found."}</div>
             )}
           </div>
-          {/* Desktop: table — click row to edit */}
-          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[800px]">
-                <thead className="text-left text-white bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700"><tr><th className="px-4 py-3 font-semibold">Name</th><th className="px-3 py-3 font-semibold">Username</th><th className="px-3 py-3 font-semibold">Role</th><th className="px-3 py-3 font-semibold">Zone → Region</th><th className="px-3 py-3 font-semibold">Temp Pw</th><th className="px-3 py-3 font-semibold">Status</th><th className="text-right px-4 py-3 font-semibold">Actions</th></tr></thead>
+          {/* Desktop: table — click row to edit — premium */}
+          <div className="hidden md:block table-premium-wrap">
+            <div className="table-scroll overflow-x-auto scrollbar-thin">
+              <table className="table-premium w-full text-sm min-w-[800px]">
+                <thead className="thead-dark text-left text-white bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700"><tr><th className="px-4 py-3 font-semibold">Name</th><th className="px-3 py-3 font-semibold">Username</th><th className="px-3 py-3 font-semibold">Role</th><th className="px-3 py-3 font-semibold">Zone → Region</th><th className="px-3 py-3 font-semibold">Temp Pw</th><th className="px-3 py-3 font-semibold">Status</th><th className="text-right px-4 py-3 font-semibold">Actions</th></tr></thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredUsers?.map((u: any) => (
                     <tr key={u.id} onClick={() => setEditingUser(u)} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 cursor-pointer group transition-colors">
@@ -1892,11 +1892,11 @@ function UserManagementSection() {
                       </div></td>
                     </tr>
                   ))}
-                  {filteredUsers?.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-sm text-slate-400">{searchQuery ? `No users match "${searchQuery}"` : "No users found."}</td></tr>}
+                  {filteredUsers?.length === 0 && <tr><td colSpan={7} className="table-empty"><div className="table-empty-icon"><Search size={16} /></div><p className="text-sm font-medium">{searchQuery ? `No users match "${searchQuery}"` : "No users found."}</p><p className="text-xs mt-1">Try adjusting search or create a new user</p></td></tr>}
                 </tbody>
               </table>
             </div>
-            {filteredUsers?.length !== data?.users?.length && <p className="text-xs text-center text-slate-400 py-2 border-t bg-slate-50 dark:bg-slate-800/30">{filteredUsers.length} of {data?.users?.length || 0} shown — filtered by search</p>}
+            <div className="table-footer"><span>{filteredUsers.length} of {data?.users?.length || 0} users • click row to edit</span>{filteredUsers?.length !== data?.users?.length && <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 text-[10px] font-bold">Filtered</span>}</div>
           </div>
         </>
       )}
@@ -2496,22 +2496,24 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 {/* Preview Table */}
                 {bulkPreview && bulkPreview.rows.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Preview (first 10 rows)</p>
-                    <div className="overflow-x-auto rounded-xl border">
-                      <table className="w-full text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500">
-                          <tr>{bulkPreview.headers.map((h: string) => <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>)}</tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {bulkPreview.rows.slice(0, 10).map((row: any, i: number) => (
-                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                              {bulkPreview.headers.map((h: string) => <td key={h} className="px-3 py-2 text-slate-600 dark:text-slate-400">{row[h] || "—"}</td>)}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Preview (first 10 rows) • {bulkPreview.rows.length} total</p>
+                    <div className="table-premium-wrap">
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-xs">
+                          <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500">
+                            <tr>{bulkPreview.headers.map((h: string) => <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {bulkPreview.rows.slice(0, 10).map((row: any, i: number) => (
+                              <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                {bulkPreview.headers.map((h: string) => <td key={h} className="px-3 py-2 text-slate-600 dark:text-slate-400">{row[h] || "—"}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="table-footer"><span>Showing 10 of {bulkPreview.rows.length} rows</span>{bulkPreview.rows.length > 10 && <span>...and {bulkPreview.rows.length - 10} more</span>}</div>
                     </div>
-                    {bulkPreview.rows.length > 10 && <p className="text-xs text-slate-400 mt-2">...and {bulkPreview.rows.length - 10} more rows</p>}
                   </div>
                 )}
                 {/* Upload Button */}
@@ -2663,13 +2665,14 @@ function WorkerRegistrationSection({ user }: { user: any }) {
             )}
             {searchQuery && filteredWorkers.length > 0 && filteredWorkers.length !== (data?.workers?.length || 0) && <p className="text-xs text-center text-slate-400">{visibleWorkers.length - filteredWorkers.length} workers hidden by search (edit/search is available for regional officers)</p>}
           </div>
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-            <table className="w-full text-sm min-w-[900px]">
-              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
-              <tbody className="divide-y">
-                {filteredWorkers.map((w: any) => (
-                  <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+          {/* Desktop: table — premium */}
+          <div className="hidden md:block table-premium-wrap">
+            <div className="table-scroll overflow-x-auto scrollbar-thin">
+              <table className="table-premium w-full text-sm min-w-[900px]">
+                <thead className="text-left"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
+                <tbody className="divide-y">
+                  {filteredWorkers.map((w: any) => (
+                    <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
                     <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
                     <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
@@ -2687,9 +2690,11 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     </div></td>
                   </tr>
                 ))}
-                {filteredWorkers.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-sm text-slate-400">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</td></tr>}
+                {filteredWorkers.length === 0 && <tr><td colSpan={9} className="table-empty"><div className="table-empty-icon"><Users size={16} /></div><p className="text-sm font-medium">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</p></td></tr>}
               </tbody>
             </table>
+            </div>
+            <div className="table-footer"><span>{filteredWorkers.length} workers • click row to edit • {filteredWorkers.filter((w:any)=>w.verified).length} verified</span><span className="hidden sm:inline">Premium table • sticky header • hover highlight</span></div>
           </div>
           {/* Edit dialog */}
           {editingWorker && (
@@ -2902,9 +2907,9 @@ function VerificationSection({ user }: { user: any }) {
           <div className="flex items-center gap-2 text-[11px]"><span className="px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Verified: {workers.filter((w: any) => w.verified).length}</span><span className="px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {workers.filter((w: any) => !w.verified).length}</span></div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-4 py-3 font-semibold">Name</th><th className="text-left px-3 py-3 font-semibold">Zone → Division</th><th className="text-left px-3 py-3 font-semibold">Position</th><th className="text-center px-3 py-3 font-semibold">Payment</th><th className="text-center px-3 py-3 font-semibold">Status</th><th className="text-center px-3 py-3 font-semibold">Verify</th></tr></thead>
+          <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+            <table className="table-premium w-full text-sm">
+              <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-4 py-3 font-semibold">Name</th><th className="text-left px-3 py-3 font-semibold">Zone → Division</th><th className="text-left px-3 py-3 font-semibold">Position</th><th className="text-center px-3 py-3 font-semibold">Payment</th><th className="text-center px-3 py-3 font-semibold">Status</th><th className="text-center px-3 py-3 font-semibold">Verify</th></tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()) || w.id.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 50).map((w: any) => (
                   <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 transition-colors">
@@ -2922,11 +2927,12 @@ function VerificationSection({ user }: { user: any }) {
                     </td>
                   </tr>
                 ))}
-                {workers.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No workers registered yet.</td></tr>}
-                {code.trim() && workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())).length === 0 && workers.length > 0 && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No matches for &quot;{code}&quot;</td></tr>}
+                {workers.length === 0 && <tr><td colSpan={6} className="table-empty"><div className="table-empty-icon"><ScanLine size={16} /></div><p className="text-sm font-medium">No workers registered yet.</p></td></tr>}
+                {code.trim() && workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())).length === 0 && workers.length > 0 && <tr><td colSpan={6} className="table-empty"><p className="text-sm text-slate-400">No matches for &quot;{code}&quot;</p></td></tr>}
               </tbody>
             </table>
           </div>
+          <div className="table-footer"><span>{workers.length} participants • sticky header • hover to highlight</span>{workers.length > 50 && !code.trim() && <span>Showing 50 of {workers.length}</span>}</div>
           <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
             {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 20).map((w: any) => (
               <div key={w.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
@@ -3083,10 +3089,10 @@ function ApprovalSection({ user }: { user: any }) {
                   </div>
                 ))}
               </div>
-              {/* Desktop: table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm min-w-[500px]">
-                  <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+              {/* Desktop: table — premium */}
+              <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+                <table className="table-premium w-full text-sm min-w-[500px]">
+                  <thead className="text-left">
                     <tr>
                       <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
                       <th className="text-[10px] font-semibold uppercase tracking-widest">Total Verified</th>
@@ -3149,11 +3155,11 @@ function ApprovalSection({ user }: { user: any }) {
               </div>
               <div className="flex items-center gap-2 text-[11px]"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span></div>
             </div>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
+            <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+              <table className="table-premium w-full text-sm">
+                <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {regionStats.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No regions yet — register workers first</td></tr> : regionStats.map((r) => (
+                  {regionStats.length === 0 ? <tr><td colSpan={6} className="table-empty"><div className="table-empty-icon"><ClipboardCheck size={16} /></div><p className="text-sm font-medium">No regions yet — register workers first</p></td></tr> : regionStats.map((r) => (
                     <tr key={r.region} className="hover:bg-violet-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-5 py-3.5"><div className="flex items-center gap-2.5"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><span className="font-semibold">{r.region}</span><span className="text-[11px] text-slate-400">• {r.total} workers</span></div></td>
                       <td className="px-3 py-3.5 text-center font-bold">{r.total}</td>
@@ -3211,10 +3217,10 @@ function ApprovalSection({ user }: { user: any }) {
                   </div>
                 ))}
               </div>
-              {/* Desktop: table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm min-w-[600px]">
-                  <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+              {/* Desktop: table — premium */}
+              <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+                <table className="table-premium w-full text-sm min-w-[600px]">
+                  <thead className="text-left">
                     <tr>
                       <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
                       <th className="text-[10px] font-semibold uppercase tracking-widest">Batch</th>
@@ -3277,10 +3283,10 @@ function ApprovalSection({ user }: { user: any }) {
                 </div>
               ))}
             </div>
-            {/* Desktop: table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm min-w-[500px]">
-                <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800/50">
+            {/* Desktop: table — premium */}
+            <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
+              <table className="table-premium w-full text-sm min-w-[500px]">
+                <thead className="text-left">
                   <tr>
                     <th className="px-5 py-3 text-[10px] font-semibold uppercase tracking-widest">Region</th>
                     <th className="text-[10px] font-semibold uppercase tracking-widest">Workers</th>
@@ -3388,21 +3394,24 @@ function AttendanceSection() {
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">No check-ins yet.</div>
             )}
           </div>
-          {/* Desktop: table */}
-          <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">
-            <table className="w-full text-sm min-w-[600px]">
-              <thead className="text-left text-slate-500 bg-slate-50 dark:bg-slate-800"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
-              <tbody className="divide-y">
-                {(attData?.attendances || []).map((a: any) => (
-                  <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+          {/* Desktop: table — premium */}
+          <div className="hidden md:block table-premium-wrap">
+            <div className="table-scroll overflow-x-auto scrollbar-thin">
+              <table className="table-premium w-full text-sm min-w-[600px]">
+                <thead className="text-left"><tr><th className="px-4 py-3">Worker</th><th>Zone</th><th>Region</th><th>Checked In</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody className="divide-y">
+                  {(attData?.attendances || []).map((a: any) => (
+                    <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="px-4 py-3 font-medium">{a.workerName}</td><td className="text-xs">{a.zone}</td><td className="text-xs">{a.region}</td><td className="text-xs">{new Date(a.checkedInAt).toLocaleString()}</td>
                     <td>{a.checkedOutAt ? <span className="text-xs text-slate-500">Left</span> : <span className="text-xs text-emerald-600 font-medium">Present</span>}</td>
                     <td>{!a.checkedOutAt && <button onClick={() => checkOut.mutate(a.workerId)} className="text-xs rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 hover:bg-red-50">Check Out</button>}</td>
                   </tr>
                 ))}
-                {(!attData?.attendances || attData.attendances.length === 0) && <tr><td colSpan={6} className="text-center py-8 text-sm text-slate-400">No check-ins yet.</td></tr>}
+                {(!attData?.attendances || attData.attendances.length === 0) && <tr><td colSpan={6} className="table-empty"><div className="table-empty-icon"><Activity size={16} /></div><p className="text-sm font-medium">No check-ins yet.</p></td></tr>}
               </tbody>
             </table>
+            </div>
+            <div className="table-footer"><span>{attData?.attendances?.length || 0} records • sticky header</span><span className="hidden sm:inline">{attData?.attendances?.filter((a:any)=>!a.checkedOutAt).length || 0} present</span></div>
           </div>
         </>
       )}
