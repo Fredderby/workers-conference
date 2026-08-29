@@ -2257,38 +2257,38 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     reader.readAsText(file);
   }
 
-  function doBulkRequest(payload: any) {
+  async function doBulkRequest(payload: any) {
     setBulkUploading(true);
-    fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      .then(async r => {
-        const j = await r.json();
-        if (j.needsConfirmation) {
-          if (j.confirmationType === "replaceAll") {
-            setShowModeDialog(true);
-            (window as any).__pendingBulkPayload = payload;
-            (window as any).__existingCount = j.existingCount;
-            setBulkUploading(false);
-            return;
-          }
-          if (j.confirmationType === "duplicates") {
-            setDupInfo(j);
-            setShowDupDialog(true);
-            (window as any).__pendingBulkPayload = payload;
-            setBulkUploading(false);
-            return;
-          }
-        }
-        if (!r.ok && !j.created) {
-          setBulkResult({ created: 0, errors: [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }], total: 0 });
+    try {
+      const r = await fetch("/api/auth/workers/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (j.needsConfirmation) {
+        if (j.confirmationType === "replaceAll") {
+          setShowModeDialog(true);
+          (window as any).__pendingBulkPayload = payload;
+          (window as any).__existingCount = j.existingCount;
           return;
         }
-        setBulkResult(j);
-        if (j.created > 0) qc.invalidateQueries({ queryKey: ["workers"] });
-        setShowModeDialog(false);
-        setShowDupDialog(false);
-      })
-      .catch(() => setBulkErrors([{ row: 0, message: "Upload failed. Please check your connection and try again." }]))
-      .finally(() => setBulkUploading(false));
+        if (j.confirmationType === "duplicates") {
+          setDupInfo(j);
+          setShowDupDialog(true);
+          (window as any).__pendingBulkPayload = payload;
+          return;
+        }
+      }
+      if (!r.ok && !j.created) {
+        setBulkResult({ created: 0, errors: [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }], total: 0 });
+        return;
+      }
+      if (j.created > 0) await qc.invalidateQueries({ queryKey: ["workers"] });
+      setBulkResult(j);
+      setShowModeDialog(false);
+      setShowDupDialog(false);
+    } catch {
+      setBulkErrors([{ row: 0, message: "Upload failed. Please check your connection and try again." }]);
+    } finally {
+      setBulkUploading(false);
+    }
   }
 
   function handleBulkUpload() {
