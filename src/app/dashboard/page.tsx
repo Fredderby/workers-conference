@@ -306,10 +306,8 @@ function ReportsSection({ user }: { user: any }) {
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
     if (!user.region) return rawWorkers;
-    return rawWorkers.filter((w: any) => {
-      if (user.region) return w.region === user.region;
-      return true;
-    });
+    const want = user.region.trim().toLowerCase();
+    return rawWorkers.filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [rawWorkers, user.region, isRegional]);
   const [reportType, setReportType] = useState("registration");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
@@ -1162,10 +1160,8 @@ function OverviewSection({ user }: { user: any }) {
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
     if (!user.region) return rawWorkers;
-    return rawWorkers.filter((w: any) => {
-      if (user.region) return w.region === user.region;
-      return true;
-    });
+    const want = user.region.trim().toLowerCase();
+    return rawWorkers.filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [rawWorkers, user.region, isRegional]);
   const [filters, setFilters] = useState({ zone: "", region: "", position: "", payment: "" });
 
@@ -2073,7 +2069,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const visibleWorkers = useMemo(() => {
     if (!isRegional) return data?.workers || [];
     if (!user.region) return data?.workers || [];
-    return (data?.workers || []).filter((w: any) => w.region === user.region);
+    const want = user.region.trim().toLowerCase();
+    return (data?.workers || []).filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [data?.workers, user.region, isRegional]);
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
@@ -2130,7 +2127,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     if (isAdmin(user.role as RoleType)) return true;
     if (user.role === "regional_officer") {
       if (!user.region) return true;
-      if (user.region && w.region === user.region) return true;
+      if (user.region && w.region && w.region.trim().toLowerCase() === user.region.trim().toLowerCase()) return true;
       return false;
     }
     return false;
@@ -2779,10 +2776,8 @@ function VerificationSection({ user }: { user: any }) {
   const workers: any[] = useMemo(() => {
     if (!isRegional) return rawWorkers;
     if (!user.region) return rawWorkers;
-    return rawWorkers.filter((w: any) => {
-      if (user.region) return w.region === user.region;
-      return true;
-    });
+    const want = user.region.trim().toLowerCase();
+    return rawWorkers.filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [rawWorkers, user.region, isRegional]);
 
   const suggestions = useMemo(() => {

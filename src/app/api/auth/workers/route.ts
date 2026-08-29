@@ -26,15 +26,12 @@ export const GET = withError(async (req: NextRequest) => {
   if (user.role === "super_admin" || user.role === "national_officer") {
     // Super admin + National officer → full list only
   } else if (user.role === "regional_officer") {
-    // Regional officers → only workers in their assigned region/zone
-    if (!user.region && !user.zone) {
+    // Regional officers → only workers in their assigned region (case-insensitive, trimmed) — 25y fix for 263/248 drift
+    if (!user.region) {
       list = [];
     } else {
-      list = list.filter(w => {
-        if (user.region && w.region === user.region) return true;
-        if (user.zone && w.zone === user.zone) return true;
-        return false;
-      });
+      const want = user.region.trim().toLowerCase();
+      list = list.filter(w => w.region && w.region.trim().toLowerCase() === want);
     }
   } else if (user.role === "verifier") {
     list = list.filter(w => w.registeredBy === user.id);
@@ -74,13 +71,10 @@ export const POST = withError(async (req: NextRequest) => {
     return NextResponse.json({ error: "Payment status must be either \"paid\" or \"unpaid\"." }, { status: 400 });
   }
 
-  // Regional officers can only register workers within their assigned region/zone
-  if (user.role === "regional_officer") {
-    if (user.region && region !== user.region) {
+  // Regional officers can only register workers within their assigned region — case-insensitive
+  if (user.role === "regional_officer" && user.region) {
+    if (String(region).trim().toLowerCase() !== String(user.region).trim().toLowerCase()) {
       return NextResponse.json({ error: `Forbidden: You can only register workers in your assigned region "${user.region}".` }, { status: 403 });
-    }
-    if (user.zone && !user.region && zone !== user.zone) {
-      return NextResponse.json({ error: `Forbidden: You can only register workers in your assigned zone "${user.zone}".` }, { status: 403 });
     }
   }
 
@@ -100,12 +94,8 @@ function canEditWorker(user: any, worker: any): boolean {
   if (!user || !worker) return false;
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
-    // Regional officers can edit workers within their assigned region/zone
-    // If user has no region/zone assigned, allow edit but log (fallback)
-    if (!user.region && !user.zone) return true;
-    if (user.region && worker.region === user.region) return true;
-    if (user.zone && worker.zone === user.zone) return true;
-    return false;
+    if (!user.region) return true;
+    return worker.region && worker.region.trim().toLowerCase() === user.region.trim().toLowerCase();
   }
   return false;
 }
@@ -159,14 +149,10 @@ export const PATCH = withError(async (req: NextRequest) => {
       return NextResponse.json({ error: "Forbidden: You can only edit workers within your assigned region/zone." }, { status: 403 });
     }
     // Prevent regional officers from moving worker outside their region via edit
-    if (user.role === "regional_officer") {
-      const newRegion = patch.region ?? existing.region;
-      const newZone = patch.zone ?? existing.zone;
-      if (user.region && newRegion !== user.region) {
+    if (user.role === "regional_officer" && user.region) {
+      const newRegion = (patch.region ?? existing.region)?.trim().toLowerCase();
+      if (newRegion !== user.region.trim().toLowerCase()) {
         return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned region." }, { status: 403 });
-      }
-      if (user.zone && !user.region && newZone !== user.zone) {
-        return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned zone." }, { status: 403 });
       }
     }
     const w = await db.updateWorker(workerId, patch);
