@@ -188,11 +188,14 @@ export const GET = withError(async (req: NextRequest) => {
 });
 
 function makeDuplicateKey(row: any): string {
-  // Exact name match only (trimmed, case-sensitive) — "John Doe" !== "john doe"
+  // 25y: duplicate = exact Full Name (case-sensitive) + Gender + Contact + Zone + Division
+  // Pastor John Dagla (male, 0244...) vs Mrs Janet Dagla (female, 0245...) => different keys, never skipped
   const name = pick(row, "Full Name", "FullName", "fullname", "name").trim();
+  const gender = pick(row, "Gender", "gender").toLowerCase().trim();
+  const contact = pick(row, "Contact", "contact").trim();
   const zone = pick(row, "Zone", "zone").toLowerCase().trim();
   const division = pick(row, "Division", "division").toLowerCase().trim();
-  return `${name}|${zone}|${division}`;
+  return `${name}|${gender}|${contact}|${zone}|${division}`;
 }
 
 function isWithinAccessLevel(user: any, row: any): boolean {
@@ -321,7 +324,7 @@ export const POST = withError(async (req: NextRequest) => {
         const name = pick(dropped.row, "Full Name", "FullName", "name") || "Unnamed";
         replaceInternalDups.push({
           row: dropped.index + 1,
-          message: `Row ${dropped.index + 1} ("${name}"): Duplicate in your file — another row (Row ${vr.index + 1}) has same Full Name + Zone + Division. Only the last occurrence (Row ${vr.index + 1}) was kept.`,
+          message: `Row ${dropped.index + 1} ("${name}"): Duplicate in your file — another row (Row ${vr.index + 1}) has same Full Name + Gender + Contact + Zone + Division. Only the last occurrence (Row ${vr.index + 1}) was kept.`,
         });
       }
       dedupMapR.set(k, vr);
@@ -339,7 +342,7 @@ export const POST = withError(async (req: NextRequest) => {
     const scopedExisting = isAdmin(user.role) ? allExisting : allExisting.filter(w => isWithinWorkerAccessLevel(user, w));
     const existingMap = new Map<string, any>();
     for (const w of scopedExisting) {
-      const k = `${w.name.trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
+      const k = `${w.name.trim()}|${(w.gender || "").toLowerCase().trim()}|${(w.contact || "").trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
       existingMap.set(k, w);
     }
 
@@ -370,6 +373,8 @@ export const POST = withError(async (req: NextRequest) => {
         duplicates: duplicates.map(d => ({
           row: d.row,
           name: pick(d.newRow, "Full Name", "FullName", "name"),
+          gender: pick(d.newRow, "Gender", "gender"),
+          contact: pick(d.newRow, "Contact", "contact"),
           zone: pick(d.newRow, "Zone"),
           division: pick(d.newRow, "Division"),
           existingName: d.existing?.name,
@@ -377,7 +382,7 @@ export const POST = withError(async (req: NextRequest) => {
         duplicateCount: duplicates.length,
         validCount: uniqueRows.length,
         validationErrors,
-        message: `Found ${duplicates.length} duplicate worker(s) already in the system. Choose to skip them or replace the existing records.`,
+        message: `Found ${duplicates.length} duplicate(s) — same Full Name + Gender + Contact + Zone + Division. Pastor John Dagla vs Mrs Janet Dagla (different gender/contact) are NOT duplicates. Choose to skip or replace.`,
       });
     }
 
@@ -417,8 +422,8 @@ export const POST = withError(async (req: NextRequest) => {
       const division = pick(d.newRow, "Division", "division") || d.existing?.division || "?";
       const contact = pick(d.newRow, "Contact", "contact") || "";
       const existingInfo = d.existing
-        ? `already exists as "${d.existing.name}" in ${d.existing.zone} › ${d.existing.region} › ${d.existing.division}${d.existing.contact ? ` (Contact: ${d.existing.contact})` : ""}`
-        : "another row in your file has the same Full Name + Zone + Division";
+        ? `already exists as "${d.existing.name}" (${d.existing.gender}, Contact: ${d.existing.contact || "—"}) in ${d.existing.zone} › ${d.existing.region} › ${d.existing.division}`
+        : "another row in your file has the same Full Name + Gender + Contact + Zone + Division";
       return {
         row: d.row,
         message: `Row ${d.row} ("${name}" — ${zone} › ${region} › ${division}${contact ? `, Contact: ${contact}` : ""}): Skipped — ${existingInfo}. We left the existing record unchanged. To update it with this file's data, upload again and choose "Delete & Replace".`,
