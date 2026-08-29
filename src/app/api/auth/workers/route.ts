@@ -23,8 +23,8 @@ export const GET = withError(async (req: NextRequest) => {
   }
 
   let list = await db.listWorkers();
-  if (isAdmin(user.role) || user.role === "viewer") {
-    // National level (super_admin, national_officer, viewer) → full list
+  if (user.role === "super_admin" || user.role === "national_officer") {
+    // Super admin + National officer → full list only
   } else if (user.role === "regional_officer") {
     // Regional officers → only workers in their assigned region/zone
     if (!user.region && !user.zone) {
