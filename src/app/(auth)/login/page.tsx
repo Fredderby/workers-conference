@@ -50,6 +50,19 @@ export default function LoginPage() {
     { left: "80%", top: "72%", size: 70, dur: 16, delay: 5 },
   ];
 
+  const bubbles = [
+    { left: "8%", top: "12%", size: 34, dur: 9, delay: 0 },
+    { left: "18%", top: "68%", size: 22, dur: 11, delay: 2 },
+    { left: "30%", top: "30%", size: 16, dur: 8, delay: 4 },
+    { left: "48%", top: "22%", size: 26, dur: 10, delay: 1 },
+    { left: "62%", top: "78%", size: 40, dur: 12, delay: 3 },
+    { left: "74%", top: "35%", size: 18, dur: 9, delay: 5 },
+    { left: "84%", top: "15%", size: 28, dur: 11, delay: 6 },
+    { left: "92%", top: "60%", size: 20, dur: 8, delay: 2 },
+    { left: "40%", top: "82%", size: 14, dur: 10, delay: 7 },
+    { left: "55%", top: "52%", size: 24, dur: 9, delay: 4 },
+  ];
+
   const [dark, setDark] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -133,12 +146,9 @@ export default function LoginPage() {
         ))}
       </div>
 
-      {/* animated background blobs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="blob bg-gradient-to-br from-indigo-400 to-violet-400 w-[560px] h-[560px] -top-32 -left-32" />
-        <div className="blob bg-gradient-to-br from-blue-400 to-cyan-300 w-[480px] h-[480px] top-1/2 -right-32" style={{ animationDelay: "2s" }} />
-        <div className="blob bg-gradient-to-br from-violet-300 to-purple-400 w-[420px] h-[420px] bottom-0 left-1/3" style={{ animationDelay: "4s" }} />
-      </div>
+      {bubbles.map((b, i) => (
+        <div key={i} className="bubble" style={{ left: b.left, top: b.top, width: b.size, height: b.size, animationDuration: `${b.dur}s`, animationDelay: `${b.delay}s` }} />
+      ))}
 
       {/* Left Panel */}
       <div className="hidden lg:flex flex-1 relative flex-col justify-between p-10 z-10">

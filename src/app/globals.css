@@ -162,8 +162,26 @@ body {
   0%, 100% { transform: translate(0,0) scale(1); }
   50% { transform: translate(26px,-30px) scale(1.06); }
 }
+/* ── Floating bubbles ── */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.95), rgba(199,210,254,0.55) 40%, rgba(124,77,255,0.18) 70%, rgba(124,77,255,0.05));
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: inset -4px -6px 12px rgba(26,35,126,0.12), inset 3px 4px 8px rgba(255,255,255,0.6);
+  animation: bob ease-in-out infinite;
+}
+.dark .bubble {
+  background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.35), rgba(129,140,248,0.2) 40%, rgba(99,102,241,0.08) 70%, rgba(99,102,241,0.02));
+  border-color: rgba(129,140,248,0.25);
+  box-shadow: inset -4px -6px 12px rgba(0,0,0,0.25), inset 3px 4px 8px rgba(255,255,255,0.1);
+}
+@keyframes bob {
+  0%, 100% { transform: translate(0,0); }
+  50% { transform: translate(14px,-20px); }
+}
 @media (max-width: 768px) {
-  .bg-grid, .particle, .ring { display: none; }
+  .bg-grid, .particle, .ring, .bubble { display: none; }
 }
 
 /* ── Nav Premium ── */
