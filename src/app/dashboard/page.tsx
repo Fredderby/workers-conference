@@ -1002,17 +1002,18 @@ function ReportsSection({ user }: { user: any }) {
         </div>
         <div className="report-divider" />
 
-        {/* Print: Registration */}
+        {/* Print: Registration — 25y: all 10 headings, landscape, professional */}
         {reportType === "registration" && (
           <div className="report-section">
-            <h3 className="report-section-title">All Registered Workers</h3>
+            <h3 className="report-section-title">All Registered Workers — Landscape Detail</h3>
+            <p className="text-[7pt] text-slate-500 mb-2">All columns: Zone, Region, Division, Name, Gender, Position, Contact, Payment, Verified • Landscape A4 • {workers.length} rows</p>
             <table className="report-table">
-              <thead><tr><th>#</th><th>Full Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+              <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Full Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Payment</th><th>Verified</th></tr></thead>
               <tbody>
                 {workers.map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
                 ))}
-                {workers.length === 0 && <tr><td colSpan={9} className="text-center text-slate-400 py-4">No workers registered yet</td></tr>}
+                {workers.length === 0 && <tr><td colSpan={10} className="text-center text-slate-400 py-4">No workers registered yet</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1030,14 +1031,14 @@ function ReportsSection({ user }: { user: any }) {
                 <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td></tr>
               </tbody>
             </table>
-            <h3 className="report-section-title mt-6">Unpaid Workers</h3>
+            <h3 className="report-section-title mt-6">Unpaid Workers — Contact Included</h3>
             <table className="report-table">
-              <thead><tr><th>#</th><th>Name</th><th>Zone</th><th>Region</th><th>Position</th></tr></thead>
+              <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th></tr></thead>
               <tbody>
                 {workers.filter(w => w.paymentStatus === "unpaid").map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
                 ))}
-                {unpaid === 0 && <tr><td colSpan={5} className="text-center text-slate-400 py-4">All workers have paid</td></tr>}
+                {unpaid === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">All workers have paid</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1055,14 +1056,14 @@ function ReportsSection({ user }: { user: any }) {
                 <tr className="report-total"><td>Total</td><td>{total}</td><td>100%</td></tr>
               </tbody>
             </table>
-            <h3 className="report-section-title mt-6">Pending Verification</h3>
+            <h3 className="report-section-title mt-6">Pending Verification — Contact Included</h3>
             <table className="report-table">
-              <thead><tr><th>#</th><th>Name</th><th>Zone</th><th>Region</th><th>Position</th></tr></thead>
+              <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th></tr></thead>
               <tbody>
                 {workers.filter(w => !w.verified).map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
                 ))}
-                {verified === total && <tr><td colSpan={5} className="text-center text-slate-400 py-4">All workers verified</td></tr>}
+                {verified === total && <tr><td colSpan={8} className="text-center text-slate-400 py-4">All workers verified</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1119,17 +1120,18 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Print: Daily */}
+        {/* Print: Daily — landscape with all headings */}
         {reportType === "daily" && (
           <div className="report-section">
-            <h3 className="report-section-title">Workers Registered on {dailyDate}</h3>
+            <h3 className="report-section-title">Workers Registered on {dailyDate} — Landscape</h3>
+            <p className="text-[7pt] text-slate-500 mb-2">Zone, Region, Division, Name, Gender, Position, Contact, Payment, Verified • Landscape</p>
             <table className="report-table">
-              <thead><tr><th>#</th><th>Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Position</th><th>Payment</th><th>Verified</th></tr></thead>
+              <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Full Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Payment</th><th>Verified</th></tr></thead>
               <tbody>
                 {dailyWorkers.map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.name}</td><td className="capitalize">{w.gender}</td><td>{w.zone}</td><td>{w.region}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
                 ))}
-                {dailyWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">No workers registered on this date</td></tr>}
+                {dailyWorkers.length === 0 && <tr><td colSpan={10} className="text-center text-slate-400 py-4">No workers registered on this date</td></tr>}
               </tbody>
             </table>
           </div>

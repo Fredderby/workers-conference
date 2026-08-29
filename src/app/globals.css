@@ -489,40 +489,53 @@ body {
     border-bottom: 0.5pt solid #e2e8f0 !important;
   }
 
-  /* Table */
+  /* Table — 25y professional: compact, all headings visible, landscape-ready */
   .report-table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 8.5pt !important;
+    table-layout: auto !important;
+    font-size: 7pt !important;
+    line-height: 1.3 !important;
     margin-bottom: 8pt !important;
+    border: 0.5pt solid #cbd5e1 !important;
   }
+  .report-table thead { display: table-header-group !important; }
   .report-table thead th {
-    background: #f1f5f9 !important;
+    background: #1e293b !important;
+    color: #ffffff !important;
     font-weight: 700 !important;
-    font-size: 7.5pt !important;
+    font-size: 6.5pt !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: #475569 !important;
-    padding: 5pt 6pt !important;
+    letter-spacing: 0.05em !important;
+    padding: 4pt 5pt !important;
     text-align: left !important;
-    border-bottom: 1pt solid #cbd5e1 !important;
+    border: 0.5pt solid #334155 !important;
+    white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
   }
   .report-table tbody td {
-    padding: 4pt 6pt !important;
-    border-bottom: 0.5pt solid #f1f5f9 !important;
-    color: #334155 !important;
+    padding: 3.5pt 5pt !important;
+    border: 0.5pt solid #e2e8f0 !important;
+    color: #1e293b !important;
+    font-size: 7pt !important;
+    vertical-align: top !important;
+    word-break: break-word !important;
   }
   .report-table tbody tr:nth-child(even) {
     background: #f8fafc !important;
   }
+  .report-table tbody tr { page-break-inside: avoid !important; }
   .report-table .report-total {
-    font-weight: 700 !important;
-    border-top: 1pt solid #cbd5e1 !important;
-    background: #f1f5f9 !important;
+    font-weight: 800 !important;
+    border-top: 1pt solid #1e293b !important;
+    background: #e2e8f0 !important;
   }
   .report-table .report-total td {
-    border-bottom: none !important;
+    border: 0.5pt solid #94a3b8 !important;
+    font-weight: 800 !important;
   }
+  /* Contact column — monospace for phone readability */
+  .report-table td.col-contact { font-family: ui-monospace, monospace !important; font-size: 6.5pt !important; letter-spacing: 0.02em !important; }
 
   /* Footer */
   .report-footer {
@@ -543,9 +556,22 @@ body {
     margin-top: 6pt !important;
   }
 
-  /* Page settings */
+  /* Page settings — 25y: dashboard portrait, detailed list landscape for 10+ columns */
   @page {
-    size: A4;
-    margin: 15mm;
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+  /* When report has 7+ columns, force landscape */
+  @page report-landscape {
+    size: A4 landscape;
+    margin: 8mm 6mm;
+  }
+  .print-report:has(.report-table) {
+    page: report-landscape;
+  }
+  /* Fallback for browsers without :has — default landscape for all reports */
+  @page {
+    size: A4 landscape;
+    margin: 8mm 6mm;
   }
 }
