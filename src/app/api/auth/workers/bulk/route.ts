@@ -311,39 +311,22 @@ export const POST = withError(async (req: NextRequest) => {
         try { await db.deleteWorker(w.id); } catch {}
       }
     }
-    // Dedupe file-internal duplicates for replace as well (last-write-wins, handles both key and contact)
+    // Dedupe file-internal duplicates for replace — exact Full Name + Zone + Division only (Pastor John Dagla vs Mrs Janet Dagla are NOT duplicates)
     const dedupMapR = new Map<string, typeof validRows[0]>();
-    const contactToKeyR = new Map<string, string>();
     const replaceInternalDups: { row: number; message: string }[] = [];
     for (const vr of validRows) {
       const k = makeDuplicateKey(vr.row);
-      const c = pick(vr.row, "Contact", "contact").trim();
-      const ck = c ? `contact:${c}` : null;
-      let dropped: typeof validRows[0] | null = null;
-      if (ck && contactToKeyR.has(ck)) {
-        const prevKey = contactToKeyR.get(ck)!;
-        if (prevKey !== k) {
-          dropped = dedupMapR.get(prevKey) || null;
-          dedupMapR.delete(prevKey);
-        }
-      }
       if (dedupMapR.has(k)) {
-        dropped = dedupMapR.get(k)!;
-        const prevC = pick(dropped.row, "Contact", "contact").trim();
-        if (prevC) contactToKeyR.delete(`contact:${prevC}`);
-      }
-      if (dropped) {
+        const dropped = dedupMapR.get(k)!;
         const name = pick(dropped.row, "Full Name", "FullName", "name") || "Unnamed";
         replaceInternalDups.push({
           row: dropped.index + 1,
-          message: `Row ${dropped.index + 1} ("${name}"): Duplicate in your file — another row (Row ${vr.index + 1}) has same Full Name + Zone + Division or same Contact. Only the last occurrence (Row ${vr.index + 1}) was kept.`,
+          message: `Row ${dropped.index + 1} ("${name}"): Duplicate in your file — another row (Row ${vr.index + 1}) has same Full Name + Zone + Division. Only the last occurrence (Row ${vr.index + 1}) was kept.`,
         });
       }
       dedupMapR.set(k, vr);
-      if (ck) contactToKeyR.set(ck, k);
     }
     toCreate = [...dedupMapR.values()];
-    // stash for final response
     (globalThis as any).__replaceInternalDups = replaceInternalDups;
   }
 
@@ -358,30 +341,24 @@ export const POST = withError(async (req: NextRequest) => {
     for (const w of scopedExisting) {
       const k = `${w.name.trim()}|${w.zone.toLowerCase().trim()}|${w.division.toLowerCase().trim()}`;
       existingMap.set(k, w);
-      // Also index by contact if present
-      if ((w as any).contact) existingMap.set(`contact:${(w as any).contact.trim()}`, w);
     }
 
-    // Check for duplicates within file and against DB
+    // Check for duplicates within file and against DB — exact Full Name + Zone + Division only
     const fileSeen = new Set<string>();
     const dupIndices = new Set<number>();
     const uniqueRows: typeof validRows = [];
 
     for (const vr of validRows) {
       const key = makeDuplicateKey(vr.row);
-      const contact = pick(vr.row, "Contact", "contact").trim();
-      const contactKey = contact ? `contact:${contact}` : null;
-
-      const isFileDuplicate = fileSeen.has(key) || (contactKey !== null && fileSeen.has(contactKey));
-      const isDbDuplicate = existingMap.has(key) || (contactKey !== null && existingMap.has(contactKey));
+      const isFileDuplicate = fileSeen.has(key);
+      const isDbDuplicate = existingMap.has(key);
 
       if (isFileDuplicate || isDbDuplicate) {
-        const existing = existingMap.get(key) || (contactKey !== null ? existingMap.get(contactKey) : null);
+        const existing = existingMap.get(key) || null;
         duplicates.push({ row: vr.index + 1, key, existing: existing || null, newRow: vr.row });
         dupIndices.add(vr.index);
       } else {
         fileSeen.add(key);
-        if (contactKey !== null) fileSeen.add(contactKey);
         uniqueRows.push(vr);
       }
     }
@@ -416,26 +393,11 @@ export const POST = withError(async (req: NextRequest) => {
           try { await db.deleteWorker(d.existing.id); } catch {}
         }
       }
-      // Rebuild toCreate deduped last-write-wins (handles both name|zone|division and contact collisions)
+      // Rebuild toCreate deduped last-write-wins — exact name only
       const dedupMap = new Map<string, typeof validRows[0]>();
-      const contactToKey = new Map<string, string>();
       for (const vr of validRows) {
         const k = makeDuplicateKey(vr.row);
-        const c = pick(vr.row, "Contact", "contact").trim();
-        const ck = c ? `contact:${c}` : null;
-        // If contact already maps to a different main key, remove old entry (last-write-wins for contact)
-        if (ck && contactToKey.has(ck)) {
-          const prevKey = contactToKey.get(ck)!;
-          if (prevKey !== k) dedupMap.delete(prevKey);
-        }
-        // If main key exists, clean its old contact mapping
-        if (dedupMap.has(k)) {
-          const prev = dedupMap.get(k)!;
-          const prevC = pick(prev.row, "Contact", "contact").trim();
-          if (prevC) contactToKey.delete(`contact:${prevC}`);
-        }
         dedupMap.set(k, vr);
-        if (ck) contactToKey.set(ck, k);
       }
       toCreate = [...dedupMap.values()];
     }
@@ -456,7 +418,7 @@ export const POST = withError(async (req: NextRequest) => {
       const contact = pick(d.newRow, "Contact", "contact") || "";
       const existingInfo = d.existing
         ? `already exists as "${d.existing.name}" in ${d.existing.zone} › ${d.existing.region} › ${d.existing.division}${d.existing.contact ? ` (Contact: ${d.existing.contact})` : ""}`
-        : "another row in your file has the same Full Name + Zone + Division (or same Contact)";
+        : "another row in your file has the same Full Name + Zone + Division";
       return {
         row: d.row,
         message: `Row ${d.row} ("${name}" — ${zone} › ${region} › ${division}${contact ? `, Contact: ${contact}` : ""}): Skipped — ${existingInfo}. We left the existing record unchanged. To update it with this file's data, upload again and choose "Delete & Replace".`,

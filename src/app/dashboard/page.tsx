@@ -2758,7 +2758,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 </div>
                 {!canEdit(w) && user.role === "regional_officer" && <p className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-950/20 rounded px-2 py-1">View only — outside your region</p>}
               </div>
-            ))}
+            )})}
             {filteredWorkers.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</div>
             )}
