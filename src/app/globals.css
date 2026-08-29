@@ -118,6 +118,54 @@ body {
   50% { transform: translate(20px, -20px) scale(1.05); }
 }
 
+/* ── Animated background grid ── */
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(99,102,241,0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99,102,241,0.08) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 35%, transparent 100%);
+}
+.dark .bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(129,140,248,0.09) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(129,140,248,0.09) 1px, transparent 1px);
+}
+
+/* ── Rising particles ── */
+.particle {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,77,255,0.9) 0%, rgba(124,77,255,0) 100%);
+  animation: rise linear infinite;
+}
+@keyframes rise {
+  0% { transform: translate(0,0); opacity: 0; }
+  10% { opacity: 0.8; }
+  85% { opacity: 0.5; }
+  100% { transform: translate(34px,-110vh); opacity: 0; }
+}
+
+/* ── Floating rings ── */
+.ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(124,77,255,0.25);
+  animation: drift ease-in-out infinite;
+}
+.dark .ring { border-color: rgba(129,140,248,0.2); }
+@keyframes drift {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  50% { transform: translate(26px,-30px) scale(1.06); }
+}
+@media (max-width: 768px) {
+  .bg-grid, .particle, .ring { display: none; }
+}
+
 /* ── Nav Premium ── */
 .nav-item-premium {
   transition: all var(--duration-fast) var(--ease-out);

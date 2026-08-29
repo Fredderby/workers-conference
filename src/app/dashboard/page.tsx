@@ -2068,6 +2068,10 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const { data, isLoading } = useQuery({ queryKey: ["workers"], queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
+  const visibleWorkers = useMemo(() => {
+    if (!isRegional || (!user.region && !user.zone)) return data?.workers || [];
+    return (data?.workers || []).filter((w: any) => (user.region && w.region === user.region) || (user.zone && w.zone === user.zone));
+  }, [data?.workers, user.region, user.zone, isRegional]);
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
@@ -2130,7 +2134,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     return false;
   };
   const filteredWorkers = useMemo(() => {
-    const list = data?.workers || [];
+    const list = visibleWorkers;
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || (POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position).toLowerCase().includes(q) || w.gender.toLowerCase().includes(q));
@@ -2317,7 +2321,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         </div>
       )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h3 className="font-semibold">Registered Workers ({data?.workers?.length || 0}) {isRegional ? `• ${scopeLabel}` : ""}</h3>
+        <h3 className="font-semibold">Registered Workers ({visibleWorkers.length}) {isRegional ? `• ${scopeLabel}` : ""}</h3>
         <div className="flex flex-wrap items-center gap-2">
           {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && (
             <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
@@ -2616,7 +2620,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search participants by name, zone, region, division, position..." className="pl-9 h-10 rounded-xl" />
         {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
       </div>
-      {searchQuery && <p className="text-xs text-slate-500">{filteredWorkers.length} of {data?.workers?.length || 0} workers match &quot;{searchQuery}&quot; {user.role === "regional_officer" ? "• Editing allowed within your region/zone, delete only via reupload" : ""}</p>}
+      {searchQuery && <p className="text-xs text-slate-500">{filteredWorkers.length} of {visibleWorkers.length} workers match &quot;{searchQuery}&quot; {user.role === "regional_officer" ? "• Editing allowed within your region/zone, delete only via reupload" : ""}</p>}
       {!searchQuery && user.role === "regional_officer" && <p className="text-xs text-slate-500">Regional access: You can search and edit participants within your assigned region/zone. Delete is only available via bulk reupload within your access level. Full delete is reserved for National officers.</p>}
       {isLoading ? <div className="space-y-3"><Skeleton className="h-12 w-full" /></div> : (
         <>
@@ -2655,7 +2659,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
             {filteredWorkers.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-8 text-center text-sm text-slate-400">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</div>
             )}
-            {searchQuery && filteredWorkers.length > 0 && filteredWorkers.length !== (data?.workers?.length || 0) && <p className="text-xs text-center text-slate-400">{data?.workers?.length - filteredWorkers.length} workers hidden by search (edit/search is available for regional officers)</p>}
+            {searchQuery && filteredWorkers.length > 0 && filteredWorkers.length !== (data?.workers?.length || 0) && <p className="text-xs text-center text-slate-400">{visibleWorkers.length - filteredWorkers.length} workers hidden by search (edit/search is available for regional officers)</p>}
           </div>
           {/* Desktop: table */}
           <div className="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border overflow-x-auto">

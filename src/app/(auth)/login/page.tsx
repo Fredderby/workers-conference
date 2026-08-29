@@ -23,6 +23,33 @@ type FormData = z.infer<typeof schema>;
 export default function LoginPage() {
   const router = useRouter();
   const identifierRef = useRef<HTMLInputElement>(null);
+
+  const particles = [
+    { left: "6%", size: 4, dur: 16, delay: 0 },
+    { left: "14%", size: 6, dur: 20, delay: 4 },
+    { left: "23%", size: 3, dur: 13, delay: 9 },
+    { left: "31%", size: 5, dur: 17, delay: 2 },
+    { left: "40%", size: 4, dur: 15, delay: 11 },
+    { left: "48%", size: 7, dur: 22, delay: 6 },
+    { left: "55%", size: 3, dur: 12, delay: 0 },
+    { left: "63%", size: 5, dur: 19, delay: 8 },
+    { left: "71%", size: 4, dur: 14, delay: 3 },
+    { left: "79%", size: 6, dur: 21, delay: 13 },
+    { left: "86%", size: 3, dur: 11, delay: 5 },
+    { left: "93%", size: 5, dur: 18, delay: 10 },
+    { left: "10%", size: 3, dur: 15, delay: 14 },
+    { left: "35%", size: 6, dur: 23, delay: 12 },
+    { left: "68%", size: 4, dur: 16, delay: 7 },
+    { left: "90%", size: 7, dur: 24, delay: 1 },
+  ];
+
+  const rings = [
+    { left: "-40px", top: "15%", size: 110, dur: 18, delay: 0 },
+    { left: "9%", top: "58%", size: 150, dur: 22, delay: 3 },
+    { left: "72%", top: "8%", size: 120, dur: 20, delay: 7 },
+    { left: "80%", top: "72%", size: 70, dur: 16, delay: 5 },
+  ];
+
   const [dark, setDark] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -95,6 +122,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#f6f7ff] dark:bg-[#050a1e] overflow-hidden relative">
+      {/* animated background grid, rings & rising particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="bg-grid" />
+        {rings.map((r, i) => (
+          <div key={i} className="ring" style={{ left: r.left, top: r.top, width: r.size, height: r.size, animationDuration: `${r.dur}s`, animationDelay: `${r.delay}s` }} />
+        ))}
+        {particles.map((p, i) => (
+          <div key={i} className="particle" style={{ left: p.left, width: p.size, height: p.size, animationDuration: `${p.dur}s`, animationDelay: `${p.delay}s` }} />
+        ))}
+      </div>
+
       {/* animated background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="blob bg-gradient-to-br from-indigo-400 to-violet-400 w-[560px] h-[560px] -top-32 -left-32" />
