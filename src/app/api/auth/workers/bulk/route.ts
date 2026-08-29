@@ -310,23 +310,37 @@ export const POST = withError(async (req: NextRequest) => {
     // Dedupe file-internal duplicates for replace as well (last-write-wins, handles both key and contact)
     const dedupMapR = new Map<string, typeof validRows[0]>();
     const contactToKeyR = new Map<string, string>();
+    const replaceInternalDups: { row: number; message: string }[] = [];
     for (const vr of validRows) {
       const k = makeDuplicateKey(vr.row);
       const c = pick(vr.row, "Contact", "contact").trim();
       const ck = c ? `contact:${c}` : null;
+      let dropped: typeof validRows[0] | null = null;
       if (ck && contactToKeyR.has(ck)) {
         const prevKey = contactToKeyR.get(ck)!;
-        if (prevKey !== k) dedupMapR.delete(prevKey);
+        if (prevKey !== k) {
+          dropped = dedupMapR.get(prevKey) || null;
+          dedupMapR.delete(prevKey);
+        }
       }
       if (dedupMapR.has(k)) {
-        const prev = dedupMapR.get(k)!;
-        const prevC = pick(prev.row, "Contact", "contact").trim();
+        dropped = dedupMapR.get(k)!;
+        const prevC = pick(dropped.row, "Contact", "contact").trim();
         if (prevC) contactToKeyR.delete(`contact:${prevC}`);
+      }
+      if (dropped) {
+        const name = pick(dropped.row, "Full Name", "FullName", "name") || "Unnamed";
+        replaceInternalDups.push({
+          row: dropped.index + 1,
+          message: `Row ${dropped.index + 1} ("${name}"): Duplicate in your file — another row (Row ${vr.index + 1}) has same Full Name + Zone + Division or same Contact. Only the last occurrence (Row ${vr.index + 1}) was kept.`,
+        });
       }
       dedupMapR.set(k, vr);
       if (ck) contactToKeyR.set(ck, k);
     }
     toCreate = [...dedupMapR.values()];
+    // stash for final response
+    (globalThis as any).__replaceInternalDups = replaceInternalDups;
   }
 
   // Step 3: Duplicate detection for append mode
@@ -444,6 +458,14 @@ export const POST = withError(async (req: NextRequest) => {
         message: `Row ${d.row} ("${name}" — ${zone} › ${region} › ${division}${contact ? `, Contact: ${contact}` : ""}): Skipped — ${existingInfo}. We left the existing record unchanged. To update it with this file's data, upload again and choose "Delete & Replace".`,
       };
     });
+  } else if (mode === "replace") {
+    const internal = (globalThis as any).__replaceInternalDups as { row: number; message: string }[] | undefined;
+    if (internal && internal.length > 0) {
+      skipped = internal.length;
+      skippedDetails = internal;
+    }
+    // cleanup
+    try { delete (globalThis as any).__replaceInternalDups; } catch {}
   }
 
   for (const vr of toCreate) {
