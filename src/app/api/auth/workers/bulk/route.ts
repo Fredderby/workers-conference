@@ -231,12 +231,33 @@ export const POST = withError(async (req: NextRequest) => {
   if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
   if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
 
-  // Regional officers can only upload within their assigned region — plain language
+  // Regional officers can only upload within their assigned region — plain language, per-row detail
   if (user.role === "regional_officer") {
-    const outOfScope = rows.filter(r => !isWithinAccessLevel(user, r));
+    const outOfScope = rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => !isWithinAccessLevel(user, r));
     if (outOfScope.length > 0) {
-      const sample = outOfScope.slice(0, 3).map(r => `"${pick(r, "Full Name", "FullName") || "Row"}" for Region "${pick(r, "Region") || "?"}" (Zone "${pick(r, "Zone") || "?"}" )`).join(", ");
-      return NextResponse.json({ error: `You can only add workers for your region: "${user.region}". Your file has ${outOfScope.length} worker${outOfScope.length === 1 ? "" : "s"} for a different region — e.g. ${sample}${outOfScope.length > 3 ? ` and ${outOfScope.length - 3} more` : ""}. Please change those rows to "${user.region}", or ask a National Officer to upload them.` }, { status: 403 });
+      const sample = outOfScope.slice(0, 3).map(({ r }) => `"${pick(r, "Full Name", "FullName") || "Row"}" for Region "${pick(r, "Region") || "?"}" (Zone "${pick(r, "Zone") || "?"}" )`).join(", ");
+      const rowErrors = outOfScope.map(({ r, idx }) => {
+        const name = pick(r, "Full Name", "FullName") || "Unnamed worker";
+        const region = pick(r, "Region") || "(empty)";
+        const zone = pick(r, "Zone") || "(empty)";
+        return {
+          row: idx + 1,
+          message: `Row ${idx + 1} ("${name}"): Region is "${region}" (Zone "${zone}") — but you can only add workers for your region: "${user.region}". Please change Region to "${user.region}" and pick a Zone/Division that belongs to "${user.region}", or ask a National Officer to upload this row.`,
+        };
+      });
+      return NextResponse.json(
+        {
+          error: `You can only add workers for your region: "${user.region}". Your file has ${outOfScope.length} worker${outOfScope.length === 1 ? "" : "s"} for a different region — e.g. ${sample}${outOfScope.length > 3 ? ` and ${outOfScope.length - 3} more` : ""}. Please change those rows to "${user.region}", or ask a National Officer to upload them.`,
+          errors: rowErrors,
+          rowErrors,
+          total: rows.length,
+          created: 0,
+          skipped: 0,
+        },
+        { status: 403 }
+      );
     }
   }
 
@@ -249,7 +270,15 @@ export const POST = withError(async (req: NextRequest) => {
     else validRows.push({ index: i, row: rows[i] });
   }
   if (validationErrors.length > 0 && validRows.length === 0) {
-    return NextResponse.json({ created: 0, errors: validationErrors, total: rows.length, duplicates: [] });
+    return NextResponse.json({
+      created: 0,
+      errors: validationErrors,
+      skipped: 0,
+      skippedDetails: [],
+      total: rows.length,
+      duplicates: 0,
+      error: `Your file was rejected — none of the ${rows.length} row${rows.length === 1 ? "" : "s"} could be imported. Please fix every row listed below and upload again.`,
+    });
   }
 
   // Step 2: Handle replace mode - delete existing after validation (scoped by role)
@@ -398,8 +427,23 @@ export const POST = withError(async (req: NextRequest) => {
   const errors: { row: number; message: string }[] = [...validationErrors];
   const created: any[] = [];
   let skipped = 0;
+  let skippedDetails: { row: number; message: string }[] = [];
   if (mode === "append" && onDuplicate === "skip" && duplicates.length > 0) {
     skipped = duplicates.length;
+    skippedDetails = duplicates.map(d => {
+      const name = pick(d.newRow, "Full Name", "FullName", "name") || d.existing?.name || "Unnamed";
+      const zone = pick(d.newRow, "Zone", "zone") || d.existing?.zone || "?";
+      const region = pick(d.newRow, "Region", "region") || d.existing?.region || "?";
+      const division = pick(d.newRow, "Division", "division") || d.existing?.division || "?";
+      const contact = pick(d.newRow, "Contact", "contact") || "";
+      const existingInfo = d.existing
+        ? `already exists as "${d.existing.name}" in ${d.existing.zone} › ${d.existing.region} › ${d.existing.division}${d.existing.contact ? ` (Contact: ${d.existing.contact})` : ""}`
+        : "another row in your file has the same Full Name + Zone + Division (or same Contact)";
+      return {
+        row: d.row,
+        message: `Row ${d.row} ("${name}" — ${zone} › ${region} › ${division}${contact ? `, Contact: ${contact}` : ""}): Skipped — ${existingInfo}. We left the existing record unchanged. To update it with this file's data, upload again and choose "Delete & Replace".`,
+      };
+    });
   }
 
   for (const vr of toCreate) {
@@ -443,10 +487,13 @@ export const POST = withError(async (req: NextRequest) => {
   return NextResponse.json({
     created: created.length,
     skipped,
+    skippedDetails,
     errors,
     total: rows.length,
     duplicates: duplicates.length,
     mode,
     onDuplicate,
+    // also expose rowErrors for file-level rejections so frontend always has per-row detail
+    rowErrors: errors,
   });
 });

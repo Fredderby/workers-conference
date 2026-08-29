@@ -2052,7 +2052,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkPreview, setBulkPreview] = useState<{ headers: string[]; rows: any[] } | null>(null);
   const [bulkErrors, setBulkErrors] = useState<{ row: number; message: string }[] | null>(null);
-  const [bulkResult, setBulkResult] = useState<{ created: number; skipped?: number; errors: { row: number; message: string }[]; total: number } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; skipped?: number; skippedDetails?: { row: number; message: string }[]; errors: { row: number; message: string }[]; total: number; error?: string } | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [showModeDialog, setShowModeDialog] = useState(false);
   const [showDupDialog, setShowDupDialog] = useState(false);
@@ -2275,10 +2275,12 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         }
       }
       if (!r.ok && !j.created) {
-        setBulkResult({ created: 0, errors: [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }], total: 0 });
+        const perRow = (j.errors || j.rowErrors || []) as any[];
+        const errs = perRow.length > 0 ? perRow : [{ row: 0, message: j.error || "Upload failed. Please check your file and try again." }];
+        setBulkResult({ created: 0, errors: errs, skipped: j.skipped || 0, skippedDetails: j.skippedDetails || [], total: j.total || 0, error: j.error });
         return;
       }
-      if (j.created > 0) await qc.invalidateQueries({ queryKey: ["workers"] });
+      if (j.created > 0 || (j.created === 0 && (j.errors?.length || j.skipped))) await qc.invalidateQueries({ queryKey: ["workers"] });
       setBulkResult(j);
       setShowModeDialog(false);
       setShowDupDialog(false);
@@ -2520,17 +2522,49 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                 {bulkPreview && bulkPreview.rows.length > 0 && !bulkResult && (
                   <Button loading={bulkUploading} onClick={handleBulkUpload} className="gap-1.5"><Upload size={14} /> Upload {bulkPreview.rows.length} Workers</Button>
                 )}
-                {/* Result */}
+                {/* Result — every skipped/rejected row gets its reason in plain language */}
                 {bulkResult && (
-                  <div className={`rounded-xl p-4 ${bulkResult.errors.length > 0 ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200" : "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200"}`}>
-                    <div className="flex items-center gap-2">
-                      {bulkResult.errors.length > 0 ? <AlertTriangle size={16} className="text-amber-500" /> : <span className="text-emerald-500 text-lg">&#10003;</span>}
-                      <p className="text-sm font-semibold">{bulkResult.created} of {bulkResult.total} workers imported successfully{bulkResult.skipped ? ` • ${bulkResult.skipped} skipped` : ""}</p>
-                    </div>
-                    {bulkResult.errors.length > 0 && (
-                      <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                        {bulkResult.errors.map((e, i) => <p key={i} className="text-xs text-amber-700 dark:text-amber-300">{e.message}</p>)}
+                  <div className={`rounded-xl p-4 ${bulkResult.errors?.length > 0 || bulkResult.skipped ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800" : "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200"}`}>
+                    <div className="flex items-start gap-2">
+                      {bulkResult.errors?.length > 0 || bulkResult.skipped ? <AlertTriangle size={16} className="text-amber-500 mt-0.5 shrink-0" /> : <span className="text-emerald-500 text-lg shrink-0">&#10003;</span>}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{bulkResult.created} of {bulkResult.total} workers imported successfully{bulkResult.skipped ? ` • ${bulkResult.skipped} skipped` : ""}{bulkResult.errors?.length ? ` • ${bulkResult.errors.length} need fixing` : ""}</p>
+                        {bulkResult.error && bulkResult.errors?.length === 0 && bulkResult.skipped === 0 && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{bulkResult.error}</p>}
+                        {bulkResult.error && (bulkResult.errors?.length > 0 || bulkResult.skipped) && <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{bulkResult.error}</p>}
                       </div>
+                    </div>
+                    {/* Failed rows — every row lists why it was rejected */}
+                    {bulkResult.errors?.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-1.5">Rows that were NOT imported — fix these and upload again</p>
+                        <div className="max-h-64 overflow-y-auto divide-y divide-amber-100 dark:divide-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800 bg-white dark:bg-slate-900">
+                          {bulkResult.errors.map((e: any, i: number) => (
+                            <div key={i} className="flex gap-2.5 px-3 py-2.5 text-left">
+                              <span className="shrink-0 h-6 min-w-[28px] px-1.5 grid place-items-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[11px] font-bold">Row {e.row || "—"}</span>
+                              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed flex-1">{e.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Skipped rows — duplicates, per-row reason */}
+                    {(bulkResult.skippedDetails?.length ?? 0) > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Rows skipped (already in your records) — {bulkResult.skipped} row{bulkResult.skipped === 1 ? "" : "s"}</p>
+                        <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                          {(bulkResult.skippedDetails ?? []).map((e: any, i: number) => (
+                            <div key={i} className="flex gap-2.5 px-3 py-2.5 text-left">
+                              <span className="shrink-0 h-6 min-w-[28px] px-1.5 grid place-items-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold">Row {e.row}</span>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed flex-1">{e.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1.5">Tip: To update a skipped worker with the data in your file, upload again and choose <span className="font-semibold text-indigo-600">Delete &amp; Replace</span> when asked.</p>
+                      </div>
+                    )}
+                    {/* If file was fully rejected (0 created, errors cover every row) */}
+                    {bulkResult.created === 0 && bulkResult.total > 0 && bulkResult.errors?.length > 0 && bulkResult.errors.length === bulkResult.total && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-medium">Your file was rejected — none of the {bulkResult.total} rows could be imported. Please fix every row above and upload again. Tip: check that Zone, Region and Division are spelled exactly as in the template (you can ignore upper/lower case).</p>
                     )}
                   </div>
                 )}
