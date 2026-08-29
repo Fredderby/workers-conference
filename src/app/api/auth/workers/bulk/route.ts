@@ -29,9 +29,22 @@ function pick(row: any, ...keys: string[]): string {
 const REQUIRED_HEADERS = ["Zone", "Region", "Division", "Full Name", "Gender", "Position", "Contact", "Payment"];
 // Note: Second Contact (col I) is optional alternate contact - not required
 
+function normalize(s: string) { return s.trim().toLowerCase(); }
+function findZoneKey(input: string): string | undefined {
+  const n = normalize(input);
+  return Object.keys(ZONE_STRUCTURE).find(k => k.toLowerCase() === n) || Object.keys(ZONE_STRUCTURE).find(k => normalize(k).replace(/\s+/g, "") === n.replace(/\s+/g, ""));
+}
+function findRegionKey(zoneKey: string, input: string): string | undefined {
+  const n = normalize(input);
+  const regions = Object.keys(ZONE_STRUCTURE[zoneKey] || {});
+  return regions.find(k => k.toLowerCase() === n);
+}
+function findDivisionKey(zoneKey: string, regionKey: string, input: string): string | undefined {
+  const n = normalize(input);
+  return (ZONE_STRUCTURE[zoneKey]?.[regionKey] || []).find(d => d.toLowerCase() === n);
+}
+
 function validateRow(row: any, index: number): string | null {
-  // Handle duplicate Contact: first Contact is required, second is optional
-  // Row object will have Contact and Contact_2 keys if Excel has duplicate headers
   const contactVal = pick(row, "Contact", "contact");
   const paymentVal = pick(row, "Payment", "PaymentStatus", "Payment Status");
 
@@ -47,22 +60,33 @@ function validateRow(row: any, index: number): string | null {
 
   if (missing.length > 0) {
     const list = missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1];
-    return `Row ${index + 1}: ${list} ${missing.length === 1 ? "is" : "are"} missing. Fill in every column to import this worker.`;
+    return `Row ${index + 1}: Please fill in ${list}. ${missing.length === 1 ? "This column is empty" : "These columns are empty"} — all 8 columns are required.`;
   }
 
   const gender = pick(row, "Gender", "gender").trim().toLowerCase();
-  if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender must be "male" or "female" — got "${pick(row, "Gender", "gender")}".`;
-  const zone = pick(row, "Zone", "zone");
-  const region = pick(row, "Region", "region");
-  const division = pick(row, "Division", "division");
-  if (!ZONE_STRUCTURE[zone]) return `Row ${index + 1}: Zone "${zone}" is not recognised. Check the template's list of zones.`;
-  if (!ZONE_STRUCTURE[zone]?.[region]) return `Row ${index + 1}: Region "${region}" does not belong to zone "${zone}".`;
-  if (!(ZONE_STRUCTURE[zone]?.[region] || []).includes(division)) return `Row ${index + 1}: Division "${division}" is not in region "${region}".`;
-  // Position: accept snake_case or human labels (Adult Leader) - normalize spaces/hyphens → underscores
+  if (!VALID_GENDERS.includes(gender)) return `Row ${index + 1}: Gender should be "male" or "female". You wrote "${pick(row, "Gender", "gender")}". Please fix it to male or female.`;
+  const rawZone = pick(row, "Zone", "zone");
+  const rawRegion = pick(row, "Region", "region");
+  const rawDivision = pick(row, "Division", "division");
+  const zoneKey = findZoneKey(rawZone);
+  if (!zoneKey) {
+    const allZones = Object.keys(ZONE_STRUCTURE).join(", ");
+    return `Row ${index + 1}: Zone "${rawZone}" is not on our list. Please copy the Zone name exactly from the template. Valid zones: ${allZones}. Spelling does not need to match upper/lower case.`;
+  }
+  const regionKey = findRegionKey(zoneKey, rawRegion);
+  if (!regionKey) {
+    const validRegions = Object.keys(ZONE_STRUCTURE[zoneKey] || {}).join(", ");
+    return `Row ${index + 1}: Region "${rawRegion}" doesn't belong to Zone "${zoneKey}". For "${zoneKey}", please choose one of: ${validRegions}.`;
+  }
+  const divisionKey = findDivisionKey(zoneKey, regionKey, rawDivision);
+  if (!divisionKey) {
+    const validDivs = (ZONE_STRUCTURE[zoneKey]?.[regionKey] || []).join(", ");
+    return `Row ${index + 1}: Division "${rawDivision}" is not in Region "${regionKey}". For "${regionKey}", please choose one of: ${validDivs}.`;
+  }
   const rawPos = pick(row, "Position", "position");
   const normPos = rawPos.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
-  if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not recognised. Select from dropdown: ${Object.values(POSITION_LABELS).join(", ")}.`;
-  if (!VALID_PAYMENTS.includes(paymentVal.trim().toLowerCase())) return `Row ${index + 1}: Payment must be "paid" or "unpaid" — got "${paymentVal}".`;
+  if (!VALID_POSITIONS.includes(normPos)) return `Row ${index + 1}: Position "${rawPos}" is not on our list. Please pick one of: ${Object.values(POSITION_LABELS).join(", ")}. You can type "Adult Leader" or "adult_leader" — both work.`;
+  if (!VALID_PAYMENTS.includes(paymentVal.trim().toLowerCase())) return `Row ${index + 1}: Payment should be "paid" or "unpaid". You wrote "${paymentVal}". Please fix it to paid or unpaid.`;
   return null;
 }
 
@@ -171,24 +195,19 @@ function isWithinAccessLevel(user: any, row: any): boolean {
   if (!user) return false;
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
-    // If user has no assigned region/zone, allow all (fallback for legacy accounts)
-    if (!user.region && !user.zone) return true;
-    const rowZone = pick(row, "Zone", "zone");
-    const rowRegion = pick(row, "Region", "region");
-    if (user.region && rowRegion !== user.region) return false;
-    if (user.zone && rowZone !== user.zone) return false;
+    if (!user.region) return true;
+    const rowRegion = pick(row, "Region", "region").trim().toLowerCase();
+    if (rowRegion !== user.region.trim().toLowerCase()) return false;
     return true;
   }
-  // Verifiers etc. should not bulk upload? Allow but will be filtered
   return true;
 }
 
 function isWithinWorkerAccessLevel(user: any, worker: any): boolean {
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
-    if (!user.region && !user.zone) return true;
-    if (user.region && worker.region === user.region) return true;
-    if (user.zone && worker.zone === user.zone) return true;
+    if (!user.region) return true;
+    if (worker.region && worker.region.trim().toLowerCase() === user.region.trim().toLowerCase()) return true;
     return false;
   }
   return false;
@@ -212,12 +231,12 @@ export const POST = withError(async (req: NextRequest) => {
   if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
   if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
 
-  // Regional officers can only upload within their assigned region/zone
+  // Regional officers can only upload within their assigned region — plain language
   if (user.role === "regional_officer") {
     const outOfScope = rows.filter(r => !isWithinAccessLevel(user, r));
     if (outOfScope.length > 0) {
-      const sample = outOfScope.slice(0, 3).map(r => `${pick(r, "Full Name", "FullName")} (${pick(r, "Region")}/${pick(r, "Zone")})`).join(", ");
-      return NextResponse.json({ error: `Forbidden: You can only upload workers within your assigned ${user.region ? `region "${user.region}"` : user.zone ? `zone "${user.zone}"` : "region/zone"}. Rejected ${outOfScope.length} row(s): ${sample}${outOfScope.length > 3 ? "..." : ""}` }, { status: 403 });
+      const sample = outOfScope.slice(0, 3).map(r => `"${pick(r, "Full Name", "FullName") || "Row"}" for Region "${pick(r, "Region") || "?"}" (Zone "${pick(r, "Zone") || "?"}" )`).join(", ");
+      return NextResponse.json({ error: `You can only add workers for your region: "${user.region}". Your file has ${outOfScope.length} worker${outOfScope.length === 1 ? "" : "s"} for a different region — e.g. ${sample}${outOfScope.length > 3 ? ` and ${outOfScope.length - 3} more` : ""}. Please change those rows to "${user.region}", or ask a National Officer to upload them.` }, { status: 403 });
     }
   }
 
@@ -387,16 +406,21 @@ export const POST = withError(async (req: NextRequest) => {
     try {
       const contactVal = pick(vr.row, "Contact", "contact");
       const contact2Val = (vr.row["Contact_2"] || vr.row["Contact2"] || vr.row["_contact2"] || "").toString().trim();
-      // Normalize position: "Adult Leader" -> "adult_leader", case-insensitive, spaces/hyphens → underscores
       const rawPos2 = pick(vr.row, "Position", "position");
       const normPos2 = rawPos2.trim().toLowerCase().replace(/[\s\-\/]+/g, "_").replace(/__+/g, "_");
       const finalPos = VALID_POSITIONS.includes(normPos2) ? normPos2 : rawPos2.trim().toLowerCase();
+      const rawZone2 = pick(vr.row, "Zone", "zone");
+      const rawRegion2 = pick(vr.row, "Region", "region");
+      const rawDivision2 = pick(vr.row, "Division", "division");
+      const canonicalZone = findZoneKey(rawZone2) || rawZone2.trim();
+      const canonicalRegion = (canonicalZone && findRegionKey(canonicalZone, rawRegion2)) || rawRegion2.trim();
+      const canonicalDivision = (canonicalZone && canonicalRegion && findDivisionKey(canonicalZone, canonicalRegion, rawDivision2)) || rawDivision2.trim();
       const worker = await db.createWorker({
-        name: pick(vr.row, "Full Name", "FullName", "fullname", "name"),
+        name: pick(vr.row, "Full Name", "FullName", "fullname", "name").trim(),
         gender: pick(vr.row, "Gender", "gender").trim().toLowerCase() as "male" | "female",
-        zone: pick(vr.row, "Zone", "zone"),
-        region: pick(vr.row, "Region", "region"),
-        division: pick(vr.row, "Division", "division"),
+        zone: canonicalZone,
+        region: canonicalRegion,
+        division: canonicalDivision,
         position: finalPos as any,
         contact: contactVal ? contactVal : undefined,
         contact2: contact2Val ? contact2Val : undefined,
