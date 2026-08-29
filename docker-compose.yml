@@ -51,12 +51,11 @@ services:
       start_period: 10s
 
 networks:
-  # Not external: Docker auto-creates/reuses this, so the deploy can never fail
-  # with "Could not attach to network ... not found". Both services join it;
-  # the alias gives the app its hostname workers-data-jdojwz:5432.
+  # workers-data-net exists on the host (created by Dokploy, not compose).
+  # external: true makes compose attach to it instead of trying to create
+  # a new project-scoped network with the same name.
   workers-data-net:
-    name: workers-data-net
-    driver: bridge
+    external: true
 
 volumes:
   # Fresh named volume — replaces the corrupted data dir that caused
