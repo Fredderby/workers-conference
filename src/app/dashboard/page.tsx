@@ -2073,9 +2073,9 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : user.zone ? `Zone: ${user.zone}` : "Your Region") : null;
   const visibleWorkers = useMemo(() => {
-    if (!isRegional || (!user.region && !user.zone)) return data?.workers || [];
+    if (!isRegional) return data?.workers || [];
     return (data?.workers || []).filter((w: any) => (user.region && w.region === user.region) || (user.zone && w.zone === user.zone));
-  }, [data?.workers, user.region, user.zone, isRegional]);
+}, [data?.workers, user.region, user.zone, isRegional]);
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
