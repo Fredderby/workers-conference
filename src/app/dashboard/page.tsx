@@ -2141,6 +2141,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     const q = searchQuery.toLowerCase();
     return list.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || (POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position).toLowerCase().includes(q) || w.gender.toLowerCase().includes(q));
   }, [visibleWorkers, searchQuery]);
+  const missingContactWorkers = useMemo(() => visibleWorkers.filter((w: any) => !w.contact || !/^\d{10}$/.test(String(w.contact).trim())), [visibleWorkers]);
+  const [showMissing, setShowMissing] = useState(false);
 
   const startEdit = (w: any) => {
     setEditingWorker(w);
@@ -2663,6 +2665,56 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Red Flag — participants without valid 10-digit contact — 25y experience: surface data quality immediately */}
+      {missingContactWorkers.length > 0 && (
+        <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/20 overflow-hidden shadow-sm">
+          <button onClick={() => setShowMissing(!showMissing)} className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:from-red-100 dark:hover:from-red-900/20 transition-colors">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-600 to-rose-600 grid place-items-center shadow-md shadow-red-500/20 shrink-0"><AlertTriangle size={18} className="text-white" /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-red-700 dark:text-red-300 flex items-center gap-2">Red Flag — Missing contact <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[11px] font-bold">{missingContactWorkers.length}</span></p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/80 truncate">{missingContactWorkers.length} participant{missingContactWorkers.length===1?" has":"s have"} no valid 10-digit contact — cannot be reached. Tap to {showMissing ? "hide" : "see who and fix"}.</p>
+              </div>
+            </div>
+            <div className={`h-8 w-8 rounded-full bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800 grid place-items-center shrink-0 transition-transform ${showMissing ? "rotate-180" : ""}`}><ChevronDown size={16} className="text-red-600" /></div>
+          </button>
+          <AnimatePresence initial={false}>
+            {showMissing && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-red-200 dark:border-red-800">
+                <div className="p-3 bg-white/70 dark:bg-slate-900/50">
+                  <div className="hidden md:block table-premium-wrap border-red-200 dark:border-red-800">
+                    <div className="table-scroll overflow-x-auto scrollbar-thin">
+                      <table className="table-premium w-full text-xs">
+                        <thead className="thead-dark"><tr className="bg-gradient-to-r from-red-700 to-rose-700 text-white"><th className="px-3 py-2.5 text-left">Name</th><th className="px-3 py-2.5 text-left">Region → Division</th><th className="px-3 py-2.5 text-left">Position</th><th className="px-3 py-2.5 text-center">Contact</th><th className="px-3 py-2.5 text-center">Fix</th></tr></thead>
+                        <tbody className="divide-y divide-red-100 dark:divide-red-900/30">
+                          {missingContactWorkers.slice(0, 50).map((w: any) => (
+                            <tr key={w.id} className="bg-red-50/60 dark:bg-red-950/10 hover:bg-red-100 dark:hover:bg-red-900/20">
+                              <td className="px-3 py-2.5 font-semibold flex items-center gap-2"><AlertTriangle size={12} className="text-red-500 shrink-0" />{w.name}</td>
+                              <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region} › {w.division} <span className="text-[10px] text-slate-400">({w.zone})</span></td>
+                              <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                              <td className="px-3 py-2.5 text-center"><span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold">Missing ✕</span></td>
+                              <td className="px-3 py-2.5 text-center"><button onClick={() => startEdit(w)} className="h-7 px-3 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold">Add contact</button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {missingContactWorkers.length > 50 && <div className="table-footer bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300">Showing 50 of {missingContactWorkers.length} — search to filter</div>}
+                  </div>
+                  <div className="md:hidden space-y-2">
+                    {missingContactWorkers.slice(0, 20).map((w: any) => (
+                      <div key={w.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800">
+                        <div className="min-w-0"><p className="text-sm font-semibold flex items-center gap-1.5"><AlertTriangle size={12} className="text-red-500" />{w.name}</p><p className="text-[11px] text-slate-500">{w.region} › {w.division}</p></div>
+                        <button onClick={() => startEdit(w)} className="shrink-0 h-8 px-3 rounded-full bg-red-600 text-white text-xs font-bold">Fix</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
       {/* Search — available to all including regional officers */}
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -2675,13 +2727,15 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         <>
           {/* Mobile: card list */}
           <div className="md:hidden space-y-3">
-            {filteredWorkers.map((w: any) => (
-              <div key={w.id} className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3.5 space-y-2.5">
+            {filteredWorkers.map((w: any) => {
+              const missing = !w.contact || !/^\d{10}$/.test(String(w.contact).trim());
+              return (
+              <div key={w.id} className={`rounded-xl bg-white dark:bg-slate-900 border p-3.5 space-y-2.5 ${missing ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/10" : "border-slate-200 dark:border-slate-800"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{w.name}</p>
+                    <p className="font-semibold text-sm truncate flex items-center gap-1">{(!w.contact || !/^\d{10}$/.test(String(w.contact).trim())) && <AlertTriangle size={10} className="text-red-500" />}{w.name}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5 truncate">{w.zone} › {w.region} › {w.division}</p>
-                    {(w.contact || w.contact2) && <p className="text-[11px] text-slate-500 mt-0.5 truncate">Contact: {w.contact}{w.contact2 ? `, ${w.contact2}` : ""}</p>}
+                    {(w.contact && /^\d{10}$/.test(String(w.contact).trim())) ? <p className="text-[11px] text-slate-500 mt-0.5 truncate">Contact: {w.contact}{w.contact2 ? `, ${w.contact2}` : ""}</p> : <p className="text-[11px] font-bold text-red-600 mt-0.5 flex items-center gap-1"><AlertTriangle size={10} /> Missing contact — tap Fix</p>}
                   </div>
                   <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${w.gender === "male" ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600" : "bg-pink-50 dark:bg-pink-900/30 text-pink-600"}`}>{w.gender}</span>
                 </div>
@@ -2713,13 +2767,16 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           {/* Desktop: table — premium */}
           <div className="hidden md:block table-premium-wrap">
             <div className="table-scroll overflow-x-auto scrollbar-thin">
-              <table className="table-premium w-full text-sm min-w-[900px]">
-                <thead className="text-left"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
+              <table className="table-premium w-full text-sm min-w-[1000px]">
+                <thead className="text-left"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th className="text-red-600 dark:text-red-400">Contact</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
                 <tbody className="divide-y">
-                  {filteredWorkers.map((w: any) => (
-                    <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium">{w.name}</td><td className="capitalize">{w.gender}</td>
+                  {filteredWorkers.map((w: any) => {
+                    const missing = !w.contact || !/^\d{10}$/.test(String(w.contact).trim());
+                    return (
+                    <tr key={w.id} className={`${missing ? "bg-red-50 dark:bg-red-950/20 border-l-4 border-red-500" : ""} hover:bg-slate-50 dark:hover:bg-slate-800/50`}>
+                    <td className="px-4 py-3 font-medium flex items-center gap-1.5">{missing && <AlertTriangle size={12} className="text-red-500 shrink-0" />}{w.name}</td><td className="capitalize">{w.gender}</td>
                     <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
+                    <td className="text-xs">{missing ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold animate-pulse">Missing ✕</span> : <span className="font-mono text-slate-700 dark:text-slate-300">{w.contact}</span>}</td>
                     <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                     <td>{w.paymentStatus === "paid" ? <span className="text-emerald-600 text-xs font-medium">Paid</span> : <span className="text-amber-600 text-xs font-medium">Unpaid</span>}</td>
                     <td>
@@ -2730,12 +2787,12 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                       )}
                     </td>
                     <td><div className="flex items-center gap-1">
-                      {canEdit(w) ? <button onClick={() => startEdit(w)} className="h-7 w-7 grid place-items-center rounded-md bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600"><Settings size={14} /></button> : <span className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Settings size={14} /></span>}
+                      {canEdit(w) ? <button onClick={() => startEdit(w)} className={`h-7 w-7 grid place-items-center rounded-md ${missing ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" : "bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600"}`} title={missing ? "Fix missing contact" : "Edit"}><Settings size={14} /></button> : <span className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Settings size={14} /></span>}
                       {canDelete ? <button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button> : <span title="Delete via reupload only" className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Trash2 size={14} /></span>}
                     </div></td>
                   </tr>
-                ))}
-                {filteredWorkers.length === 0 && <tr><td colSpan={9} className="table-empty"><div className="table-empty-icon"><Users size={16} /></div><p className="text-sm font-medium">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</p></td></tr>}
+                )})}
+                {filteredWorkers.length === 0 && <tr><td colSpan={10} className="table-empty"><div className="table-empty-icon"><Users size={16} /></div><p className="text-sm font-medium">{searchQuery ? `No workers match "${searchQuery}"` : "No workers registered yet."}</p></td></tr>}
               </tbody>
             </table>
             </div>
