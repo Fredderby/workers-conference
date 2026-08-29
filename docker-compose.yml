@@ -10,6 +10,8 @@ services:
     ports:
       - "3056:3056"
     environment:
+      # Connects to the existing Dokploy-managed PostgreSQL 18.6
+      # (users/data lives there), reached over the shared internal network.
       - DATABASE_URL=postgresql://app_user:c49t4QO5rTCAQ69AUfnI@workers-data-jdojwz:5432/app_data
       - JWT_SECRET=${JWT_SECRET:-workers-conf-2026-super-secret-key-change-in-prod}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-workers-conf-2026-refresh-secret-change-in-prod}
@@ -17,9 +19,6 @@ services:
       - NODE_ENV=production
     networks:
       - workers-data-net
-    depends_on:
-      database:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3056/login', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))\""]
       interval: 30s
@@ -27,37 +26,9 @@ services:
       retries: 3
       start_period: 20s
 
-  database:
-    image: postgres:16
-    container_name: workers-data-jdojwz
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: c49t4QO5rTCAQ69AUfnI
-      POSTGRES_DB: app_data
-    # NOT published to host: another Postgres owns host 5432 (server-wide port conflict).
-    # App reaches this DB only over the internal bridge at workers-data-jdojwz:5432.
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      workers-data-net:
-        aliases:
-          - workers-data-jdojwz
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app_user -d app_data"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
 networks:
   # workers-data-net exists on the host (created by Dokploy, not compose).
-  # external: true makes compose attach to it instead of trying to create
-  # a new project-scoped network with the same name.
+  # The managed Postgres (workers-data-jdojwz) is attached here, so the app
+  # reaches it at workers-data-jdojwz:5432 without publishing any host port.
   workers-data-net:
     external: true
-
-volumes:
-  # Fresh named volume — replaces the corrupted data dir that caused
-  # "PANIC: could not locate a valid checkpoint record".
-  pgdata:
