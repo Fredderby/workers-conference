@@ -339,9 +339,10 @@ body {
 @media print {
   /* Hide everything except the report */
   body * { visibility: hidden !important; }
-  /* Do NOT touch `display` here — forcing block on `.print-report *` collapses
-     <table>/<tr>/<td> into stacked blocks (headings vertical). Only visibility. */
   .print-report, .print-report * { visibility: visible !important; }
+  /* Override the screen-mode display:none on .print-report only.
+     Children keep their natural display (table, flex, block, etc.). */
+  .print-report { display: block !important; }
   .no-print { display: none !important; }
 
   /* Reset for print */
