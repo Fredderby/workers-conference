@@ -1204,10 +1204,18 @@ function OverviewSection({ user }: { user: any }) {
     filteredWorkers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
     const positionData = Object.entries(byPosition).map(([key, value]) => ({ name: POSITION_LABELS[key as keyof typeof POSITION_LABELS] || key, value }));
 
-    // By division (top 8)
+    // By division (top 8) — normalize keys (trim + lowercase) so drift like
+    // "Nsawam " / "nsawam" / "Nsawam" all count together under one entry.
     const byDivision: Record<string, number> = {};
-    filteredWorkers.forEach(w => { byDivision[w.division] = (byDivision[w.division] || 0) + 1; });
-    const topDivisions = Object.entries(byDivision).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => ({ name, count }));
+    const divisionDisplay: Record<string, string> = {};
+    filteredWorkers.forEach(w => {
+      const raw = (w.division || "").trim();
+      const key = raw.toLowerCase();
+      if (!key) return;
+      byDivision[key] = (byDivision[key] || 0) + 1;
+      if (!divisionDisplay[key]) divisionDisplay[key] = raw;
+    });
+    const topDivisions = Object.entries(byDivision).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([key, count]) => ({ name: divisionDisplay[key], count }));
 
     // Verified by day (last 7 days)
     const dayMap: Record<string, Record<string, number>> = {};
