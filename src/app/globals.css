@@ -339,7 +339,9 @@ body {
 @media print {
   /* Hide everything except the report */
   body * { visibility: hidden !important; }
-  .print-report, .print-report * { visibility: visible !important; display: block !important; }
+  /* Do NOT touch `display` here — forcing block on `.print-report *` collapses
+     <table>/<tr>/<td> into stacked blocks (headings vertical). Only visibility. */
+  .print-report, .print-report * { visibility: visible !important; }
   .no-print { display: none !important; }
 
   /* Reset for print */
@@ -491,6 +493,7 @@ body {
 
   /* Table — 25y professional: compact, all headings visible, landscape-ready */
   .report-table {
+    display: table !important;
     width: 100% !important;
     border-collapse: collapse !important;
     table-layout: auto !important;
@@ -499,7 +502,12 @@ body {
     margin-bottom: 8pt !important;
     border: 0.5pt solid #cbd5e1 !important;
   }
+  /* Restore native table box model so headings run horizontally and each
+     worker is one row with details in columns — see print-report visibility rule. */
   .report-table thead { display: table-header-group !important; }
+  .report-table tbody { display: table-row-group !important; }
+  .report-table tr { display: table-row !important; }
+  .report-table th, .report-table td { display: table-cell !important; }
   .report-table thead th {
     background: #1e293b !important;
     color: #ffffff !important;
