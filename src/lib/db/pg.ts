@@ -15,6 +15,13 @@ import type {
 
 let _pool: Pool | null = null;
 
+function isConnectionError(err: any): boolean {
+  const codes = new Set(["ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "EPIPE", "57P01", "57P02"]);
+  const msg = err?.message || "";
+  return codes.has(err?.code)
+    || /getaddrinfo|ENOTFOUND|ECONNREFUSED|ECONNRESET|connection timed out|Connection terminated|connection timeout|server closed the connection unexpectedly|Client was closed|pool destroyed|remaining connection slots|timeout exceeded when trying to connect/i.test(msg);
+}
+
 function getPool(): Pool {
   if (!_pool) {
     if (!process.env.DATABASE_URL) {
@@ -30,11 +37,19 @@ function getPool(): Pool {
     }
     _pool = new Pool({
       connectionString: url,
+      // Fail-fast instead of hanging: max 5s to acquire a client from the pool,
+      // 15s for a query to return, 20s for a statement on the server,
+      // 30s for an idle transaction to self-cancel.
       connectionTimeoutMillis: 5000,
-      idleTimeoutMillis: 30000,
-      max: 50,
-      allowExitOnIdle: true,
+      idleTimeoutMillis: 10000, // recycle idle sockets before firewalls/NAT silently drop them
+      query_timeout: 15000,
+      statement_timeout: 20000,
+      idle_in_transaction_session_timeout: 30000,
       keepAlive: true,
+      keepAliveInitialDelayMillis: 1000, // TCP keepalive probes start quickly → dead peers surface early
+      max: 25, // match real workload; fewer stale sockets to recover from (was 50)
+      allowExitOnIdle: true, // pool drains when idle → next query builds a fresh client anyway
+      application_name: "workers-conf-app", // shows up in pg_stat_activity
     });
     try {
       const u = new URL(url);
@@ -47,11 +62,37 @@ function getPool(): Pool {
   return _pool;
 }
 
-const pool = new Proxy({} as Pool, {
+export const pool = new Proxy({} as Pool, {
   get(_, prop) {
+    if (prop === "query") {
+      return (...args: any[]) => {
+        const p: Pool = getPool();
+        return (p.query as any)(...args).catch((err: any) => {
+          if (!isConnectionError(err)) throw err;
+          // Another request already reset the pool and created a fresh one — no retry, just rethrow.
+          if (getPool() !== p) throw err;
+          console.error(`[pg] connection error, recreating pool and retrying once: ${err?.message || err}`);
+          p.end().catch(() => {});
+          _pool = null;
+          // Single retry on a fresh pool; if it also fails, the error propagates (and may reset again next request).
+          return (getPool() as any).query(...args);
+        });
+      };
+    }
     return (getPool() as any)[prop];
   },
 });
+
+// Heartbeat: every 60s ping the DB through the self-healing proxy. If the DB
+// flapped, the query wrapper resets the pool on the first failure; if the DB is
+// still down, the pool stays reset so the next user query rebuilds it fresh
+// instead of inheriting zombie clients. unref() so it never blocks process exit.
+const g = globalThis as any;
+if (!g.__pgHeartbeat) {
+  g.__pgHeartbeat = setInterval(() => {
+    (pool.query("SELECT 1") as Promise<any>).catch(() => {}); // wrapper logs + resets
+  }, 60_000).unref?.();
+}
 
 let initPromise: Promise<void> | null = null;
 

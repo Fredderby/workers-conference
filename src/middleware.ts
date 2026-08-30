@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth/jwt";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/403", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/403", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/health"];
 
 export async function middleware(req: NextRequest) {
   try {
