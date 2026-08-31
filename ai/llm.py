@@ -1,9 +1,15 @@
-"""Xkiro OpenAI-compatible LLM client with project defaults.
+"""OpenAI-compatible LLM client with configurable gateway.
 
-Defaults (edit at the top of this file):
+Defaults:
   - BASE_URL       -> https://api.xkiro.com/v1
   - DEFAULT_MODEL  -> qwen/qwen3.8-max:free
-  - API key        -> read from the XKIRO_API_KEY env var, or an ai/.env file
+
+Everything is overridable via env vars (no code edits needed to switch gateways):
+  - LLM_BASE_URL   -> gateway base URL  (e.g. https://openrouter.ai/api/v1)
+  - LLM_API_KEY    -> primary API key for that gateway
+  - XKIRO_API_KEY  -> fallback API key (used if LLM_API_KEY is unset)
+
+Keys can go in environment variables or in ai/.env (gitignored).
 
 Usage:
   from ai.llm import chat
@@ -21,7 +27,9 @@ from openai import OpenAI
 
 BASE_URL = "https://api.xkiro.com/v1"
 DEFAULT_MODEL = "qwen/qwen3.8-max:free"
-API_KEY_ENV = "XKIRO_API_KEY"
+BASE_URL_ENV = "LLM_BASE_URL"
+PRIMARY_KEY_ENV = "LLM_API_KEY"
+FALLBACK_KEY_ENV = "XKIRO_API_KEY"
 _ENV_FILE = Path(__file__).with_name(".env")
 
 
@@ -37,15 +45,20 @@ def _load_dotenv(path: Path = _ENV_FILE) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("\""))
 
 
-def get_client(api_key: str | None = None) -> OpenAI:
-    """Build an OpenAI client with the project base_url and the resolved API key."""
+def _resolve_key() -> str | None:
+    return os.environ.get(PRIMARY_KEY_ENV) or os.environ.get(FALLBACK_KEY_ENV)
+
+
+def get_client(api_key: str | None = None, base_url: str | None = None) -> OpenAI:
+    """Build an OpenAI client with a resolved base_url and API key (env-overridable)."""
     _load_dotenv()
-    key = api_key or os.environ.get(API_KEY_ENV)
+    key = api_key or _resolve_key()
     if not key:
         raise ValueError(
-            f"{API_KEY_ENV} is not set. Add it to your environment or to {_ENV_FILE}."
+            f"no API key set. Set {PRIMARY_KEY_ENV} (or {FALLBACK_KEY_ENV}), or add it to {_ENV_FILE}."
         )
-    return OpenAI(api_key=key, base_url=BASE_URL)
+    url = base_url or os.environ.get(BASE_URL_ENV) or BASE_URL
+    return OpenAI(api_key=key, base_url=url)
 
 
 def chat(message: str, model: str = DEFAULT_MODEL, **kwargs) -> str:
