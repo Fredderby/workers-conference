@@ -198,13 +198,17 @@ function makeDuplicateKey(row: any): string {
   return `${name}|${gender}|${contact}|${zone}|${division}`;
 }
 
+function normRegion(s: any): string {
+  return String(s || "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
+}
+
 function isWithinAccessLevel(user: any, row: any): boolean {
   if (!user) return false;
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
     if (!user.region) return true;
-    const rowRegion = pick(row, "Region", "region").trim().toLowerCase();
-    if (rowRegion !== user.region.trim().toLowerCase()) return false;
+    const rowRegion = pick(row, "Region", "region");
+    if (normRegion(rowRegion) !== normRegion(user.region)) return false;
     return true;
   }
   return true;
@@ -214,7 +218,7 @@ function isWithinWorkerAccessLevel(user: any, worker: any): boolean {
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
     if (!user.region) return true;
-    if (worker.region && worker.region.trim().toLowerCase() === user.region.trim().toLowerCase()) return true;
+    if (worker.region && normRegion(worker.region) === normRegion(user.region)) return true;
     return false;
   }
   return false;

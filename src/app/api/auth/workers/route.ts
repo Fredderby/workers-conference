@@ -100,12 +100,19 @@ export const POST = withError(async (req: NextRequest) => {
   return NextResponse.json({ worker }, { status: 201 });
 });
 
+// Normalize region for comparison: trim, lowercase, strip spaces/hyphens/underscores so
+// "Ga Central", "Ga-Central", "GA CENTRAL", "Ga-Central " all match. Prevents access-control
+// drift from a stored region that differs cosmetically from the account's assigned region.
+function normRegion(s: any): string {
+  return String(s || "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
+}
+
 function canEditWorker(user: any, worker: any): boolean {
   if (!user || !worker) return false;
   if (isAdmin(user.role)) return true;
   if (user.role === "regional_officer") {
     if (!user.region) return true;
-    return worker.region && worker.region.trim().toLowerCase() === user.region.trim().toLowerCase();
+    return !!(worker.region && normRegion(worker.region) === normRegion(user.region));
   }
   return false;
 }
@@ -160,8 +167,8 @@ export const PATCH = withError(async (req: NextRequest) => {
     }
     // Prevent regional officers from moving worker outside their region via edit
     if (user.role === "regional_officer" && user.region) {
-      const newRegion = (patch.region ?? existing.region)?.trim().toLowerCase();
-      if (newRegion !== user.region.trim().toLowerCase()) {
+      const newRegion = (patch.region ?? existing.region);
+      if (normRegion(newRegion) !== normRegion(user.region)) {
         return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned region." }, { status: 403 });
       }
     }

@@ -2135,12 +2135,13 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     onError: (e: any) => setEditError(e.message),
   });
 
-  const canDelete = isAdmin(user.role as RoleType);
+  const canDelete = isAdmin(user.role as RoleType) || user.role === "super_admin" || user.role === "national_officer";
+  const normRegion = (s: any) => String(s || "").trim().toLowerCase().replace(/[\s\-_]+/g, "");
   const canEdit = (w: any) => {
-    if (isAdmin(user.role as RoleType)) return true;
+    if (isAdmin(user.role as RoleType) || user.role === "super_admin" || user.role === "national_officer") return true;
     if (user.role === "regional_officer") {
       if (!user.region) return true;
-      if (user.region && w.region && w.region.trim().toLowerCase() === user.region.trim().toLowerCase()) return true;
+      if (w.region && normRegion(w.region) === normRegion(user.region)) return true;
       return false;
     }
     return false;
