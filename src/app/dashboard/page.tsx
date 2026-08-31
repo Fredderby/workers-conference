@@ -2073,6 +2073,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [editingWorker, setEditingWorker] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const isRegional = user.role === "regional_officer";
@@ -2131,8 +2132,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
       if (!r.ok) throw new Error(j.error || "Update failed");
       return j;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setEditingWorker(null); setEditError(null); },
-    onError: (e: any) => setEditError(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["workers"] }); setEditSuccess("Updated successfully"); setEditError(null); setTimeout(() => { setEditingWorker(null); setEditSuccess(null); }, 1600); },
+    onError: (e: any) => { setEditError(e.message); setEditSuccess(null); },
   });
 
   const canDelete = isAdmin(user.role as RoleType) || user.role === "super_admin" || user.role === "national_officer";
@@ -2175,6 +2176,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
     setEditingWorker(w);
     setEditForm({ name: w.name, gender: w.gender, zone: w.zone, region: w.region, division: w.division, position: w.position, paymentStatus: w.paymentStatus, contact: w.contact || "", contact2: w.contact2 || "" });
     setEditError(null);
+    setEditSuccess(null);
   };
 
   function parseCSV(text: string) {
@@ -2849,7 +2851,8 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <div className="grid grid-cols-2 gap-3"><div><Label>Contact</Label><Input value={editForm.contact || ""} onChange={e => setEditForm((f: any) => ({ ...f, contact: e.target.value }))} placeholder="0244..." /></div><div><Label>Contact 2 (optional)</Label><Input value={editForm.contact2 || ""} onChange={e => setEditForm((f: any) => ({ ...f, contact2: e.target.value }))} placeholder="0200..." /></div></div>
                   <div><Label>Payment</Label><select value={editForm.paymentStatus || ""} onChange={e => setEditForm((f: any) => ({ ...f, paymentStatus: e.target.value }))} className="w-full h-10 rounded-xl border px-3 text-sm bg-white dark:bg-slate-900"><option value="paid">Paid</option><option value="unpaid">Unpaid</option></select></div>
                   {editError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/20 rounded-xl px-3 py-2">{editError}</p>}
-                  <div className="flex gap-2 justify-end pt-2"><Button variant="outline" onClick={() => setEditingWorker(null)}>Cancel</Button><Button onClick={() => updateWorker.mutate({ id: editingWorker.id, patch: editForm })} disabled={updateWorker.isPending}>{updateWorker.isPending ? "Saving..." : "Save Changes"}</Button></div>
+                  {editSuccess && <p className="text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl px-3 py-2 font-medium">{editSuccess}</p>}
+                  <div className="flex gap-2 justify-end pt-2"><Button variant="outline" onClick={() => setEditingWorker(null)}>Cancel</Button><Button onClick={() => updateWorker.mutate({ id: editingWorker.id, patch: editForm })} disabled={updateWorker.isPending || !!editSuccess}>{updateWorker.isPending ? "Saving..." : "Save Changes"}</Button></div>
                   {!canEdit(editingWorker) && <p className="text-xs text-amber-600">You can only edit workers within your assigned region.</p>}
                 </div>
               </div>
