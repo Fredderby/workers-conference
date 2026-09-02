@@ -346,6 +346,9 @@ function ReportsSection({ user }: { user: any }) {
   const byRegion: Record<string, any[]> = {};
   workers.forEach(w => { if (!byRegion[w.region]) byRegion[w.region] = []; byRegion[w.region].push(w); });
 
+  const byDivision: Record<string, any[]> = {};
+  workers.forEach(w => { const d = w.division || "Unassigned"; if (!byDivision[d]) byDivision[d] = []; byDivision[d].push(w); });
+
   const byPosition: Record<string, number> = {};
   workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
   const topPositions = Object.entries(byPosition).sort((a, b) => b[1] - a[1]).slice(0, 8);
@@ -354,6 +357,7 @@ function ReportsSection({ user }: { user: any }) {
   const [expandedZones, setExpandedZones] = useState<Record<string, boolean>>({});
   const [reportSearch, setReportSearch] = useState("");
   const [regionalExpanded, setRegionalExpanded] = useState(true);
+  const [divisionExpanded, setDivisionExpanded] = useState(true);
   const [paymentExpanded, setPaymentExpanded] = useState(true);
   const [verificationExpanded, setVerificationExpanded] = useState(true);
   const [genderExpanded, setGenderExpanded] = useState(true);
@@ -817,6 +821,59 @@ function ReportsSection({ user }: { user: any }) {
                   )}
                 </AnimatePresence>
               </div>
+              {/* Divisional Breakdown — same pattern as Regional */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm mt-4">
+                <button onClick={() => setDivisionExpanded(!divisionExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-indigo-50 to-white dark:from-indigo-950/20 dark:to-slate-900 hover:from-indigo-100 dark:hover:from-indigo-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 grid place-items-center shadow-sm"><Layers size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Divisional Breakdown</p><p className="text-[11px] text-slate-400">{Object.keys(byDivision).length} divisions • {total} workers</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline text-[11px] font-semibold text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">{divisionExpanded ? "Collapse" : "Expand"}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${divisionExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {divisionExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-xs">
+                          <thead className="thead-dark">
+                            <tr className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white">
+                              <th className="text-left font-semibold px-4 py-2.5">Division</th><th className="text-center font-semibold px-3 py-2.5">Workers</th><th className="text-center font-semibold px-3 py-2.5">Paid</th><th className="text-center font-semibold px-3 py-2.5">Unpaid</th><th className="text-center font-semibold px-3 py-2.5">Verified</th><th className="text-left font-semibold px-4 py-2.5">Payment %</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {Object.entries(byDivision).sort((a, b) => b[1].length - a[1].length).map(([division, ws]) => {
+                              const dp = ws.filter(w => w.paymentStatus === "paid").length;
+                              return (
+                                <tr key={division} className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 transition-colors">
+                                  <td className="px-4 py-2.5 font-semibold">{division}</td><td className="px-3 py-2.5 text-center font-bold">{ws.length}</td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white text-[11px] font-bold shadow-sm">{dp}</span></td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 text-amber-700 border border-amber-200 text-[11px] font-bold">{ws.length - dp}</span></td>
+                                  <td className="px-3 py-2.5 text-center"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-500 text-white text-[11px] font-bold shadow-sm">{ws.filter(w => w.verified).length}</span></td>
+                                  <td className="px-4 py-2.5"><div className="flex items-center gap-2"><div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all" style={{ width: `${ws.length > 0 ? (dp / ws.length) * 100 : 0}%` }} /></div><span className="text-[11px] font-bold w-8 text-right">{ws.length > 0 ? ((dp / ws.length) * 100).toFixed(0) : 0}%</span></div></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {/* Mobile cards */}
+                      <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/20">
+                        {Object.entries(byDivision).sort((a, b) => b[1].length - a[1].length).map(([division, ws]) => {
+                          const dp = ws.filter(w => w.paymentStatus === "paid").length;
+                          return (
+                            <div key={division} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
+                              <div className="flex items-center justify-between mb-2"><span className="text-xs font-bold truncate">{division}</span></div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg py-2 border"><p className="text-[9px] font-bold text-slate-400 uppercase">Workers</p><p className="text-lg font-black">{ws.length}</p></div>
+                                <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg py-2 border border-emerald-200 dark:border-emerald-800"><p className="text-[9px] font-bold text-emerald-600 uppercase">Paid</p><p className="text-lg font-black text-emerald-600">{dp}</p></div>
+                                <div className="bg-cyan-50 dark:bg-cyan-950/20 rounded-lg py-2 border border-cyan-200 dark:border-cyan-800"><p className="text-[9px] font-bold text-cyan-600 uppercase">Verified</p><p className="text-lg font-black text-cyan-600">{ws.filter(w => w.verified).length}</p></div>
+                              </div>
+                              <div className="mt-2"><div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full" style={{ width: `${ws.length > 0 ? (dp / ws.length) * 100 : 0}%` }} /></div></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           )}
 
@@ -1089,6 +1146,17 @@ function ReportsSection({ user }: { user: any }) {
                 {Object.entries(byRegion).sort((a, b) => b[1].length - a[1].length).map(([region, ws]) => (
                   <tr key={region}><td>{region}</td><td>{ws[0]?.zone}</td><td>{ws.length}</td><td>{ws.filter(w => w.paymentStatus === "paid").length}</td><td>{ws.filter(w => w.verified).length}</td></tr>
                 ))}
+              </tbody>
+            </table>
+            <h3 className="report-section-title mt-6">Workers by Division</h3>
+            <table className="report-table">
+              <thead><tr><th>Division</th><th>Workers</th><th>Paid</th><th>Unpaid</th><th>Verified</th><th>Payment %</th></tr></thead>
+              <tbody>
+                {Object.entries(byDivision).sort((a, b) => b[1].length - a[1].length).map(([division, ws]) => {
+                  const dp = ws.filter(w => w.paymentStatus === "paid").length;
+                  return <tr key={division}><td>{division}</td><td>{ws.length}</td><td>{dp}</td><td>{ws.length - dp}</td><td>{ws.filter(w => w.verified).length}</td><td>{ws.length > 0 ? ((dp / ws.length) * 100).toFixed(1) : 0}%</td></tr>;
+                })}
+                <tr className="report-total"><td>Total</td><td>{total}</td><td>{paid}</td><td>{total - paid}</td><td>{verified}</td><td>{total > 0 ? ((paid / total) * 100).toFixed(1) : 0}%</td></tr>
               </tbody>
             </table>
           </div>
