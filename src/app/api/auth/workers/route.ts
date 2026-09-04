@@ -4,6 +4,7 @@ import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE } from "@/lib/db/mock";
 import { isAdmin } from "@/lib/auth/rbac";
 import { withError } from "@/lib/api-handler";
+import { toProperCase } from "@/lib/utils";
 
 function auth(req: NextRequest) {
   const token = req.cookies.get("access_token")?.value;
@@ -87,7 +88,7 @@ export const POST = withError(async (req: NextRequest) => {
   }
 
   const worker = await db.createWorker({
-    name: String(name).trim(), gender: String(gender).trim().toLowerCase() as any, zone: String(zone).trim(), region: String(region).trim(), division: String(division).trim(), position: String(position).trim().toLowerCase().replace(/[\s\-\/]+/g, "_") as any,
+    name: toProperCase(String(name).trim()), gender: String(gender).trim().toLowerCase() as any, zone: String(zone).trim(), region: String(region).trim(), division: String(division).trim(), position: String(position).trim().toLowerCase().replace(/[\s\-\/]+/g, "_") as any,
     paymentStatus: String(paymentStatus).trim().toLowerCase() as any,
     verified: false,
     registeredBy: user.id,
@@ -172,6 +173,7 @@ export const PATCH = withError(async (req: NextRequest) => {
         return NextResponse.json({ error: "Forbidden: Cannot move worker outside your assigned region." }, { status: 403 });
       }
     }
+    if (patch.name !== undefined) patch.name = toProperCase(String(patch.name).trim());
     const w = await db.updateWorker(workerId, patch);
     await db.audit({ userId: user.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Edited worker ${w?.name} (${workerId})` });
     return NextResponse.json({ worker: w });

@@ -4,6 +4,7 @@ import { db } from "@/lib/db/pg";
 import { ZONE_STRUCTURE, POSITION_LABELS } from "@/lib/db/mock";
 import { isAdmin } from "@/lib/auth/rbac";
 import { withError } from "@/lib/api-handler";
+import { toProperCase } from "@/lib/utils";
 import ExcelJS from "exceljs";
 
 const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer", "campus_leader", "campus_worker"];
@@ -457,7 +458,7 @@ export const POST = withError(async (req: NextRequest) => {
       const canonicalRegion = (canonicalZone && findRegionKey(canonicalZone, rawRegion2)) || rawRegion2.trim();
       const canonicalDivision = (canonicalZone && canonicalRegion && findDivisionKey(canonicalZone, canonicalRegion, rawDivision2)) || rawDivision2.trim();
       const worker = await db.createWorker({
-        name: pick(vr.row, "Full Name", "FullName", "fullname", "name").trim(),
+        name: toProperCase(pick(vr.row, "Full Name", "FullName", "fullname", "name").trim()),
         gender: pick(vr.row, "Gender", "gender").trim().toLowerCase() as "male" | "female",
         zone: canonicalZone,
         region: canonicalRegion,

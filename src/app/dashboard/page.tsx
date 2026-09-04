@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoleType, ZONE_STRUCTURE, POSITION_LABELS, PAYMENT_LABELS } from "@/lib/db/mock";
 import { isAdmin, getVisibleSections, DASHBOARD_SECTIONS } from "@/lib/auth/rbac";
+import { toProperCase } from "@/lib/utils";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, AreaChart, Area, CartesianGrid, Legend } from "recharts";
 
 const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserPlus, ScanLine, ClipboardCheck, FileText: ScrollText, ScrollText, Monitor, ShieldCheck, Settings };
@@ -353,20 +354,20 @@ function ReportsSection({ user }: { user: any }) {
   workers.forEach(w => { byPosition[w.position] = (byPosition[w.position] || 0) + 1; });
   const topPositions = Object.entries(byPosition).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
-  const [participantsExpanded, setParticipantsExpanded] = useState(true);
+  const [participantsExpanded, setParticipantsExpanded] = useState(false);
   const [expandedZones, setExpandedZones] = useState<Record<string, boolean>>({});
   const [reportSearch, setReportSearch] = useState("");
-  const [regionalExpanded, setRegionalExpanded] = useState(true);
-  const [divisionExpanded, setDivisionExpanded] = useState(true);
-  const [paymentExpanded, setPaymentExpanded] = useState(true);
-  const [verificationExpanded, setVerificationExpanded] = useState(true);
-  const [genderExpanded, setGenderExpanded] = useState(true);
-  const [dailyExpanded, setDailyExpanded] = useState(true);
+  const [regionalExpanded, setRegionalExpanded] = useState(false);
+  const [divisionExpanded, setDivisionExpanded] = useState(false);
+  const [paymentExpanded, setPaymentExpanded] = useState(false);
+  const [verificationExpanded, setVerificationExpanded] = useState(false);
+  const [genderExpanded, setGenderExpanded] = useState(false);
+  const [dailyExpanded, setDailyExpanded] = useState(false);
 
   // Keep zone expand state in sync when workers change
   useEffect(() => {
     if (Object.keys(byZone).length && Object.keys(expandedZones).length === 0) {
-      setExpandedZones(Object.fromEntries(Object.keys(byZone).map(z => [z, true])));
+      setExpandedZones(Object.fromEntries(Object.keys(byZone).map(z => [z, false])));
     }
   }, [byZone, expandedZones]);
 
@@ -550,7 +551,7 @@ function ReportsSection({ user }: { user: any }) {
                         {Object.entries(byZone).sort((a, b) => b[1].length - a[1].length).map(([zone, ws]) => {
                           const zoneFiltered = ws.filter((w: any) => !reportSearch.trim() || w.name.toLowerCase().includes(reportSearch.toLowerCase()) || w.zone.toLowerCase().includes(reportSearch.toLowerCase()) || w.region.toLowerCase().includes(reportSearch.toLowerCase()) || w.division.toLowerCase().includes(reportSearch.toLowerCase()));
                           if (zoneFiltered.length === 0 && reportSearch) return null;
-                          const expanded = expandedZones[zone] ?? true;
+                          const expanded = expandedZones[zone] ?? false;
                           const zPaid = zoneFiltered.filter((w: any) => w.paymentStatus === "paid").length;
                           const zVerified = zoneFiltered.filter((w: any) => w.verified).length;
                           return (
@@ -589,7 +590,7 @@ function ReportsSection({ user }: { user: any }) {
                                           {zoneFiltered.map((w: any, i: number) => (
                                             <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 transition-colors group">
                                               <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
-                                              <td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{w.name}</span></div></td>
+                                              <td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{toProperCase(w.name)[0]}</div><span className="font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{toProperCase(w.name)}</span></div></td>
                                               <td className="px-3 py-2.5"><span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-300" : "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/30 dark:text-pink-300"}`}>{w.gender === "male" ? "Male" : "Female"}</span></td>
                                               {showZoneRegionDivision && <><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.division}</td></>}
                                               <td className="px-3 py-2.5"><span className="inline-flex px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-medium border border-slate-200 dark:border-slate-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
@@ -605,7 +606,7 @@ function ReportsSection({ user }: { user: any }) {
                                       {zoneFiltered.map((w: any) => (
                                         <div key={w.id} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
                                           <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-bold truncate">{w.name}</span></div>
+                                            <div className="flex items-center gap-2 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{toProperCase(w.name)[0]}</div><span className="text-xs font-bold truncate">{toProperCase(w.name)}</span></div>
                                             <div className="flex gap-1.5 shrink-0">{w.paymentStatus === "paid" ? <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500 text-white">Paid</span> : <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800">Unpaid</span>}{w.verified && <span className="h-5 w-5 rounded-full bg-emerald-500 grid place-items-center"><CheckCircle2 size={10} className="text-white" /></span>}</div>
                                           </div>
                                           <div className="flex flex-wrap gap-1.5 text-[10px]"><span className={`px-2 py-0.5 rounded-full border font-medium ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.region}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.division}</span><span className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></div>
@@ -673,7 +674,7 @@ function ReportsSection({ user }: { user: any }) {
                           <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
                             {workers.filter(w => w.paymentStatus === "unpaid").slice(0, 20).map(w => (
                               <div key={w.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors group">
-                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-medium truncate group-hover:text-amber-700 transition-colors">{w.name}</span></div>
+                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{toProperCase(w.name)[0]}</div><span className="text-xs font-medium truncate group-hover:text-amber-700 transition-colors">{toProperCase(w.name)}</span></div>
                                 <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border text-slate-500 shrink-0 ml-2">{w.zone}</span>
                               </div>
                             ))}
@@ -730,7 +731,7 @@ function ReportsSection({ user }: { user: any }) {
                           <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
                             {workers.filter(w => !w.verified).slice(0, 20).map(w => (
                               <div key={w.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-cyan-50/50 dark:hover:bg-cyan-950/10 transition-colors group">
-                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{w.name[0]}</div><span className="text-xs font-medium truncate group-hover:text-cyan-700 transition-colors">{w.name}</span></div>
+                                <div className="flex items-center gap-2 min-w-0"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 grid place-items-center text-white text-[10px] font-bold shrink-0">{toProperCase(w.name)[0]}</div><span className="text-xs font-medium truncate group-hover:text-cyan-700 transition-colors">{toProperCase(w.name)}</span></div>
                                 <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border text-slate-500 shrink-0 ml-2">{w.zone}</span>
                               </div>
                             ))}
@@ -975,7 +976,7 @@ function ReportsSection({ user }: { user: any }) {
                           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {dailyWorkers.map((w, i) => (
                               <tr key={w.id} className="hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors group">
-                                <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold">{w.name[0]}</div><span className="font-semibold group-hover:text-amber-600 transition-colors">{w.name}</span></div></td><td className="px-3 py-2.5 capitalize"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span></td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.zone}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td><td className="px-3 py-2.5"><span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border text-[11px] font-medium">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
+                                <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td><td className="px-3 py-2.5"><div className="flex items-center gap-2"><div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-[10px] font-bold">{toProperCase(w.name)[0]}</div><span className="font-semibold group-hover:text-amber-600 transition-colors">{toProperCase(w.name)}</span></div></td><td className="px-3 py-2.5 capitalize"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span></td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.zone}</td><td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td><td className="px-3 py-2.5"><span className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border text-[11px] font-medium">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                                 <td className="px-3 py-2.5"><span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" : "bg-amber-100 text-amber-800 border-amber-200"}`}>{w.paymentStatus}</span></td>
                                 <td className="px-3 py-2.5 text-center">{w.verified ? <span className="inline-flex h-6 w-6 rounded-full bg-emerald-500 grid place-items-center shadow-sm"><CheckCircle2 size={12} className="text-white" /></span> : <span className="text-slate-300">—</span>}</td>
                               </tr>
@@ -987,7 +988,7 @@ function ReportsSection({ user }: { user: any }) {
                       <div className="md:hidden p-3 space-y-2 bg-slate-50/50 dark:bg-slate-800/20">
                         {dailyWorkers.map((w, i) => (
                           <div key={w.id} className="bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <div className="flex items-center justify-between mb-1.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-xs font-bold">{w.name[0]}</div><span className="text-xs font-bold truncate">{w.name}</span></div><div className="flex gap-1.5 shrink-0"><span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white" : "bg-amber-100 text-amber-800"}`}>{w.paymentStatus}</span>{w.verified && <span className="h-5 w-5 rounded-full bg-emerald-500 grid place-items-center"><CheckCircle2 size={10} className="text-white" /></span>}</div></div>
+                            <div className="flex items-center justify-between mb-1.5"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center text-white text-xs font-bold">{toProperCase(w.name)[0]}</div><span className="text-xs font-bold truncate">{toProperCase(w.name)}</span></div><div className="flex gap-1.5 shrink-0"><span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${w.paymentStatus === "paid" ? "bg-emerald-500 text-white" : "bg-amber-100 text-amber-800"}`}>{w.paymentStatus}</span>{w.verified && <span className="h-5 w-5 rounded-full bg-emerald-500 grid place-items-center"><CheckCircle2 size={10} className="text-white" /></span>}</div></div>
                             <div className="flex flex-wrap gap-1.5 text-[10px]"><span className={`px-2 py-0.5 rounded-full border font-medium ${w.gender === "male" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-pink-50 text-pink-700 border-pink-200"}`}>{w.gender}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.zone}</span><span className="px-2 py-0.5 rounded-full bg-slate-100 border text-slate-600">{w.region}</span><span className="px-2 py-0.5 rounded-full bg-white border text-slate-600">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></div>
                           </div>
                         ))}
@@ -1068,7 +1069,7 @@ function ReportsSection({ user }: { user: any }) {
               <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Full Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Payment</th><th>Verified</th></tr></thead>
               <tbody>
                 {workers.map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
                 ))}
                 {workers.length === 0 && <tr><td colSpan={10} className="text-center text-slate-400 py-4">No workers registered yet</td></tr>}
               </tbody>
@@ -1093,7 +1094,7 @@ function ReportsSection({ user }: { user: any }) {
               <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th></tr></thead>
               <tbody>
                 {workers.filter(w => w.paymentStatus === "unpaid").map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
                 ))}
                 {unpaid === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">All workers have paid</td></tr>}
               </tbody>
@@ -1118,7 +1119,7 @@ function ReportsSection({ user }: { user: any }) {
               <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th></tr></thead>
               <tbody>
                 {workers.filter(w => !w.verified).map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
                 ))}
                 {verified === total && <tr><td colSpan={8} className="text-center text-slate-400 py-4">All workers verified</td></tr>}
               </tbody>
@@ -1197,7 +1198,7 @@ function ReportsSection({ user }: { user: any }) {
               <thead><tr><th>#</th><th>Zone</th><th>Region</th><th>Division</th><th>Full Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Payment</th><th>Verified</th></tr></thead>
               <tbody>
                 {dailyWorkers.map((w, i) => (
-                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{w.name}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:700}}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td className="capitalize">{w.paymentStatus}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
                 ))}
                 {dailyWorkers.length === 0 && <tr><td colSpan={10} className="text-center text-slate-400 py-4">No workers registered on this date</td></tr>}
               </tbody>
@@ -2786,7 +2787,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                         <tbody className="divide-y divide-red-100 dark:divide-red-900/30">
                           {missingContactWorkers.slice(0, 50).map((w: any) => (
                             <tr key={w.id} className="bg-red-50/60 dark:bg-red-950/10 hover:bg-red-100 dark:hover:bg-red-900/20">
-                              <td className="px-3 py-2.5 font-semibold flex items-center gap-2"><AlertTriangle size={12} className="text-red-500 shrink-0" />{w.name}</td>
+                              <td className="px-3 py-2.5 font-semibold flex items-center gap-2"><AlertTriangle size={12} className="text-red-500 shrink-0" />{toProperCase(w.name)}</td>
                               <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region} › {w.division} <span className="text-[10px] text-slate-400">({w.zone})</span></td>
                               <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                               <td className="px-3 py-2.5 text-center"><span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold">Missing ✕</span></td>
@@ -2801,7 +2802,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   <div className="md:hidden space-y-2">
                     {missingContactWorkers.slice(0, 20).map((w: any) => (
                       <div key={w.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800">
-                        <div className="min-w-0"><p className="text-sm font-semibold flex items-center gap-1.5"><AlertTriangle size={12} className="text-red-500" />{w.name}</p><p className="text-[11px] text-slate-500">{w.region} › {w.division}</p></div>
+                        <div className="min-w-0"><p className="text-sm font-semibold flex items-center gap-1.5"><AlertTriangle size={12} className="text-red-500" />{toProperCase(w.name)}</p><p className="text-[11px] text-slate-500">{w.region} › {w.division}</p></div>
                         <button onClick={() => startEdit(w)} className="shrink-0 h-8 px-3 rounded-full bg-red-600 text-white text-xs font-bold">Fix</button>
                       </div>
                     ))}
@@ -2835,7 +2836,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
               <div key={w.id} className={`rounded-xl bg-white dark:bg-slate-900 border p-3.5 space-y-2.5 ${missing ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/10" : "border-slate-200 dark:border-slate-800"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate flex items-center gap-1">{(!w.contact || !/^\d{10}$/.test(String(w.contact).trim())) && <AlertTriangle size={10} className="text-red-500" />}{w.name}</p>
+                    <p className="font-semibold text-sm truncate flex items-center gap-1">{(!w.contact || !/^\d{10}$/.test(String(w.contact).trim())) && <AlertTriangle size={10} className="text-red-500" />}{toProperCase(w.name)}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5 truncate">{w.zone} › {w.region} › {w.division}</p>
                     {(w.contact && /^\d{10}$/.test(String(w.contact).trim())) ? <p className="text-[11px] text-slate-500 mt-0.5 truncate">Contact: {w.contact}{w.contact2 ? `, ${w.contact2}` : ""}</p> : <p className="text-[11px] font-bold text-red-600 mt-0.5 flex items-center gap-1"><AlertTriangle size={10} /> Missing contact — tap Fix</p>}
                   </div>
@@ -2853,7 +2854,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                   )}
                   {canEdit(w) && <button onClick={() => startEdit(w)} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600 dark:text-indigo-400"><Settings size={14} /></button>}
                   {canDelete ? (
-                    <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${w.name}"? This is reserved for National officers.`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
+                    <button aria-label="Delete worker" onClick={() => { if (confirm(`Delete "${toProperCase(w.name)}"? This is reserved for National officers.`)) deleteWorker.mutate(w.id); }} className="h-9 w-9 shrink-0 grid place-items-center rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-slate-400 hover:text-red-600"><Trash2 size={16} /></button>
                   ) : (
                     <span title="Delete via reupload only for regional officers" className="h-9 w-9 shrink-0 grid place-items-center rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-300 cursor-not-allowed"><Trash2 size={16} /></span>
                   )}
@@ -2876,7 +2877,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     const missing = !w.contact || !/^\d{10}$/.test(String(w.contact).trim());
                     return (
                     <tr key={w.id} className={`${missing ? "bg-red-50 dark:bg-red-950/20 border-l-4 border-red-500" : ""} hover:bg-slate-50 dark:hover:bg-slate-800/50`}>
-                    <td className="px-4 py-3 font-medium flex items-center gap-1.5">{missing && <AlertTriangle size={12} className="text-red-500 shrink-0" />}{w.name}</td><td className="capitalize">{w.gender}</td>
+                    <td className="px-4 py-3 font-medium flex items-center gap-1.5">{missing && <AlertTriangle size={12} className="text-red-500 shrink-0" />}{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td>
                     <td className="text-slate-500 text-xs">{w.zone}</td><td className="text-slate-500 text-xs">{w.region}</td><td className="text-slate-500 text-xs">{w.division}</td>
                     <td className="text-xs">{missing ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-600 text-white text-[10px] font-bold animate-pulse">Missing ✕</span> : <span className="font-mono text-slate-700 dark:text-slate-300">{w.contact}</span>}</td>
                     <td><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
@@ -2890,7 +2891,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
                     </td>
                     <td><div className="flex items-center gap-1">
                       {canEdit(w) ? <button onClick={() => startEdit(w)} className={`h-7 w-7 grid place-items-center rounded-md ${missing ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" : "bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 text-indigo-600"}`} title={missing ? "Fix missing contact" : "Edit"}><Settings size={14} /></button> : <span className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Settings size={14} /></span>}
-                      {canDelete ? <button onClick={() => { if (confirm(`Delete "${w.name}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button> : <span title="Delete via reupload only" className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Trash2 size={14} /></span>}
+                      {canDelete ? <button onClick={() => { if (confirm(`Delete "${toProperCase(w.name)}"?`)) deleteWorker.mutate(w.id); }} className="h-7 w-7 grid place-items-center rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 size={14} /></button> : <span title="Delete via reupload only" className="h-7 w-7 grid place-items-center rounded-md bg-slate-100 text-slate-300 cursor-not-allowed"><Trash2 size={14} /></span>}
                     </div></td>
                   </tr>
                 )})}
@@ -2905,7 +2906,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setEditingWorker(null)}>
               <div onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border overflow-hidden max-h-[90vh] overflow-y-auto">
                 <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900">
-                  <div><h3 className="font-semibold">Edit Participant</h3><p className="text-xs text-slate-400">{editingWorker.name} • {editingWorker.zone} › {editingWorker.region}</p></div>
+                  <div><h3 className="font-semibold">Edit Participant</h3><p className="text-xs text-slate-400">{toProperCase(editingWorker.name)} • {editingWorker.zone} › {editingWorker.region}</p></div>
                   <button onClick={() => setEditingWorker(null)} className="h-8 w-8 grid place-items-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"><X size={16} /></button>
                 </div>
                 <div className="p-6 space-y-4">
@@ -2991,7 +2992,7 @@ function VerificationSection({ user }: { user: any }) {
     },
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["workers"] });
-      setResult({ type: "success", title: `Verified: ${updated.name}`, detail: `${updated.zone} › ${updated.region} › ${updated.division} • ${POSITION_LABELS[updated.position as keyof typeof POSITION_LABELS] || updated.position} • ${updated.verified ? "Now Verified ✓" : "Verification removed"}`, worker: updated });
+      setResult({ type: "success", title: `Verified: ${toProperCase(updated.name)}`, detail: `${updated.zone} › ${updated.region} › ${updated.division} • ${POSITION_LABELS[updated.position as keyof typeof POSITION_LABELS] || updated.position} • ${updated.verified ? "Now Verified ✓" : "Verification removed"}`, worker: updated });
     },
     onError: (e: any) => setResult({ type: "error", title: "Verification failed", detail: e.message }),
   });
@@ -3002,16 +3003,16 @@ function VerificationSection({ user }: { user: any }) {
     if (locked) { setResult({ type: "error", title: "Verification locked", detail: "Verification window is locked by National Officer." }); return; }
     if (code.trim().length < 1) { setResult({ type: "error", title: "Enter a name", detail: "Type a worker name to verify." }); return; }
     // Prefer selected worker if it matches code, else find best match
-    let match: any = selectedWorker && selectedWorker.name.toLowerCase() === code.toLowerCase().trim() ? selectedWorker : null;
+    let match: any = selectedWorker && toProperCase(selectedWorker.name).toLowerCase() === code.toLowerCase().trim() ? selectedWorker : null;
     if (!match) match = workers.find((w: any) => w.name.toLowerCase() === code.toLowerCase().trim() || w.id.toLowerCase() === code.toLowerCase().trim());
     if (!match) match = workers.find((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()));
     if (match) {
       if (match.paymentStatus !== "paid" && !match.verified) {
-        setResult({ type: "error", title: `Cannot verify: ${match.name}`, detail: `Payment status is "${match.paymentStatus}". Only PAID workers can be verified. Collect payment first.` , worker: match});
+        setResult({ type: "error", title: `Cannot verify: ${toProperCase(match.name)}`, detail: `Payment status is "${match.paymentStatus}". Only PAID workers can be verified. Collect payment first.` , worker: match});
         return;
       }
       if (match.verified) {
-        setResult({ type: "info", title: `Already Verified: ${match.name}`, detail: `${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`, worker: match });
+        setResult({ type: "info", title: `Already Verified: ${toProperCase(match.name)}`, detail: `${match.zone} › ${match.region} › ${match.division} • ${POSITION_LABELS[match.position as keyof typeof POSITION_LABELS] || match.position}`, worker: match });
       } else {
         verifyMutation.mutate(match.id);
       }
@@ -3052,9 +3053,9 @@ function VerificationSection({ user }: { user: any }) {
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                       {suggestions.map((w: any, idx: number) => (
                         <button key={w.id} type="button" onClick={() => selectSuggestion(w)} onMouseDown={e => e.preventDefault()} className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/20 transition-colors ${idx === selectedIndex ? "bg-indigo-50 dark:bg-indigo-950/30" : ""}`}>
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div>
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{toProperCase(w.name)[0]}</div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{highlightMatch(w.name, code)}</p>
+                            <p className="text-sm font-semibold truncate">{highlightMatch(toProperCase(w.name), code)}</p>
                             <p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.region} › {w.division} • {POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1 shrink-0">
@@ -3086,9 +3087,9 @@ function VerificationSection({ user }: { user: any }) {
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{result.detail}</p>
                 {result.worker && (
                   <div className="mt-3 rounded-xl bg-white dark:bg-slate-900 border p-3 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white font-bold shrink-0">{result.worker.name[0]}</div>
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white font-bold shrink-0">{toProperCase(result.worker.name)[0]}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate">{result.worker.name}</p>
+                      <p className="text-sm font-bold truncate">{toProperCase(result.worker.name)}</p>
                       <p className="text-xs text-slate-500 truncate">{result.worker.zone} › {result.worker.region} › {result.worker.division} • {POSITION_LABELS[result.worker.position as keyof typeof POSITION_LABELS] || result.worker.position}</p>
                       <p className="text-[11px] text-slate-400 truncate">Contact: {result.worker.contact || "—"}{result.worker.contact2 ? `, ${result.worker.contact2}` : ""} • {result.worker.gender} • {result.worker.paymentStatus}</p>
                     </div>
@@ -3116,7 +3117,7 @@ function VerificationSection({ user }: { user: any }) {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()) || w.id.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 50).map((w: any) => (
                   <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{w.name[0]}</div><span className="font-medium">{w.name}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
+                    <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{toProperCase(w.name)[0]}</div><span className="font-medium">{toProperCase(w.name)}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
                     <td className="px-3 py-3 text-xs text-slate-500">{w.zone}<br /><span className="text-[11px] text-slate-400">{w.region} › {w.division}</span></td>
                     <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
                     <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
@@ -3139,7 +3140,7 @@ function VerificationSection({ user }: { user: any }) {
           <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
             {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 20).map((w: any) => (
               <div key={w.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{w.name[0]}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{w.name}</p><p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.division} • {w.paymentStatus}</p></div></div>
+                <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold shrink-0">{toProperCase(w.name)[0]}</div><div className="min-w-0"><p className="text-sm font-semibold truncate">{toProperCase(w.name)}</p><p className="text-[11px] text-slate-400 truncate">{w.zone} › {w.division} • {w.paymentStatus}</p></div></div>
                 {w.paymentStatus !== "paid" && !w.verified ? (
                   <span title="Only PAID workers can be verified" className="shrink-0 h-8 inline-flex items-center px-3 rounded-full text-xs font-bold border bg-amber-100 text-amber-700 border-amber-200">Unpaid</span>
                 ) : (
@@ -3566,7 +3567,7 @@ function AttendanceSection() {
           <div className="mt-2 rounded-xl border bg-white dark:bg-slate-900 max-h-48 overflow-auto divide-y">
             {filteredWorkers.map((w: any) => (
               <button key={w.id} onClick={() => setSelectedWorker(w)} className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between">
-                <span>{w.name} <span className="text-xs text-slate-400">({w.region})</span></span>
+                <span>{toProperCase(w.name)} <span className="text-xs text-slate-400">({w.region})</span></span>
                 {checkedInIds.has(w.id) ? <span className="text-xs text-emerald-600">Checked In</span> : <span className="text-xs text-slate-400">Not in</span>}
               </button>
             ))}
@@ -3574,7 +3575,7 @@ function AttendanceSection() {
           </div>
         )}
       </div>
-      {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div className="min-w-0"><p className="font-semibold truncate">{selectedWorker.name}</p><p className="text-sm text-slate-500 truncate">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)} className="shrink-0 self-start sm:self-auto">{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
+      {selectedWorker && <Card className="rounded-2xl"><CardContent className="pt-6"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div className="min-w-0"><p className="font-semibold truncate">{toProperCase(selectedWorker.name)}</p><p className="text-sm text-slate-500 truncate">{selectedWorker.zone} / {selectedWorker.region}</p></div><Button onClick={() => checkIn.mutate(selectedWorker)} disabled={checkedInIds.has(selectedWorker.id)} className="shrink-0 self-start sm:self-auto">{checkedInIds.has(selectedWorker.id) ? "Checked In" : "Check In"}</Button></div></CardContent></Card>}
       <h3 className="font-semibold">Check-in Log ({attData?.attendances?.length || 0})</h3>
       {isLoading ? <Skeleton className="h-12 w-full" /> : (
         <>
