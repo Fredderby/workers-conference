@@ -1814,6 +1814,24 @@ function UserManagementSection() {
     return list.filter((u: any) => u.displayName?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q) || u.zone?.toLowerCase().includes(q) || u.region?.toLowerCase().includes(q));
   }, [data?.users, searchQuery]);
 
+  // Regional officer duplicate scan — normalized displayName (trim + lowercase + single spaces)
+  const [dismissedRegDupKeys, setDismissedRegDupKeys] = useState<Set<string>>(new Set());
+  const [activeRegDupKey, setActiveRegDupKey] = useState<string | null>(null);
+  const regionalDupGroups = useMemo(() => {
+    const regs = (data?.users || []).filter((u: any) => String(u.role).toLowerCase() === "regional_officer");
+    const map: Record<string, any[]> = {};
+    regs.forEach((u: any) => {
+      const key = String(u.displayName || "").trim().toLowerCase().replace(/\s+/g, " ");
+      if (!key || dismissedRegDupKeys.has(key)) return;
+      map[key] = map[key] || [];
+      map[key].push(u);
+    });
+    return Object.entries(map)
+      .filter(([, v]) => v.length > 1)
+      .map(([k, v]) => ({ key: k, users: v as any[] }))
+      .sort((a, b) => b.users.length - a.users.length);
+  }, [data?.users, dismissedRegDupKeys]);
+
   const createUser = useMutation({
     mutationFn: async (f: typeof form) => { const r = await fetch("/api/auth/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
     onSuccess: (j) => { setTempPw(j.tempPassword); qc.invalidateQueries({ queryKey: ["users"] }); setError(null); },
@@ -1871,6 +1889,58 @@ function UserManagementSection() {
           <span className="hidden sm:inline">• Click a user to edit details or reset password</span>
         </div>
       </div>
+      {regionalDupGroups.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/10 p-3 sm:p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 grid place-items-center shadow-sm shrink-0"><Users size={14} className="text-white" /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold flex items-center gap-1.5"><AlertTriangle size={12} className="text-amber-600" /> Potential duplicate regional officers — {regionalDupGroups.length} name{regionalDupGroups.length > 1 ? "s" : ""} ({regionalDupGroups.reduce((a, g) => a + g.users.length, 0)} accounts)</p>
+                <p className="text-[11px] text-slate-500">Same display name after trimming/casing. Keep as distinct people or review.</p>
+              </div>
+            </div>
+            <button onClick={() => setActiveRegDupKey(regionalDupGroups[0].key)} className="shrink-0 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-300 text-xs font-bold hover:bg-amber-50">Review</button>
+          </div>
+          <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {regionalDupGroups.slice(0, 6).map(g => (
+              <div key={g.key} className="bg-white dark:bg-slate-900 rounded-xl border border-amber-100 dark:border-amber-800 p-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0"><p className="text-xs font-bold truncate">{toProperCase(g.users[0].displayName)}</p><p className="text-[10px] text-slate-400 truncate">{g.users.length} accounts • e.g. {g.users.map((u: any) => u.region || "—").join(", ")}</p></div>
+                <button onClick={() => setDismissedRegDupKeys(prev => new Set([...prev, g.key]))} className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600">Keep distinct</button>
+              </div>
+            ))}
+          </div>
+          {regionalDupGroups.length > 6 && <p className="text-[11px] text-slate-400 mt-2 text-center">+ {regionalDupGroups.length - 6} more groups — use Review</p>}
+        </div>
+      )}
+      {/* Duplicate review dialog */}
+      <AnimatePresence>
+        {activeRegDupKey && (() => {
+          const group = regionalDupGroups.find(g => g.key === activeRegDupKey) || regionalDupGroups[0];
+          if (!group) return null;
+          return (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setActiveRegDupKey(null)}>
+              <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div><h3 className="font-semibold text-sm">Duplicate name: {toProperCase(group.users[0].displayName)}</h3><p className="text-xs text-slate-400">{group.users.length} regional officer accounts share this name</p></div>
+                  <button onClick={() => setActiveRegDupKey(null)} className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 grid place-items-center"><X size={16} /></button>
+                </div>
+                <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+                  {group.users.map((u: any) => (
+                    <div key={u.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                      <div className="min-w-0"><p className="text-sm font-semibold truncate">{toProperCase(u.displayName)}</p><p className="text-[11px] text-slate-500 truncate">{u.username} • {u.email}</p><p className="text-[11px] text-slate-400 truncate">{u.zone || "—"} › {u.region || "—"}</p></div>
+                      <button onClick={() => { setSearchQuery(u.displayName); setActiveRegDupKey(null); }} className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700">View</button>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setActiveRegDupKey(null)}>Close</Button>
+                  <Button onClick={() => { setDismissedRegDupKeys(prev => new Set([...prev, group.key])); setActiveRegDupKey(null); }} className="bg-emerald-600 hover:bg-emerald-700 text-white">Keep distinct — dismiss</Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
