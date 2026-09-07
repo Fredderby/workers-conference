@@ -140,7 +140,7 @@ export const ZONE_STRUCTURE: Record<string, Record<string, string[]>> = {
   "Ashanti Zone A": {
     "Bibiani": ["Bibiani div", "Wiawso", "Essam Debiso"],
     "Kumasi South": ["Kumasi South div", "Bohyen"],
-    "Obuasi": ["Obuasi div", "Dunkwa", "Bekwai", "Subin", "New Edubiase"],
+    "Obuasi": ["Obuasi div", "Dunkwa", "Bekwai", "Subin", "New Edubiase", "Senfi Ofoase Kokoben"],
     "Nkawie": ["Nkawie div", "Mankranso"],
   },
   "Ashanti Zone B": {
