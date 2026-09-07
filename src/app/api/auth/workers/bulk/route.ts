@@ -240,6 +240,10 @@ export const POST = withError(async (req: NextRequest) => {
   const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if ((await db.isRegistrationLocked()) && user.role !== "super_admin") {
+    return NextResponse.json({ error: "Registration is locked by super_admin. Only super_admin can upload workers now." }, { status: 423 });
+  }
+
   if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ error: "Your file is empty or has a header row only. Add at least one worker row before uploading." }, { status: 400 });
   if (rows.length > 500) return NextResponse.json({ error: "Your file has too many rows. Split it into batches of 500 workers or fewer." }, { status: 400 });
 

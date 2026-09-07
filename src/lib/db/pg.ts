@@ -655,6 +655,19 @@ export const db = {
       [String(locked)]
     );
   },
+  async isRegistrationLocked(): Promise<boolean> {
+    await ensureInit();
+    const { rows } = await pool.query("SELECT value FROM settings WHERE key='registration_locked' LIMIT 1");
+    return rows[0]?.value === "true";
+  },
+  async setRegistrationLocked(locked: boolean): Promise<void> {
+    await ensureInit();
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('registration_locked', $1)
+       ON CONFLICT (key) DO UPDATE SET value=$1`,
+      [String(locked)]
+    );
+  },
 
   // ---------- approvals ----------
   async listApprovals(): Promise<Approval[]> {

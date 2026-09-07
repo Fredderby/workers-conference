@@ -2226,6 +2226,17 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const zones = Object.keys(ZONE_STRUCTURE);
   const regions = zone ? Object.keys(ZONE_STRUCTURE[zone] || {}) : [];
   const divisions = zone && region ? ZONE_STRUCTURE[zone]?.[region] || [] : [];
+  const { data: locks } = useQuery({ queryKey: ["locks"], queryFn: async () => fetch("/api/auth/admin/locks").then(r => r.json()), refetchInterval: 15000 });
+  const registrationLocked = locks?.registrationLocked ?? false;
+  const isSuper = user.role === "super_admin";
+  const toggleRegistrationLock = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/auth/admin/locks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ registrationLocked: !registrationLocked }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error); return j;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["locks"] }),
+    onError: (e: any) => alert(e.message),
+  });
 
   const createWorker = useMutation({
     mutationFn: async () => { const r = await fetch("/api/auth/workers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, gender, zone, region, division, position, paymentStatus, contact }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; },
@@ -2494,6 +2505,19 @@ function WorkerRegistrationSection({ user }: { user: any }) {
           <div><p className="text-sm font-bold">Worker Registration — {scopeLabel}</p><p className="text-xs text-white/80">You can register, search, and edit workers only in your assigned region. Use bulk reupload to update within your access level.</p></div>
         </div>
       )}
+      {/* Registration lock — super_admin only */}
+      {registrationLocked && (
+        <div className={`rounded-xl border p-3 flex items-center justify-between ${isSuper ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
+          <div className="flex items-center gap-2 text-sm font-medium"><AlertTriangle size={14} className={isSuper ? "text-amber-600" : "text-red-500"} /> Registration is LOCKED by super_admin{!isSuper && " — only super_admin can register now"}</div>
+          {isSuper && <Button size="sm" variant="outline" onClick={() => toggleRegistrationLock.mutate()} disabled={toggleRegistrationLock.isPending} className="gap-1.5">{toggleRegistrationLock.isPending ? "..." : "Unlock"}</Button>}
+        </div>
+      )}
+      {!registrationLocked && isSuper && (
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 flex items-center justify-between">
+          <span className="text-xs font-medium flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Registration: OPEN</span>
+          <Button size="sm" variant="outline" onClick={() => toggleRegistrationLock.mutate()} disabled={toggleRegistrationLock.isPending} className="gap-1.5">{toggleRegistrationLock.isPending ? "..." : "Lock registration"}</Button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h3 className="font-semibold">Registered Workers ({visibleWorkers.length}) {isRegional ? `• ${scopeLabel}` : ""}</h3>
         <div className="flex flex-wrap items-center gap-2">
@@ -2501,12 +2525,12 @@ function WorkerRegistrationSection({ user }: { user: any }) {
             <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
           )}
           {user.role !== "verifier" && (
-            <Button variant="outline" size="sm" onClick={() => { setShowBulk(!showBulk); setShowForm(false); setBulkPreview(null); setBulkResult(null); setBulkErrors(null); setBulkFile(null); }} className="gap-1.5"><Upload size={14} /> Bulk Upload</Button>
+            <Button variant="outline" size="sm" disabled={registrationLocked && !isSuper} onClick={() => { setShowBulk(!showBulk); setShowForm(false); setBulkPreview(null); setBulkResult(null); setBulkErrors(null); setBulkFile(null); }} className="gap-1.5 disabled:opacity-50"><Upload size={14} /> Bulk Upload</Button>
           )}
           {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && data?.workers?.some((w: any) => w.registeredByName === "Bulk Import") && (
             <Button variant="outline" size="sm" onClick={() => setShowCleanup(!showCleanup)} className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/20"><AlertTriangle size={14} /> Clean Up</Button>
           )}
-          <Button onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); setFieldErrors({}); }} className="gap-1.5"><UserPlus size={14} /> Register Worker</Button>
+          <Button disabled={registrationLocked && !isSuper} onClick={() => { setShowForm(true); setShowBulk(false); setError(null); setSuccess(null); setFieldErrors({}); }} className="gap-1.5 disabled:opacity-50"><UserPlus size={14} /> Register Worker</Button>
         </div>
       </div>
       <AnimatePresence>
@@ -3007,13 +3031,23 @@ function WorkerRegistrationSection({ user }: { user: any }) {
    VERIFICATION
    ══════════════════════════════════════════════════════════════ */
 function VerificationSection({ user }: { user: any }) {
-  const [locked, setLocked] = useState(false);
   const [code, setCode] = useState("");
   const [result, setResult] = useState<{ type: "success" | "error" | "info"; title: string; detail: string; worker?: any } | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const qc = useQueryClient();
+  const { data: locks } = useQuery({ queryKey: ["locks"], queryFn: async () => fetch("/api/auth/admin/locks").then(r => r.json()), refetchInterval: 15000 });
+  const locked = locks?.verificationLocked ?? false;
+  const isSuper = user.role === "super_admin";
+  const toggleVerificationLock = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/auth/admin/locks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verificationLocked: !locked }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error); return j;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["locks"] }),
+    onError: (e: any) => alert(e.message),
+  });
   const { data: workerData } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const rawWorkers: any[] = workerData?.workers || [];
   const isRegional = user.role === "regional_officer";
@@ -3070,7 +3104,7 @@ function VerificationSection({ user }: { user: any }) {
   const verify = (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
-    if (locked) { setResult({ type: "error", title: "Verification locked", detail: "Verification window is locked by National Officer." }); return; }
+    if (locked && !isSuper) { setResult({ type: "error", title: "Verification locked", detail: "Verification is locked by super_admin. Only super_admin can verify now." }); return; }
     if (code.trim().length < 1) { setResult({ type: "error", title: "Enter a name", detail: "Type a worker name to verify." }); return; }
     // Prefer selected worker if it matches code, else find best match
     let match: any = selectedWorker && toProperCase(selectedWorker.name).toLowerCase() === code.toLowerCase().trim() ? selectedWorker : null;
@@ -3094,8 +3128,8 @@ function VerificationSection({ user }: { user: any }) {
   return (
     <div className="space-y-4">
       <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
-        <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Verification: {!locked ? "OPEN" : "LOCKED"}</div>
-        {isAdmin(user.role as RoleType) && <button onClick={() => setLocked(!locked)} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5">{locked ? "Unlock" : "Lock"}</button>}
+        <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Verification: {!locked ? "OPEN" : "LOCKED"}{locked && !isSuper && <span className="text-xs text-red-600 ml-2">— only super_admin can unlock</span>}</div>
+        {isSuper && <button onClick={() => toggleVerificationLock.mutate()} disabled={toggleVerificationLock.isPending} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5 disabled:opacity-50">{toggleVerificationLock.isPending ? "..." : locked ? "Unlock" : "Lock"}</button>}
       </div>
       {isRegional && (
         <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
@@ -3196,7 +3230,7 @@ function VerificationSection({ user }: { user: any }) {
                       {w.paymentStatus !== "paid" && !w.verified ? (
                         <span title="Only PAID workers can be verified" className="inline-flex h-8 items-center px-3 rounded-full text-xs font-bold border bg-amber-100 dark:bg-amber-900/30 text-amber-700 border-amber-200 cursor-not-allowed">Unpaid</span>
                       ) : (
-                        <button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={locked || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+                        <button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={(locked && !isSuper) || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
                       )}
                     </td>
                   </tr>
@@ -3214,7 +3248,7 @@ function VerificationSection({ user }: { user: any }) {
                 {w.paymentStatus !== "paid" && !w.verified ? (
                   <span title="Only PAID workers can be verified" className="shrink-0 h-8 inline-flex items-center px-3 rounded-full text-xs font-bold border bg-amber-100 text-amber-700 border-amber-200">Unpaid</span>
                 ) : (
-                  <button onClick={() => verifyMutation.mutate(w.id)} disabled={locked || verifyMutation.isPending} className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border ${w.verified ? "bg-white border-slate-200 text-slate-500" : "bg-emerald-500 border-emerald-600 text-white shadow-sm"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
+                  <button onClick={() => verifyMutation.mutate(w.id)} disabled={(locked && !isSuper) || verifyMutation.isPending} className={`shrink-0 h-8 px-3 rounded-full text-xs font-bold border ${w.verified ? "bg-white border-slate-200 text-slate-500" : "bg-emerald-500 border-emerald-600 text-white shadow-sm"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
                 )}
               </div>
             ))}
@@ -3231,8 +3265,18 @@ function VerificationSection({ user }: { user: any }) {
    APPROVAL — Souvenir Approval by Region (Batch System)
    ══════════════════════════════════════════════════════════════ */
 function ApprovalSection({ user }: { user: any }) {
-  const [locked, setLocked] = useState(false);
   const qc = useQueryClient();
+  const { data: locks } = useQuery({ queryKey: ["locks"], queryFn: async () => fetch("/api/auth/admin/locks").then(r => r.json()), refetchInterval: 15000 });
+  const locked = locks?.verificationLocked ?? false;
+  const isSuper = user.role === "super_admin";
+  const toggleLock = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/auth/admin/locks", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ verificationLocked: !locked }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error); return j;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["locks"] }),
+    onError: (e: any) => alert(e.message),
+  });
   const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
   const { data: approvalData, isLoading: approvalsLoading } = useQuery({ queryKey: ["approvals"], queryFn: async () => fetch("/api/auth/approvals").then(r => r.json()) });
 
@@ -3294,9 +3338,9 @@ function ApprovalSection({ user }: { user: any }) {
                 <span className={`h-1.5 w-1.5 rounded-full ${!locked ? "bg-emerald-300" : "bg-red-300"}`} />
                 {!locked ? "OPEN" : "LOCKED"}
               </div>
-              {isAdmin(user.role as RoleType) && (
-                <button onClick={() => setLocked(!locked)} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 backdrop-blur-sm hover:bg-white/25 transition-colors">
-                  {locked ? "Unlock" : "Lock"}
+              {isSuper && (
+                <button onClick={() => toggleLock.mutate()} disabled={toggleLock.isPending} className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 backdrop-blur-sm hover:bg-white/25 transition-colors disabled:opacity-50">
+                  {toggleLock.isPending ? "..." : locked ? "Unlock" : "Lock"}
                 </button>
               )}
             </div>
@@ -3460,7 +3504,7 @@ function ApprovalSection({ user }: { user: any }) {
                 </div>
               ))}
             </div>
-            {locked && <p className="text-xs text-center text-red-600 bg-red-50 dark:bg-red-950/20 border-t py-2">Approval is locked by National Officer — unlock to approve</p>}
+            {locked && <p className="text-xs text-center text-red-600 bg-red-50 dark:bg-red-950/20 border-t py-2">Approval is locked by super_admin — unlock to approve</p>}
           </div>
 
           {/* ── Approval History ── */}

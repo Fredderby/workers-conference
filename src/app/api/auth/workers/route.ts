@@ -93,6 +93,10 @@ export const POST = withError(async (req: NextRequest) => {
     }
   }
 
+  if ((await db.isRegistrationLocked()) && user.role !== "super_admin") {
+    return NextResponse.json({ error: "Registration is locked by super_admin. Only super_admin can register workers now." }, { status: 423 });
+  }
+
   // Regional officers can only register workers within their assigned region — case-insensitive
   if (user.role === "regional_officer" && user.region) {
     if (String(region).trim().toLowerCase() !== String(user.region).trim().toLowerCase()) {
@@ -156,6 +160,9 @@ export const PATCH = withError(async (req: NextRequest) => {
   }
 
   if (action === "toggleVerified") {
+    if ((await db.isVerificationLocked()) && user.role !== "super_admin") {
+      return NextResponse.json({ error: "Verification is locked by super_admin. Only super_admin can verify now." }, { status: 423 });
+    }
     const w = await db.findWorkerById(workerId);
     if (!w) return NextResponse.json({ error: "Worker not found" }, { status: 404 });
     if (!canEditWorker(user, w)) {

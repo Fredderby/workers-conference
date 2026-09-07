@@ -200,6 +200,7 @@ const reports: Report[] = [];
 const messages: Message[] = [];
 
 let verificationLocked = false;
+let registrationLocked = false;
 
 const isServer = typeof window === "undefined";
 const DATA_FILE = isServer ? require("path").join(process.cwd(), ".db-data.json") : "";
@@ -212,13 +213,14 @@ interface DbSnapshot {
   messages: Message[];
   auditLogs: AuditLog[];
   verificationLocked: boolean;
+  registrationLocked: boolean;
 }
 
 function save() {
   if (!isServer) return;
   try {
     const fs = require("fs");
-    const snapshot: DbSnapshot = { users, workers, attendances, reports, messages, auditLogs, verificationLocked };
+    const snapshot: DbSnapshot = { users, workers, attendances, reports, messages, auditLogs, verificationLocked, registrationLocked };
     fs.writeFileSync(DATA_FILE, JSON.stringify(snapshot, null, 2), "utf-8");
   } catch { /* ignore write errors in edge cases */ }
 }
@@ -238,6 +240,7 @@ function load() {
     if (snap.messages?.length) { messages.push(...snap.messages); }
     if (snap.auditLogs?.length) { auditLogs.push(...snap.auditLogs); }
     verificationLocked = snap.verificationLocked || false;
+    registrationLocked = (snap as any).registrationLocked || false;
     return users.length > 0;
   } catch { return false; }
 }
@@ -365,4 +368,6 @@ export const db = {
   },
   isVerificationLocked() { return verificationLocked; },
   setVerificationLocked(locked: boolean) { verificationLocked = locked; save(); },
+  isRegistrationLocked() { return registrationLocked; },
+  setRegistrationLocked(locked: boolean) { registrationLocked = locked; save(); },
 };
