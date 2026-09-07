@@ -293,6 +293,64 @@ export const POST = withError(async (req: NextRequest) => {
     });
   }
 
+  // Contact uniqueness — one number cannot be reused (contact + contact2 pool, global)
+  {
+    const norm = (s: any) => String(s || "").trim();
+    let existingContacts = new Set<string>();
+    const skipDbCheck = mode === "replace" && isAdmin(user.role);
+    if (!skipDbCheck) {
+      const allExistingForContact = await db.listWorkers();
+      allExistingForContact.forEach((w: any) => {
+        const c1 = norm(w.contact); if (c1) existingContacts.add(c1);
+        const c2 = norm((w as any).contact2); if (c2) existingContacts.add(c2);
+      });
+      if (mode === "replace" && !isAdmin(user.role)) {
+        const scoped = allExistingForContact.filter((w: any) => isWithinWorkerAccessLevel(user, w));
+        scoped.forEach((w: any) => { existingContacts.delete(norm(w.contact)); existingContacts.delete(norm((w as any).contact2)); });
+      }
+    }
+    const fileContactMap = new Map<string, number>();
+    const remainingValid: typeof validRows = [];
+    for (const vr of validRows) {
+      const c1 = norm(pick(vr.row, "Contact", "contact"));
+      const c2 = norm((vr.row as any)["Contact_2"] || (vr.row as any)["Contact2"] || "");
+      if (c1 && c2 && c1 === c2) {
+        validationErrors.push({ row: vr.index + 1, message: `Row ${vr.index + 1}: Contact and Second contact cannot be the same number (${c1}).` });
+        continue;
+      }
+      let dupReason: string | null = null;
+      for (const c of [c1, c2].filter(Boolean) as string[]) {
+        if (existingContacts.has(c)) {
+          dupReason = `Contact ${c} is already used by an existing worker. One number cannot be used for two workers.`;
+          break;
+        }
+        if (fileContactMap.has(c)) {
+          dupReason = `Contact ${c} is duplicated inside your file (also in Row ${fileContactMap.get(c)! + 1}). One number cannot be used for two workers.`;
+          break;
+        }
+      }
+      if (dupReason) {
+        validationErrors.push({ row: vr.index + 1, message: `Row ${vr.index + 1}: ${dupReason}` });
+      } else {
+        remainingValid.push(vr);
+        if (c1) fileContactMap.set(c1, vr.index);
+        if (c2) fileContactMap.set(c2, vr.index);
+      }
+    }
+    validRows.length = 0; validRows.push(...remainingValid);
+    if (validationErrors.length > 0 && validRows.length === 0) {
+      return NextResponse.json({
+        created: 0,
+        errors: validationErrors,
+        skipped: 0,
+        skippedDetails: [],
+        total: rows.length,
+        duplicates: 0,
+        error: `Your file was rejected — none of the ${rows.length} row${rows.length === 1 ? "" : "s"} could be imported. Please fix every row listed below and upload again.`,
+      });
+    }
+  }
+
   // Step 2: Handle replace mode - delete existing after validation (scoped by role)
   let toCreate: typeof validRows = validRows;
   if (mode === "replace") {

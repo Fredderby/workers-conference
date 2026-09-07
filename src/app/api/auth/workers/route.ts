@@ -79,6 +79,19 @@ export const POST = withError(async (req: NextRequest) => {
   if (contact2 && String(contact2).trim() && !/^\d{10}$/.test(String(contact2).trim())) {
     return NextResponse.json({ error: "Second contact must be exactly 10 digits if provided." }, { status: 400 });
   }
+  const contact2Str = contact2 ? String(contact2).trim() : "";
+  // One contact number cannot be reused — check contact/contact2 against all workers
+  {
+    const all = await db.listWorkers();
+    const norm = (s: any) => String(s || "").trim();
+    const dup = all.find(w => norm(w.contact) === contactStr || norm((w as any).contact2) === contactStr);
+    if (dup) return NextResponse.json({ error: `Contact ${contactStr} is already used by "${dup.name}" (${dup.division}). One number cannot be used for two workers.` }, { status: 400 });
+    if (contact2Str) {
+      const dup2 = all.find(w => norm(w.contact) === contact2Str || norm((w as any).contact2) === contact2Str);
+      if (dup2) return NextResponse.json({ error: `Second contact ${contact2Str} is already used by "${dup2.name}" (${dup2.division}). One number cannot be used for two workers.` }, { status: 400 });
+      if (contact2Str === contactStr) return NextResponse.json({ error: "Contact and Second contact cannot be the same number." }, { status: 400 });
+    }
+  }
 
   // Regional officers can only register workers within their assigned region — case-insensitive
   if (user.role === "regional_officer" && user.region) {
@@ -174,6 +187,22 @@ export const PATCH = withError(async (req: NextRequest) => {
       }
     }
     if (patch.name !== undefined) patch.name = toProperCase(String(patch.name).trim());
+    // Contact uniqueness on edit — exclude self
+    if (patch.contact !== undefined || (patch as any).contact2 !== undefined) {
+      const all = await db.listWorkers();
+      const norm = (s: any) => String(s || "").trim();
+      const newContact = patch.contact !== undefined ? norm(patch.contact) : norm(existing.contact);
+      const newContact2 = (patch as any).contact2 !== undefined ? norm((patch as any).contact2) : norm((existing as any).contact2);
+      if (newContact && !/^\d{10}$/.test(newContact)) return NextResponse.json({ error: "Contact must be exactly 10 digits." }, { status: 400 });
+      if (newContact2 && !/^\d{10}$/.test(newContact2)) return NextResponse.json({ error: "Second contact must be exactly 10 digits if provided." }, { status: 400 });
+      if (newContact && newContact2 && newContact === newContact2) return NextResponse.json({ error: "Contact and Second contact cannot be the same number." }, { status: 400 });
+      const dup = newContact ? all.find(w => w.id !== workerId && (norm(w.contact) === newContact || norm((w as any).contact2) === newContact)) : null;
+      if (dup) return NextResponse.json({ error: `Contact ${newContact} is already used by "${dup.name}" (${dup.division}). One number cannot be used for two workers.` }, { status: 400 });
+      const dup2 = newContact2 ? all.find(w => w.id !== workerId && (norm(w.contact) === newContact2 || norm((w as any).contact2) === newContact2)) : null;
+      if (dup2) return NextResponse.json({ error: `Second contact ${newContact2} is already used by "${dup2.name}" (${dup2.division}).` }, { status: 400 });
+      if (patch.contact !== undefined) patch.contact = newContact;
+      if ((patch as any).contact2 !== undefined) (patch as any).contact2 = newContact2 || undefined;
+    }
     const w = await db.updateWorker(workerId, patch);
     await db.audit({ userId: user.id, action: "user_updated", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "", browser: "", os: "", detail: `Edited worker ${w?.name} (${workerId})` });
     return NextResponse.json({ worker: w });
