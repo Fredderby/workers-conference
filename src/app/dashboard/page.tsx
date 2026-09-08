@@ -196,7 +196,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
               {section === "broadcast" && <BroadcastSection user={user} />}
               {section === "sessions" && isAdmin(user.role as RoleType) && <SessionsSection />}
               {section === "audit" && isAdmin(user.role as RoleType) && <AuditSection />}
-              {section === "reports" && (isAdmin(user.role as RoleType) || user.role === "regional_officer" || user.role === "viewer") && <ReportsSection user={user} />}
+              {section === "reports" && (isAdmin(user.role as RoleType) || user.role === "regional_officer" || user.role === "viewer" || user.role === "accounts_officer") && <ReportsSection user={user} />}
               {section === "mfa" && isAdmin(user.role as RoleType) && <MFASection />}
               {section === "settings" && <SettingsSection user={user} setUser={setUser} />}
             </motion.div>
@@ -312,7 +312,7 @@ function ReportsSection({ user }: { user: any }) {
     const want = user.region.trim().toLowerCase();
     return rawWorkers.filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [rawWorkers, user.region, isRegional]);
-  const [reportType, setReportType] = useState("registration");
+  const [reportType, setReportType] = useState(user.role === "accounts_officer" ? "payment" : "registration");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().split("T")[0]);
 
   const isVerifier = user.role === "verifier";
@@ -3160,6 +3160,80 @@ function VerificationSection({ user }: { user: any }) {
       setResult({ type: "error", title: `No worker found for "${code}"`, detail: "Check the spelling or select from suggestions. Try typing fewer letters." });
     }
   };
+
+  if (user.role === "accounts_officer") {
+    const total = workers.length;
+    const paid = workers.filter((w: any) => w.paymentStatus === "paid").length;
+    const unpaid = total - paid;
+    const totalPayable = total * REG_FEE;
+    const paidAmount = paid * REG_FEE;
+    const unpaidAmount = unpaid * REG_FEE;
+    const filtered = code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()) || w.id.toLowerCase().includes(code.toLowerCase().trim())) : workers;
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
+          <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><CreditCard size={16} className="text-white" /></div>
+          <div><p className="text-sm font-bold">Payment Verification — Accounts</p><p className="text-xs text-white/80">Verify participant count and GH₵300 fee before approval • Total = Participants × GH₵300</p></div>
+        </div>
+        <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
+          <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Payment Verification: {!locked ? "OPEN" : "LOCKED"}{locked && <span className="text-xs text-red-600 ml-2">— only super_admin can unlock</span>}</div>
+          {isSuper && <button onClick={() => toggleVerificationLock.mutate()} disabled={toggleVerificationLock.isPending} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5 disabled:opacity-50">{toggleVerificationLock.isPending ? "..." : locked ? "Unlock" : "Lock"}</button>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GH₵300</p></div>
+          <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
+          <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
+        </div>
+        <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Payment</h3><p className="text-xs text-slate-400">Search by name or ID • {workers.length} workers • Payment = GH₵300 each</p></CardHeader>
+          <CardContent>
+            <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2 relative">
+              <div className="relative flex-1 max-w-md">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input value={code} onChange={e => { setCode(e.target.value); setShowSuggestions(true); setSelectedIndex(-1); setResult(null); setSelectedWorker(null); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 180)} onKeyDown={handleKeyDown} placeholder="Enter worker name or ID to verify payment" className="w-full pl-9 pr-8 h-11 rounded-xl" autoComplete="off" />
+                {code && <button type="button" onClick={() => { setCode(""); setShowSuggestions(false); setResult(null); setSelectedWorker(null); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+              </div>
+              <Button type="submit" disabled={verifyMutation.isPending} className="shrink-0 h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg">{verifyMutation.isPending ? "Verifying..." : "Verify Payment"}</Button>
+            </form>
+            {result && (
+              <div className={`mt-4 rounded-xl border p-4 flex items-start gap-3 ${result.type === "success" ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800" : result.type === "info" ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800" : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"}`}>
+                <div className={`h-8 w-8 rounded-full grid place-items-center shrink-0 ${result.type === "success" ? "bg-emerald-500" : result.type === "info" ? "bg-amber-500" : "bg-red-500"}`}>{result.type === "success" ? <CheckCircle2 size={16} className="text-white" /> : result.type === "info" ? <AlertTriangle size={16} className="text-white" /> : <X size={16} className="text-white" />}</div>
+                <div className="flex-1 min-w-0"><p className="text-sm font-bold">{result.title}</p><p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{result.detail}</p></div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between"><h3 className="font-semibold">Payment Verification Queue</h3><span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 border border-indigo-200">{filtered.length} workers</span></CardHeader>
+          <CardContent className="p-0">
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500"><tr><th className="text-left px-4 py-3">Worker</th><th className="text-left px-3 py-3">Region › Division</th><th className="text-center px-3 py-3">Payment</th><th className="text-center px-3 py-3">Amount</th><th className="text-center px-3 py-3">Action</th></tr></thead>
+                <tbody className="divide-y">
+                  {filtered.slice(0, 50).map((w: any) => (
+                    <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{toProperCase(w.name)[0]}</div><span className="font-medium">{toProperCase(w.name)}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
+                      <td className="px-3 py-3 text-xs text-slate-500">{w.region} › {w.division}</td>
+                      <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
+                      <td className="px-3 py-3 text-center font-bold text-emerald-600 text-xs">{fmtGHS(REG_FEE)}</td>
+                      <td className="px-3 py-3 text-center">{w.paymentStatus === "paid" ? <span className="text-xs text-emerald-600 font-medium">Paid ✓</span> : <span className="text-xs text-amber-600">Unpaid — verify after payment</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="md:hidden divide-y">
+              {filtered.slice(0, 20).map((w: any) => (
+                <div key={w.id} className="p-4 flex items-center justify-between">
+                  <div className="min-w-0"><p className="text-sm font-semibold truncate">{toProperCase(w.name)}</p><p className="text-[11px] text-slate-400">{w.region} › {w.division} • {fmtGHS(REG_FEE)}</p></div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
