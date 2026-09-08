@@ -20,7 +20,7 @@ export const POST = withError(async (req: NextRequest) => {
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await db.findUserById(payload.sub);
-  if (!user || !isAdmin(user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user || (!isAdmin(user.role) && user.role !== "accounts_officer")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { region, verifiedCount, notes } = await req.json();
   if (!region) return NextResponse.json({ error: "Region is required" }, { status: 400 });

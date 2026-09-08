@@ -18,6 +18,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as 
 const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserPlus, ScanLine, ClipboardCheck, FileText: ScrollText, ScrollText, Monitor, ShieldCheck, Settings };
 
 const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#06b6d4", "#f43f5e", "#10b981"];
+const REG_FEE = 300;
+const fmtGHS = (n: number) => `GH₵${n.toLocaleString()}`;
 
 // Workers cache is scoped by viewer role+scope so a national full list can never
 // be served from cache to a regional officer (and vice versa).
@@ -331,6 +333,9 @@ function ReportsSection({ user }: { user: any }) {
   const verified = workers.filter(w => w.verified).length;
   const male = workers.filter(w => w.gender === "male").length;
   const female = workers.filter(w => w.gender === "female").length;
+  const totalPayable = total * REG_FEE;
+  const paidAmount = paid * REG_FEE;
+  const unpaidAmount = unpaid * REG_FEE;
 
   const dailyWorkers = workers.filter(w => {
     if (!w.createdAt) return false;
@@ -658,11 +663,18 @@ function ReportsSection({ user }: { user: any }) {
                     <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Paid</span><span className="text-xs font-bold text-emerald-600">{paid} ({total > 0 ? ((paid/total)*100).toFixed(1) : 0}%)</span></div>
                     <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (paid/total)*100 : 0}%` }} /></div>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
-                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
-                  </div>
-                  {/* Top unpaid — Premium Collapsible */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
+                      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
+                    </div>
+                    {/* Financial Summary — GH₵300 rule */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-sm font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GH₵300</p></div>
+                      <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-sm font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
+                      <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-sm font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 text-center">Registration Fee: GH₵300 per participant • Total = Participants × GH₵300</p>
+                    {/* Top unpaid — Premium Collapsible */}
                   <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <button onClick={() => setPaymentExpanded(!paymentExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle size={12} className="text-amber-500" /> Top Unpaid ({unpaid})</span>
@@ -1327,6 +1339,10 @@ function OverviewSection({ user }: { user: any }) {
     // Division coverage
     const divisionCount = Object.keys(byDivision).length;
     const avgPerDivision = divisionCount > 0 ? (total / divisionCount).toFixed(1) : "0";
+    // Financial — GH₵300 per participant
+    const totalPayable = total * REG_FEE;
+    const paidAmount = paid.length * REG_FEE;
+    const unpaidAmount = unpaid.length * REG_FEE;
 
     // Gender pay gap analysis
     const paidRate = total > 0 ? ((paid.length / total) * 100).toFixed(1) : "0";
@@ -1340,6 +1356,7 @@ function OverviewSection({ user }: { user: any }) {
       genderPie, paymentPie, zonePie,
       verificationRate, avgPerRegion, paidRate, regionCount,
       divisionCount, avgPerDivision,
+      totalPayable, paidAmount, unpaidAmount,
     };
   }, [filteredWorkers]);
 
@@ -1396,6 +1413,14 @@ function OverviewSection({ user }: { user: any }) {
           <GoalProgress label="Male Target" current={stats.male} target={Math.max(Math.round(stats.total * 0.55), 1)} color="#8b5cf6" />
           <GoalProgress label="Female Target" current={stats.female} target={Math.max(Math.round(stats.total * 0.45), 1)} color="#ec4899" />
         </div>
+        {(user.role === "accounts_officer" || isAdmin(user.role as RoleType)) && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 p-3">
+            <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(stats.totalPayable)}</p><p className="text-[10px] text-slate-400">{stats.total} × GH₵300</p></div><CreditCard size={18} className="text-slate-400" /></div>
+            <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(stats.paidAmount)}</p><p className="text-[10px] text-emerald-100">{stats.paid} paid</p></div><CheckCircle2 size={18} className="text-white/80" /></div>
+            <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(stats.unpaidAmount)}</p><p className="text-[10px] text-amber-100">{stats.unpaid} unpaid</p></div><AlertTriangle size={18} className="text-white/80" /></div>
+          </div>
+        )}
+        <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-500"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GH₵300 per participant • Total = Participants × GH₵300</div>
       </div>
 
       {/* ── Metric Cards — Power BI Card Visual ── */}
@@ -1964,7 +1989,7 @@ function UserManagementSection() {
                   <div><Label>Full Name</Label><Input value={form.displayName} onChange={e => setForm({ ...form, displayName: e.target.value })} placeholder="John Doe" /></div>
                   <div><Label>Role</Label>
                     <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value as RoleType, zone: "", region: "" })} className="flex h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
-                       <option value="regional_officer">Regional Officer</option><option value="verifier">Verifier</option><option value="viewer">Viewer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option>
+                       <option value="regional_officer">Regional Officer</option><option value="verifier">Verifier</option><option value="viewer">Viewer</option><option value="accounts_officer">Accounts Officer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option>
                     </select>
                   </div>
                   {(form.role === "regional_officer" || form.role === "verifier") && (
@@ -2074,7 +2099,7 @@ function UserManagementSection() {
                   <div><Label>Username *</Label><Input value={editForm.username || ""} onChange={e => setEditForm({ ...editForm, username: e.target.value })} placeholder="username" className="mt-1 font-mono text-sm" /></div>
                 </div>
                 <div><Label>Email</Label><Input type="email" value={editForm.email || ""} onChange={e => setEditForm({ ...editForm, email: e.target.value })} placeholder="user@dclm.org" className="mt-1" /></div>
-                <div><Label>Role</Label><select value={editForm.role || ""} onChange={e => setEditForm({ ...editForm, role: e.target.value, zone: "", region: "" } as any)} className="mt-1 flex h-10 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"><option value="viewer">Viewer</option><option value="verifier">Verifier</option><option value="regional_officer">Regional Officer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option></select></div>
+                <div><Label>Role</Label><select value={editForm.role || ""} onChange={e => setEditForm({ ...editForm, role: e.target.value, zone: "", region: "" } as any)} className="mt-1 flex h-10 w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm"><option value="viewer">Viewer</option><option value="verifier">Verifier</option><option value="regional_officer">Regional Officer</option><option value="accounts_officer">Accounts Officer</option><option value="national_officer">National Officer</option><option value="super_admin">Super Administrator</option></select></div>
                 {(editForm.role === "regional_officer" || editForm.role === "verifier") && (
                   <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                     <div><Label>Zone</Label><select value={editForm.zone || ""} onChange={e => setEditForm({ ...editForm, zone: e.target.value, region: "" })} className="mt-1 flex h-10 w-full rounded-xl border bg-white dark:bg-slate-900 px-3 text-sm"><option value="">Select zone</option>{Object.keys(ZONE_STRUCTURE).map(z => <option key={z} value={z}>{z}</option>)}</select></div>
@@ -3482,19 +3507,21 @@ function ApprovalSection({ user }: { user: any }) {
                 <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 grid place-items-center shadow-md"><ClipboardCheck size={16} className="text-white" /></div>
                 <div><h3 className="font-semibold text-sm">Approve Souvenirs — All Regions</h3><p className="text-xs text-slate-400">Click <span className="font-bold text-violet-600">Approve</span> in the table to approve verified workers for souvenir distribution</p></div>
               </div>
-              <div className="flex items-center gap-2 text-[11px]"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span></div>
+              <div className="flex items-center gap-2 text-[11px] flex-wrap"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span><span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Pending amount: {fmtGHS(totalCurrentBatch * REG_FEE)}</span><span className="hidden sm:inline text-[10px] text-slate-400">GH₵300 × participants</span></div>
             </div>
+            <div className="px-5 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px]"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GH₵300 per participant • Total = Participants × GH₵300 • Verified batch × GH₵300 approved</div>
             <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
               <table className="table-premium w-full text-sm">
-                <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
+                <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Amount</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {regionStats.length === 0 ? <tr><td colSpan={6} className="table-empty"><div className="table-empty-icon"><ClipboardCheck size={16} /></div><p className="text-sm font-medium">No regions yet — register workers first</p></td></tr> : regionStats.map((r) => (
+                  {regionStats.length === 0 ? <tr><td colSpan={7} className="table-empty"><div className="table-empty-icon"><ClipboardCheck size={16} /></div><p className="text-sm font-medium">No regions yet — register workers first</p></td></tr> : regionStats.map((r) => (
                     <tr key={r.region} className="hover:bg-violet-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-5 py-3.5"><div className="flex items-center gap-2.5"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><span className="font-semibold">{r.region}</span><span className="text-[11px] text-slate-400">• {r.total} workers</span></div></td>
                       <td className="px-3 py-3.5 text-center font-bold">{r.total}</td>
                       <td className="px-3 py-3.5 text-center"><span className="inline-flex h-6 min-w-[28px] items-center justify-center px-2 rounded-full bg-emerald-500 text-white text-xs font-bold shadow-sm">{r.verified}</span></td>
                       <td className="px-3 py-3.5 text-center text-xs text-slate-500">{r.lastApproval ? `Batch ${r.lastApproval.batchNumber}` : <span className="text-slate-400">Never</span>}</td>
                       <td className="px-3 py-3.5 text-center">{r.currentBatch > 0 ? <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-sm">+{r.currentBatch} new</span> : <span className="text-xs text-slate-400">—</span>}</td>
+                      <td className="px-3 py-3.5 text-center font-bold text-emerald-600">{r.currentBatch > 0 ? fmtGHS(r.currentBatch * REG_FEE) : "—"}</td>
                       <td className="px-3 py-3.5 text-center">
                         {r.currentBatch > 0 ? (
                           <button onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })} disabled={locked || approveMutation.isPending} className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-xs font-bold text-white shadow-md disabled:opacity-40 hover:shadow-lg transition-all" style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}><ClipboardCheck size={12} /> Approve</button>
@@ -3510,7 +3537,7 @@ function ApprovalSection({ user }: { user: any }) {
             <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
               {regionStats.map((r) => (
                 <div key={r.region} className="p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><div className="min-w-0"><p className="text-sm font-bold truncate">{r.region}</p><p className="text-[11px] text-slate-400">{r.verified} verified • {r.currentBatch} new batch</p></div></div>
+                  <div className="flex items-center gap-2.5 min-w-0"><div className="h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: r.currentBatch > 0 ? "linear-gradient(135deg, #f59e0b, #f97316)" : "linear-gradient(135deg, #64748b, #475569)" }}>{r.region.charAt(0)}</div><div className="min-w-0"><p className="text-sm font-bold truncate">{r.region}</p><p className="text-[11px] text-slate-400">{r.verified} verified • {r.currentBatch} new • {r.currentBatch > 0 ? fmtGHS(r.currentBatch * REG_FEE) : "—"}</p></div></div>
                   {r.currentBatch > 0 ? <button onClick={() => approveMutation.mutate({ region: r.region, verifiedCount: r.verified })} disabled={locked} className="shrink-0 h-8 px-4 rounded-full text-xs font-bold text-white shadow-md disabled:opacity-40" style={{ background: "linear-gradient(135deg, #7c3aed, #6366f1)" }}><span className="flex items-center gap-1"><ClipboardCheck size={12} /> Approve</span></button> : <span className="text-xs text-slate-400 shrink-0">—</span>}
                 </div>
               ))}

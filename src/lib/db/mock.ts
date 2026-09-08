@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 
-export type RoleType = "super_admin" | "national_officer" | "regional_officer" | "verifier" | "viewer";
+export type RoleType = "super_admin" | "national_officer" | "regional_officer" | "verifier" | "viewer" | "accounts_officer";
 export type Permission = string;
 
 export interface User {

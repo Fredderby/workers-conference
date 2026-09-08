@@ -33,7 +33,7 @@ export const POST = withError(async (req: NextRequest) => {
     return NextResponse.json({ error: "Email or username already exists" }, { status: 409 });
   }
 
-  const validRoles: RoleType[] = ["super_admin", "national_officer", "regional_officer", "verifier", "viewer"];
+  const validRoles: RoleType[] = ["super_admin", "national_officer", "regional_officer", "verifier", "viewer", "accounts_officer"];
   if (!validRoles.includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
 
   const pw = tempPassword || "TempPass123!";
