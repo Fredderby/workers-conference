@@ -3094,6 +3094,11 @@ function VerificationSection({ user }: { user: any }) {
     const want = user.region.trim().toLowerCase();
     return rawWorkers.filter((w: any) => w.region && w.region.trim().toLowerCase() === want);
   }, [rawWorkers, user.region, isRegional]);
+  const byDivision: Record<string, any[]> = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    workers.forEach((w: any) => { const d = (w.division || "Unassigned").trim() || "Unassigned"; if (!map[d]) map[d] = []; map[d].push(w); });
+    return map;
+  }, [workers]);
 
   const suggestions = useMemo(() => {
     if (!code.trim() || code.trim().length < 1) return [];
@@ -3135,6 +3140,24 @@ function VerificationSection({ user }: { user: any }) {
       setResult({ type: "success", title: `Verified: ${toProperCase(updated.name)}`, detail: `${updated.zone} › ${updated.region} › ${updated.division} • ${POSITION_LABELS[updated.position as keyof typeof POSITION_LABELS] || updated.position} • ${updated.verified ? "Now Verified ✓" : "Verification removed"}`, worker: updated });
     },
     onError: (e: any) => setResult({ type: "error", title: "Verification failed", detail: e.message }),
+  });
+  const bundleVerify = useMutation({
+    mutationFn: async (division: string) => {
+      const ws = byDivision[division] || [];
+      const targets = ws.filter((w: any) => !w.verified && w.paymentStatus === "paid");
+      if (targets.length === 0) throw new Error("No paid unverified workers in this division bundle.");
+      if (locked && !isSuper) throw new Error("Verification is locked by super_admin.");
+      for (const w of targets) {
+        const r = await fetch("/api/auth/workers", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workerId: w.id, action: "toggleVerified" }) });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      }
+      return { division, count: targets.length };
+    },
+    onSuccess: ({ division, count }: any) => {
+      qc.invalidateQueries({ queryKey: ["workers"] });
+      setResult({ type: "success", title: `Bundle verified: ${division}`, detail: `${count} workers in division "${division}" verified.` });
+    },
+    onError: (e: any) => setResult({ type: "error", title: "Bundle verification failed", detail: e.message }),
   });
 
   const verify = (e: React.FormEvent) => {
@@ -3207,17 +3230,25 @@ function VerificationSection({ user }: { user: any }) {
           <CardContent className="p-0">
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500"><tr><th className="text-left px-4 py-3">Worker</th><th className="text-left px-3 py-3">Region › Division</th><th className="text-center px-3 py-3">Payment</th><th className="text-center px-3 py-3">Amount</th><th className="text-center px-3 py-3">Action</th></tr></thead>
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500"><tr><th className="text-left px-4 py-3">Division</th><th className="text-left px-3 py-3">Region</th><th className="text-center px-3 py-3">Workers</th><th className="text-center px-3 py-3">Paid</th><th className="text-center px-3 py-3">Verified</th><th className="text-center px-3 py-3">Amount</th><th className="text-center px-3 py-3">Verify Bundle</th></tr></thead>
                 <tbody className="divide-y">
-                  {filtered.slice(0, 50).map((w: any) => (
-                    <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{toProperCase(w.name)[0]}</div><span className="font-medium">{toProperCase(w.name)}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
-                      <td className="px-3 py-3 text-xs text-slate-500">{w.region} › {w.division}</td>
-                      <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
-                      <td className="px-3 py-3 text-center font-bold text-emerald-600 text-xs">{fmtGHS(REG_FEE)}</td>
-                      <td className="px-3 py-3 text-center">{w.paymentStatus === "paid" ? <span className="text-xs text-emerald-600 font-medium">Paid ✓</span> : <span className="text-xs text-amber-600">Unpaid — verify after payment</span>}</td>
-                    </tr>
-                  ))}
+                  {Object.entries(byDivision).sort((a,b)=> (b[1] as any[]).length - (a[1] as any[]).length).map(([division, ws]: any) => {
+                    const paidInDiv = (ws as any[]).filter((w:any)=> w.paymentStatus==="paid").length;
+                    const verifiedInDiv = (ws as any[]).filter((w:any)=> w.verified).length;
+                    const pending = (ws as any[]).filter((w:any)=> !w.verified && w.paymentStatus==="paid").length;
+                    const amount = pending * REG_FEE;
+                    return (
+                      <tr key={division} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="px-4 py-3 font-medium">{division}</td>
+                        <td className="px-3 py-3 text-xs text-slate-500">{(ws as any[])[0]?.region}</td>
+                        <td className="px-3 py-3 text-center font-bold">{(ws as any[]).length}</td>
+                        <td className="px-3 py-3 text-center"><span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{paidInDiv}</span></td>
+                        <td className="px-3 py-3 text-center"><span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700">{verifiedInDiv}</span></td>
+                        <td className="px-3 py-3 text-center font-bold text-emerald-600 text-xs">{fmtGHS(amount)}</td>
+                        <td className="px-3 py-3 text-center">{pending>0 ? <button onClick={()=> bundleVerify.mutate(division)} disabled={bundleVerify.isPending || (locked && !isSuper)} className="px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">Verify Bundle ({pending})</button> : <span className="text-xs text-emerald-600 font-medium">All verified</span>}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -3329,22 +3360,24 @@ function VerificationSection({ user }: { user: any }) {
             <table className="table-premium w-full text-sm">
               <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-4 py-3 font-semibold">Name</th><th className="text-left px-3 py-3 font-semibold">Zone → Division</th><th className="text-left px-3 py-3 font-semibold">Position</th><th className="text-center px-3 py-3 font-semibold">Payment</th><th className="text-center px-3 py-3 font-semibold">Status</th><th className="text-center px-3 py-3 font-semibold">Verify</th></tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {(code.trim() ? workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim()) || w.id.toLowerCase().includes(code.toLowerCase().trim())) : workers).slice(0, 50).map((w: any) => (
-                  <tr key={w.id} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 grid place-items-center text-white text-xs font-bold">{toProperCase(w.name)[0]}</div><span className="font-medium">{toProperCase(w.name)}</span></div><p className="text-[11px] text-slate-400 pl-9">{w.contact || ""}</p></td>
-                    <td className="px-3 py-3 text-xs text-slate-500">{w.zone}<br /><span className="text-[11px] text-slate-400">{w.region} › {w.division}</span></td>
-                    <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</span></td>
-                    <td className="px-3 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${w.paymentStatus === "paid" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{w.paymentStatus}</span></td>
-                    <td className="px-3 py-3 text-center"><span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-bold border ${w.verified ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{w.verified ? "Verified" : "Pending"}</span></td>
-                    <td className="px-3 py-3 text-center">
-                      {w.paymentStatus !== "paid" && !w.verified ? (
-                        <span title="Only PAID workers can be verified" className="inline-flex h-8 items-center px-3 rounded-full text-xs font-bold border bg-amber-100 dark:bg-amber-900/30 text-amber-700 border-amber-200 cursor-not-allowed">Unpaid</span>
-                      ) : (
-                        <button onClick={() => { setCode(w.name); setSelectedWorker(w); verifyMutation.mutate(w.id); }} disabled={(locked && !isSuper) || verifyMutation.isPending} className={`h-8 px-3 rounded-full text-xs font-bold border shadow-sm transition-all ${w.verified ? "bg-white dark:bg-slate-800 border-slate-200 text-slate-500 hover:bg-slate-50" : "bg-gradient-to-r from-emerald-500 to-emerald-600 border-emerald-600 text-white hover:shadow-md"} disabled:opacity-40`}>{w.verified ? "Unverify" : "Verify"}</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {Object.entries(byDivision).sort((a,b)=> (b[1] as any[]).length - (a[1] as any[]).length).map(([division, ws]: any) => {
+                    const paidInDiv = (ws as any[]).filter((w:any)=> w.paymentStatus==="paid").length;
+                    const verifiedInDiv = (ws as any[]).filter((w:any)=> w.verified).length;
+                    const pending = (ws as any[]).filter((w:any)=> !w.verified && w.paymentStatus==="paid").length;
+                    const amount = pending * REG_FEE;
+                    return (
+                      <tr key={division} className="hover:bg-indigo-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 font-medium">{division}</td>
+                        <td className="px-3 py-3 text-xs text-slate-500">{(ws as any[])[0]?.region}</td>
+                        <td className="px-3 py-3 text-center font-bold">{(ws as any[]).length}</td>
+                        <td className="px-3 py-3 text-center"><span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{paidInDiv}</span></td>
+                        <td className="px-3 py-3 text-center"><span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700">{verifiedInDiv}</span></td>
+                        <td className="px-3 py-3 text-center font-bold text-emerald-600 text-xs">{fmtGHS(amount)}</td>
+                        <td className="px-3 py-3 text-center">{pending>0 ? <button onClick={()=> bundleVerify.mutate(division)} disabled={bundleVerify.isPending || (locked && !isSuper)} className="px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">Verify Bundle ({pending})</button> : <span className="text-xs text-emerald-600 font-medium">All verified</span>}</td>
+                      </tr>
+                    );
+                  })}
+
                 {workers.length === 0 && <tr><td colSpan={6} className="table-empty"><div className="table-empty-icon"><ScanLine size={16} /></div><p className="text-sm font-medium">No workers registered yet.</p></td></tr>}
                 {code.trim() && workers.filter((w: any) => w.name.toLowerCase().includes(code.toLowerCase().trim())).length === 0 && workers.length > 0 && <tr><td colSpan={6} className="table-empty"><p className="text-sm text-slate-400">No matches for &quot;{code}&quot;</p></td></tr>}
               </tbody>
