@@ -24,8 +24,8 @@ export const GET = withError(async (req: NextRequest) => {
   }
 
   let list = await db.listWorkers();
-  if (user.role === "super_admin" || user.role === "national_officer") {
-    // Super admin + National officer → full list only
+  if (user.role === "super_admin" || user.role === "national_officer" || user.role === "accounts_officer") {
+    // Super admin / National / Accounts → full list (finance needs global view)
   } else if (user.role === "regional_officer") {
     // Regional officers → only workers in their assigned region (case-insensitive, trimmed) — 25y fix for 263/248 drift
     if (!user.region) {
