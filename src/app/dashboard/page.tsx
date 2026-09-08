@@ -1324,6 +1324,9 @@ function OverviewSection({ user }: { user: any }) {
     // Average per region
     const regionCount = Object.keys(byRegion).length;
     const avgPerRegion = regionCount > 0 ? (total / regionCount).toFixed(1) : "0";
+    // Division coverage
+    const divisionCount = Object.keys(byDivision).length;
+    const avgPerDivision = divisionCount > 0 ? (total / divisionCount).toFixed(1) : "0";
 
     // Gender pay gap analysis
     const paidRate = total > 0 ? ((paid.length / total) * 100).toFixed(1) : "0";
@@ -1336,6 +1339,7 @@ function OverviewSection({ user }: { user: any }) {
       chartData, topRegionNames,
       genderPie, paymentPie, zonePie,
       verificationRate, avgPerRegion, paidRate, regionCount,
+      divisionCount, avgPerDivision,
     };
   }, [filteredWorkers]);
 
@@ -1631,10 +1635,12 @@ function OverviewSection({ user }: { user: any }) {
               title="Regional Coverage"
               value={`${stats.regionCount}`}
               unit="regions"
-              detail={`${stats.avgPerRegion} avg workers per region`}
+              detail={`${stats.avgPerRegion} avg / region`}
               trend={Number(stats.avgPerRegion) > 10 ? "up" : "down"}
-              insight={stats.total > 0 ? `Top region: ${stats.topRegions[0]?.name} contributes ${((stats.topRegions[0]?.count / stats.total) * 100).toFixed(1)}% of all registrations. Consider increasing outreach in underrepresented regions.` : "No data yet."}
+              insight={stats.total > 0 ? `Top region: ${stats.topRegions[0]?.name} (${((stats.topRegions[0]?.count / stats.total) * 100).toFixed(1)}%) • Top division: ${stats.topDivisions[0]?.name} (${((stats.topDivisions[0]?.count / stats.total) * 100).toFixed(1)}%). ${stats.divisionCount} divisions across ${stats.regionCount} regions.` : "No data yet."}
               accent="#6366f1"
+              extra={`${stats.divisionCount} divisions • ${stats.avgPerDivision} avg / division`}
+              extraIcon={<Layers size={10} />}
             />
             <InsightCard
               icon={<DollarSign size={14} />}
@@ -1765,7 +1771,7 @@ function PBICard({ title, value, trend, trendUp, male, female, accent, sparkData
 }
 
 /* ── Insight Card ── */
-function InsightCard({ icon, title, value, unit, detail, trend, insight, accent }: { icon: React.ReactNode; title: string; value: string | number; unit: string; detail: string; trend: "up" | "down"; insight: string; accent: string }) {
+function InsightCard({ icon, title, value, unit, detail, trend, insight, accent, extra, extraIcon }: { icon: React.ReactNode; title: string; value: string | number; unit: string; detail: string; trend: "up" | "down"; insight: string; accent: string; extra?: string; extraIcon?: React.ReactNode }) {
   return (
     <div className="card-premium p-4 relative overflow-hidden group">
       <div className="accent-bar" style={{ background: `linear-gradient(90deg, ${accent}, ${accent}88)` }} />
@@ -1781,6 +1787,11 @@ function InsightCard({ icon, title, value, unit, detail, trend, insight, accent 
         <span className="text-xs text-slate-400 font-medium">{unit}</span>
       </div>
       <p className="text-[11px] text-slate-400 mt-0.5">{detail}</p>
+      {extra && (
+        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/30 border border-indigo-100 dark:border-indigo-800/50 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300 shadow-sm">
+          {extraIcon} {extra}
+        </div>
+      )}
       <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
         <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">{insight}</p>
       </div>
