@@ -302,7 +302,7 @@ function DrillIndicator() {
    REPORTS — Premium Power BI Pro Design
    ══════════════════════════════════════════════════════════════ */
 function ReportsSection({ user }: { user: any }) {
-  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()), staleTime: 30_000, gcTime: 300_000, refetchOnWindowFocus: false, retry: 1 });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
@@ -1236,7 +1236,7 @@ function ReportsSection({ user }: { user: any }) {
    OVERVIEW — Premium Analytics Dashboard
    ══════════════════════════════════════════════════════════════ */
 function OverviewSection({ user }: { user: any }) {
-  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()), staleTime: 30_000, gcTime: 300_000, refetchOnWindowFocus: false, retry: 1 });
   const rawWorkers: any[] = data?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
@@ -2250,7 +2250,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data, isLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()), staleTime: 30_000, gcTime: 300_000, refetchOnWindowFocus: false, retry: 1 });
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
   const visibleWorkers = useMemo(() => {
@@ -3084,7 +3084,7 @@ function VerificationSection({ user }: { user: any }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["locks"] }),
     onError: (e: any) => alert(e.message),
   });
-  const { data: workerData } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: workerData } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()), staleTime: 30_000, gcTime: 300_000, refetchOnWindowFocus: false, retry: 1 });
   const rawWorkers: any[] = workerData?.workers || [];
   const isRegional = user.role === "regional_officer";
   const scopeLabel = isRegional ? (user.region ? `Region: ${user.region}` : "Your Region") : null;
@@ -3416,7 +3416,7 @@ function ApprovalSection({ user }: { user: any }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["locks"] }),
     onError: (e: any) => alert(e.message),
   });
-  const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()) });
+  const { data: workerData, isLoading: workersLoading } = useQuery({ queryKey: WORKERS_KEY(user), queryFn: async () => fetch("/api/auth/workers").then(r => r.json()), staleTime: 30_000, gcTime: 300_000, refetchOnWindowFocus: false, retry: 1 });
   const { data: approvalData, isLoading: approvalsLoading } = useQuery({ queryKey: ["approvals"], queryFn: async () => fetch("/api/auth/approvals").then(r => r.json()) });
 
   const isLoading = workersLoading || approvalsLoading;
