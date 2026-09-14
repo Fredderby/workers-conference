@@ -2960,7 +2960,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
         <>
           {/* Mobile: card list */}
           <div className="md:hidden space-y-3">
-            {filteredWorkers.map((w: any) => {
+            {filteredWorkers.slice(0, 50).map((w: any) => {
               const missing = !w.contact || !/^\d{10}$/.test(String(w.contact).trim());
               return (
               <div key={w.id} className={`rounded-xl bg-white dark:bg-slate-900 border p-3.5 space-y-2.5 ${missing ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/10" : "border-slate-200 dark:border-slate-800"}`}>
@@ -3003,7 +3003,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
               <table className="table-premium w-full text-sm min-w-[1000px]">
                 <thead className="text-left"><tr><th className="px-4 py-3">Name</th><th>Gender</th><th>Zone</th><th>Region</th><th>Division</th><th className="text-red-600 dark:text-red-400">Contact</th><th>Position</th><th>Payment</th><th>Verified</th><th>Actions</th></tr></thead>
                 <tbody className="divide-y">
-                  {filteredWorkers.map((w: any) => {
+                  {filteredWorkers.slice(0, 50).map((w: any) => {
                     const missing = !w.contact || !/^\d{10}$/.test(String(w.contact).trim());
                     return (
                     <tr key={w.id} className={`${missing ? "bg-red-50 dark:bg-red-950/20 border-l-4 border-red-500" : ""} hover:bg-slate-50 dark:hover:bg-slate-800/50`}>
@@ -3029,7 +3029,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
               </tbody>
             </table>
             </div>
-            <div className="table-footer"><span>{filteredWorkers.length} workers • click row to edit • {filteredWorkers.filter((w:any)=>w.verified).length} verified</span><span className="hidden sm:inline">Premium table • sticky header • hover highlight</span></div>
+            <div className="table-footer"><span>{filteredWorkers.length > 50 ? `Showing 50 of ${filteredWorkers.length} workers — refine search to narrow` : `${filteredWorkers.length} workers • click row to edit • ${filteredWorkers.filter((w:any)=>w.verified).length} verified`}</span><span className="hidden sm:inline">Premium table • sticky header • hover highlight</span></div>
           </div>
           {/* Edit dialog */}
           {editingWorker && (
