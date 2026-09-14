@@ -194,6 +194,13 @@ export const PATCH = withError(async (req: NextRequest) => {
       }
     }
     if (patch.name !== undefined) patch.name = toProperCase(String(patch.name).trim());
+    // Payment status changes must keep verified/paid consistent: unpaid workers can never be verified.
+    if (patch.paymentStatus !== undefined) {
+      const ps = String(patch.paymentStatus).trim().toLowerCase();
+      if (!["paid", "unpaid"].includes(ps)) return NextResponse.json({ error: "Payment status must be either \"paid\" or \"unpaid\"." }, { status: 400 });
+      patch.paymentStatus = ps;
+      if (ps === "unpaid") { patch.verified = false; (patch as any).verifiedAt = undefined; }
+    }
     // Contact uniqueness on edit — exclude self
     if (patch.contact !== undefined || (patch as any).contact2 !== undefined) {
       const all = await db.listWorkers();
