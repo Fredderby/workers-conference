@@ -3907,7 +3907,23 @@ function BroadcastSection({ user }: { user: any }) {
 
   const messages = data?.messages || [];
   const unreadCount = data?.unreadCount || 0;
-  const ROLE_COLORS: Record<string, string> = { all: "#6366f1", super_admin: "#ef4444", national_officer: "#8b5cf6", regional_officer: "#3b82f6", verifier: "#f59e0b", viewer: "#10b981" };
+  const ROLE_META: Record<string, { color: string; gradient: string; label: string }> = {
+    all: { color: "#6366f1", gradient: "from-indigo-500 to-violet-500", label: "Everyone" },
+    super_admin: { color: "#ef4444", gradient: "from-red-500 to-rose-600", label: "Super Admin" },
+    national_officer: { color: "#8b5cf6", gradient: "from-violet-500 to-purple-600", label: "National Officer" },
+    regional_officer: { color: "#3b82f6", gradient: "from-blue-500 to-cyan-500", label: "Regional Officer" },
+    verifier: { color: "#f59e0b", gradient: "from-amber-500 to-orange-500", label: "Verifier" },
+    viewer: { color: "#10b981", gradient: "from-emerald-500 to-teal-500", label: "Viewer" },
+  };
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) return `Today, ${t}`;
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    if (d.toDateString() === yest.toDateString()) return `Yesterday, ${t}`;
+    return `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${t}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -3958,29 +3974,41 @@ function BroadcastSection({ user }: { user: any }) {
         <div className="space-y-3">
           {messages.map((m: any) => {
             const isUnread = !m.readBy?.includes(user.id);
+            const sMeta = ROLE_META[m.senderRole] || ROLE_META.all;
+            const tMeta = ROLE_META[m.targetRole] || ROLE_META.all;
+            const initials = (m.senderName || "?").split(" ").map((s: string) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
             return (
-              <div key={m.id} className={`rounded-2xl border p-4 transition-all ${isUnread ? "bg-white dark:bg-slate-900 border-indigo-200 dark:border-indigo-800 shadow-sm ring-1 ring-indigo-100 dark:ring-indigo-900/30" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-75"}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isUnread && <span className="h-2 w-2 rounded-full bg-indigo-500 shrink-0" />}
-                      <h4 className={`font-semibold text-sm ${isUnread ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"}`}>{m.title}</h4>
-                      {m.priority === "urgent" && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-600">URGENT</span>}
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: (ROLE_COLORS[m.targetRole] || "#6366f1") + "15", color: ROLE_COLORS[m.targetRole] || "#6366f1" }}>
-                        {m.targetRole === "all" ? "Everyone" : m.targetRole?.replace("_", " ")}
-                      </span>
+              <div key={m.id} className={`relative overflow-hidden rounded-2xl border transition-all ${isUnread ? "bg-white dark:bg-slate-900 border-indigo-200 dark:border-indigo-800 shadow-md ring-1 ring-indigo-100 dark:ring-indigo-900/40" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"}`}>
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${m.priority === "urgent" ? "bg-gradient-to-b from-red-500 to-orange-500" : isUnread ? "bg-indigo-400" : "bg-slate-200 dark:bg-slate-700"}`} />
+                <div className="pl-4 p-3.5 sm:p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {isUnread && <span className="h-2 w-2 rounded-full bg-indigo-500 shrink-0 animate-pulse" />}
+                        <h4 className={`font-semibold text-sm ${isUnread ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"}`}>{m.title}</h4>
+                        {m.priority === "urgent" && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-red-100 dark:bg-red-900/30 text-red-600 ring-1 ring-red-200 dark:ring-red-800">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>URGENT
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: tMeta.color + "15", color: tMeta.color }}>{tMeta.label}</span>
+                      </div>
+                      <p className={`text-sm mt-2 whitespace-pre-line leading-relaxed ${isUnread ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{m.content}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{fmtTime(m.createdAt)}</span>
+                        <span className="inline-flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>{sMeta.label}</span>
+                      </div>
                     </div>
-                    <p className={`text-sm mt-1.5 ${isUnread ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{m.content}</p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
-                      <span>From {m.senderName}</span>
-                      <span>{new Date(m.createdAt).toLocaleString()}</span>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${sMeta.gradient} grid place-items-center text-white text-xs font-bold shadow ring-2 ring-white dark:ring-slate-900`} title={m.senderName}>{initials}</div>
+                      <p className="text-[10px] text-slate-400 text-right leading-tight truncate max-w-[80px]">{m.senderName}</p>
+                      {isUnread ? (
+                        <button onClick={() => markRead.mutate(m.id)} className="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors">Mark read</button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-500"><CheckCircle2 size={12} /> Read</span>
+                      )}
                     </div>
                   </div>
-                  {isUnread && (
-                    <button onClick={() => markRead.mutate(m.id)} className="shrink-0 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
-                      Mark read
-                    </button>
-                  )}
                 </div>
               </div>
             );
