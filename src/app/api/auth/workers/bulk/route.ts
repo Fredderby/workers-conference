@@ -7,7 +7,7 @@ import { withError } from "@/lib/api-handler";
 import { toProperCase } from "@/lib/utils";
 import ExcelJS from "exceljs";
 
-const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer", "campus_leader", "campus_worker"];
+const VALID_POSITIONS = ["adult_leader", "adult_worker", "youth_worker", "youth_leader", "children_leader", "children_worker", "zonal_admin", "regional_admin", "divisional_admin", "national_officer", "campus_leader", "campus_worker", "hq_staff"];
 const VALID_PAYMENTS = ["paid", "unpaid"];
 const VALID_GENDERS = ["male", "female"];
 

@@ -53,7 +53,7 @@ export interface LoginAttempt {
 }
 
 export type Gender = "male" | "female";
-export type Position = "adult_leader" | "adult_worker" | "youth_worker" | "youth_leader" | "children_leader" | "children_worker" | "zonal_admin" | "regional_admin" | "divisional_admin" | "national_officer" | "campus_leader" | "campus_worker";
+export type Position = "adult_leader" | "adult_worker" | "youth_worker" | "youth_leader" | "children_leader" | "children_worker" | "zonal_admin" | "regional_admin" | "divisional_admin" | "national_officer" | "campus_leader" | "campus_worker" | "hq_staff";
 export type PaymentStatus = "paid" | "unpaid";
 
 export interface Worker {
@@ -162,7 +162,7 @@ export const ZONE_STRUCTURE: Record<string, Record<string, string[]>> = {
   },
   "Northern Zone": {
     "Bolga": ["Bolga div", "Bawku", "Navrongo"],
-    "Nalerigu": ["Nalerigu div", "Walewale"],
+    "Nalerigu": ["Nalerigu div"],
     "Wa": ["Wa div", "Tumu"],
     "Damango": ["Damango div", "Buipe", "Bole"],
     "Tamale": ["Tamale div", "Yendi", "Salaga"],
@@ -182,6 +182,7 @@ export const POSITION_LABELS: Record<Position, string> = {
   national_officer: "National Officer",
   campus_leader: "Campus Leader",
   campus_worker: "Campus Worker",
+  hq_staff: "HQ Staff",
 };
 
 export const PAYMENT_LABELS: Record<PaymentStatus, string> = {
