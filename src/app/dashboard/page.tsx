@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Sun, Moon, Users, UserPlus, ScanLine, Monitor, ShieldCheck, ChevronRight, ChevronDown, Plus, X, ToggleLeft, ToggleRight, ClipboardCheck, ScrollText, Search, Send, Trash2, Settings, TrendingUp, TrendingDown, DollarSign, BarChart3, PieChart, Activity, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Key, Menu, User, MapPin, Building2, Layers, Briefcase, CreditCard, Calendar } from "lucide-react";
 import { NotificationBell } from "@/components/notification/NotificationBell";
+import { IdleSessionGuard } from "@/components/session/IdleSessionGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,6 +204,7 @@ function DashboardInner({ user, setUser, dark, setDark, sidebarOpen, setSidebarO
       </AnimatePresence>
         </main>
       </div>
+      <IdleSessionGuard />
     </div>
   );
 }
