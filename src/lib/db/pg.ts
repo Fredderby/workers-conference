@@ -209,6 +209,8 @@ async function init(): Promise<void> {
   await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS verified_at TEXT");
   await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS contact TEXT");
   await pool.query("ALTER TABLE workers ADD COLUMN IF NOT EXISTS contact2 TEXT");
+  // Data fix: Walewale division removed from ZONE_STRUCTURE — remap any stored rows to the parent division
+  await pool.query("UPDATE workers SET division = 'Nalerigu div' WHERE division = 'Walewale'");
 
   const { rows } = await pool.query("SELECT COUNT(*)::int AS c FROM users");
   if (rows[0].c === 0) {
