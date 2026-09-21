@@ -131,7 +131,7 @@ export const ZONE_STRUCTURE: Record<string, Record<string, string[]>> = {
     "Cape Coast": ["Cape Coast div", "Swedru", "Assin Fosu", "Mankessim", "Winneba", "Elmina", "Asikuma"],
   },
   "Greater Accra Zone": {
-    "Accra Metro": ["Abeka-Lapaz", "Ablekuma", "Accra New Town", "Adabraka", "Dansoman", "Odorkor", "Laterbiokorshie", "Anyaa"],
+    "Accra Metro": ["Abeka-Lapaz", "Ablekuma", "Accra New Town", "Adabraka", "Dansoman", "Odorkor", "Laterbiokorshie", "Anyaa", "La Osu"],
     "Kasoa": ["Kasoa", "Weija"],
     "Madina": ["Madina div"],
     "Tema": ["Tema div", "Ashaiman", "Teshie-Nungua", "Ada"],
