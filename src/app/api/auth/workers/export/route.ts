@@ -14,12 +14,19 @@ export const GET = withError(async (req: NextRequest) => {
   const user = await db.findUserById(payload.sub);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const isAllowed = isAdmin(user.role) || user.role === "national_officer";
+  const isAllowed = isAdmin(user.role) || user.role === "national_officer" || user.role === "regional_officer";
   if (!isAllowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const zone = req.nextUrl.searchParams.get("zone") || "";
   let workers: Worker[] = await db.listWorkers();
   if (zone) workers = workers.filter(w => w.zone === zone);
+  if (user.role === "regional_officer") {
+    if (!user.region) workers = [];
+    else {
+      const want = user.region.trim().toLowerCase();
+      workers = workers.filter(w => w.region && w.region.trim().toLowerCase() === want);
+    }
+  }
 
   const header = "S/N,Full Name,Gender,Zone,Region,Division,Position,Payment Status,Verified,Registered At";
   const rows = workers.map((w, i) => [
@@ -36,7 +43,9 @@ export const GET = withError(async (req: NextRequest) => {
   ].join(","));
 
   const csv = [header, ...rows].join("\n");
-  const filename = zone ? `workers-${zone.replace(/\s+/g, "-").toLowerCase()}.csv` : "workers-all.csv";
+  const filename = user.role === "regional_officer"
+    ? `workers-${(user.region || "region").replace(/\s+/g, "-").toLowerCase()}.csv`
+    : zone ? `workers-${zone.replace(/\s+/g, "-").toLowerCase()}.csv` : "workers-all.csv";
 
   await db.audit({ userId: payload.sub, action: "user_created", ip: req.headers.get("x-forwarded-for") || "127.0.0.1", device: "admin", browser: "admin", os: "admin", detail: `Exported ${workers.length} workers${zone ? ` for ${zone}` : ""}` });
 

@@ -2559,7 +2559,7 @@ function WorkerRegistrationSection({ user }: { user: any }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h3 className="font-semibold">Registered Workers ({visibleWorkers.length}) {isRegional ? `• ${scopeLabel}` : ""}</h3>
         <div className="flex flex-wrap items-center gap-2">
-          {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer") && (
+          {user.role !== "verifier" && (isAdmin(user.role as RoleType) || user.role === "national_officer" || user.role === "regional_officer") && (
             <a href="/api/auth/workers/export" download className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"><Download size={14} /> Export CSV</a>
           )}
           {user.role !== "verifier" && (
