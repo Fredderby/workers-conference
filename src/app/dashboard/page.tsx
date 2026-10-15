@@ -3995,7 +3995,7 @@ function BroadcastSection({ user }: { user: any }) {
                         )}
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: tMeta.color + "15", color: tMeta.color }}>{tMeta.label}</span>
                       </div>
-                      <p className={`text-sm mt-2 whitespace-pre-line leading-relaxed ${isUnread ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{m.content}</p>
+                      <p className={`text-sm mt-2 whitespace-pre-line break-words [overflow-wrap:anywhere] min-w-0 leading-relaxed ${isUnread ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>{m.content}</p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-slate-400">
                         <span className="inline-flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>{fmtTime(m.createdAt)}</span>
                         <span className="inline-flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>{sMeta.label}</span>
