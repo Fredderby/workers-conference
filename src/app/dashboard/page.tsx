@@ -367,6 +367,9 @@ function ReportsSection({ user }: { user: any }) {
   const [regionalExpanded, setRegionalExpanded] = useState(false);
   const [divisionExpanded, setDivisionExpanded] = useState(false);
   const [paymentExpanded, setPaymentExpanded] = useState(false);
+  const [paidExpanded, setPaidExpanded] = useState(false);
+  const [paidRegion, setPaidRegion] = useState("");
+  const [paidDivision, setPaidDivision] = useState("");
   const [verificationExpanded, setVerificationExpanded] = useState(false);
   const [genderExpanded, setGenderExpanded] = useState(false);
   const [dailyExpanded, setDailyExpanded] = useState(false);
@@ -387,12 +390,38 @@ function ReportsSection({ user }: { user: any }) {
     return workers.filter((w: any) => w.name.toLowerCase().includes(q) || w.zone.toLowerCase().includes(q) || w.region.toLowerCase().includes(q) || w.division.toLowerCase().includes(q) || POSITION_LABELS[w.position as keyof typeof POSITION_LABELS]?.toLowerCase().includes(q));
   }, [workers, reportSearch]);
 
+  // ── Paid Workers report — scoping honours each officer's restriction level ──
+  // Regional officers are locked to their own region (their worker list is already
+  // region-scoped upstream in `workers`); national/super/viewer/accounts may pick
+  // any region + division. Everyone else only ever sees what their role permits.
+  const paidRegionLock = isRegionalOfficer ? (user.region || "") : "";
+  const paidEffectiveRegion = paidRegionLock || paidRegion;
+  const paidRegionOptions = useMemo(
+    () => [...new Set(workers.map((w: any) => w.region).filter(Boolean))].sort(),
+    [workers]
+  );
+  const paidDivisionOptions = useMemo(() => {
+    const scoped = paidEffectiveRegion
+      ? workers.filter((w: any) => (w.region || "").trim().toLowerCase() === paidEffectiveRegion.trim().toLowerCase())
+      : workers;
+    return [...new Set(scoped.map((w: any) => w.division).filter(Boolean))].sort();
+  }, [workers, paidEffectiveRegion]);
+  const paidWorkers = useMemo(
+    () => workers.filter((w: any) =>
+      w.paymentStatus === "paid" &&
+      (!paidEffectiveRegion || (w.region || "").trim().toLowerCase() === paidEffectiveRegion.trim().toLowerCase()) &&
+      (!paidDivision || w.division === paidDivision)
+    ),
+    [workers, paidEffectiveRegion, paidDivision]
+  );
+
   const handlePrint = () => { window.print(); };
 
   const reportMeta: Record<string, { label: string; title: string; subtitle: string; color: string; icon: any }> = {
     daily: { label: "Daily", title: "Daily Activity Report", subtitle: "Workers registered, paid, and verified on a specific day", color: "#f59e0b", icon: <Calendar size={18} /> },
     registration: { label: "Registration", title: "Registration Summary Report", subtitle: "Complete list of all registered workers across all zones", color: "#6366f1", icon: <UserPlus size={18} /> },
     payment: { label: "Payment", title: "Payment Status Report", subtitle: "Payment collection breakdown and outstanding balances", color: "#10b981", icon: <CreditCard size={18} /> },
+    paid: { label: "Paid Workers", title: "Paid Workers Report", subtitle: "Confirmed payments — filter by region and division", color: "#0ea5e9", icon: <CheckCircle2 size={18} /> },
     verification: { label: "Verification", title: "Verification Status Report", subtitle: "Identity verification progress and pending reviews", color: "#06b6d4", icon: <ScanLine size={18} /> },
     regional: { label: "Regional", title: "Regional Breakdown Report", subtitle: "Worker distribution by zone, region, and division", color: "#8b5cf6", icon: <MapPin size={18} /> },
     gender: { label: "Gender", title: "Gender Analysis Report", subtitle: "Gender distribution with zone-level ratios", color: "#ec4899", icon: <Users size={18} /> },
@@ -454,6 +483,40 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
+        {/* Region / Division filters — Paid Workers report, scoped per officer level */}
+        {reportType === "paid" && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Region</label>
+              <select
+                value={paidEffectiveRegion}
+                disabled={!!paidRegionLock}
+                onChange={e => { setPaidRegion(e.target.value); setPaidDivision(""); }}
+                className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 min-w-[190px] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 dark:focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <option value="">All Regions</option>
+                {paidRegionOptions.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Division</label>
+              <select
+                value={paidDivision}
+                onChange={e => setPaidDivision(e.target.value)}
+                className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 min-w-[190px] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 dark:focus:border-indigo-500 font-medium"
+              >
+                <option value="">All Divisions</option>
+                {paidDivisionOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            {paidRegionLock && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 px-2.5 py-1.5 rounded-full">
+                <MapPin size={11} /> Scoped to your region: {paidRegionLock}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           {(reportType === "daily" ? [
@@ -463,6 +526,13 @@ function ReportsSection({ user }: { user: any }) {
             { label: "Male", value: dailyMale, color: "from-blue-500 to-blue-600", icon: <User size={16} /> },
             { label: "Female", value: dailyFemale, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
             { label: "Conversion", value: dailyWorkers.length > 0 ? `${((dailyPaid / dailyWorkers.length) * 100).toFixed(0)}%` : "—", color: "from-amber-500 to-amber-600", icon: <TrendingUp size={16} /> },
+          ] : reportType === "paid" ? [
+            { label: "Paid Workers", value: paidWorkers.length, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
+            { label: "Collected", value: fmtGHS(paidWorkers.length * REG_FEE), color: "from-teal-500 to-teal-600", icon: <CreditCard size={16} /> },
+            { label: "Regions", value: new Set(paidWorkers.map((w: any) => w.region)).size, color: "from-violet-500 to-violet-600", icon: <MapPin size={16} /> },
+            { label: "Divisions", value: new Set(paidWorkers.map((w: any) => w.division)).size, color: "from-blue-500 to-blue-600", icon: <Layers size={16} /> },
+            { label: "Male", value: paidWorkers.filter((w: any) => w.gender === "male").length, color: "from-indigo-500 to-indigo-600", icon: <User size={16} /> },
+            { label: "Female", value: paidWorkers.filter((w: any) => w.gender === "female").length, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
           ] : [
             { label: "Total Workers", value: total, color: "from-indigo-500 to-indigo-600", icon: <UserPlus size={16} /> },
             { label: "Paid", value: paid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
@@ -699,6 +769,51 @@ function ReportsSection({ user }: { user: any }) {
                     </AnimatePresence>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Paid Workers Report — screen preview, honours region/division filters */}
+          {reportType === "paid" && (
+            <div className="p-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-emerald-100 uppercase tracking-widest">Paid Workers</p><p className="text-sm font-black mt-1">{paidWorkers.length}</p><p className="text-[10px] text-emerald-100 truncate">{paidEffectiveRegion || "All regions"}</p></div>
+                <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Collected</p><p className="text-sm font-black mt-1">{fmtGHS(paidWorkers.length * REG_FEE)}</p><p className="text-[10px] text-slate-400">{paidWorkers.length} × GH₵300</p></div>
+                <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3"><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Regions</p><p className="text-sm font-black mt-1">{new Set(paidWorkers.map((w: any) => w.region)).size}</p></div>
+                <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-3"><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Divisions</p><p className="text-sm font-black mt-1">{new Set(paidWorkers.map((w: any) => w.division)).size}</p></div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                <button onClick={() => setPaidExpanded(!paidExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-950/20 dark:to-slate-900 hover:from-emerald-100 dark:hover:from-emerald-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 grid place-items-center shadow-sm"><CheckCircle2 size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Paid Workers</p><p className="text-[11px] text-slate-400">{paidWorkers.length} paid{paidDivision ? ` in ${paidDivision}` : paidEffectiveRegion ? ` in ${paidEffectiveRegion}` : ""}</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">{paidExpanded ? "Collapse" : "Expand"}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${paidExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {paidExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-sm min-w-[800px]">
+                          <thead className="thead-dark"><tr><th className="px-4 py-3 text-left">#</th><th className="px-3 py-3 text-left">Name</th><th className="px-3 py-3 text-left">Gender</th><th className="px-3 py-3 text-left">Region</th><th className="px-3 py-3 text-left">Division</th><th className="px-3 py-3 text-left">Position</th><th className="px-3 py-3 text-left">Contact</th><th className="px-3 py-3 text-center">Verified</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {paidWorkers.map((w: any, i: number) => (
+                              <tr key={w.id} className="hover:bg-emerald-50/50 dark:hover:bg-emerald-950/10 transition-colors">
+                                <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
+                                <td className="px-3 py-2.5 font-semibold">{toProperCase(w.name)}</td>
+                                <td className="px-3 py-2.5 capitalize">{w.gender}</td>
+                                <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td>
+                                <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.division}</td>
+                                <td className="px-3 py-2.5">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
+                                <td className="px-3 py-2.5 font-mono text-xs">{w.contact || "—"}</td>
+                                <td className="px-3 py-2.5 text-center">{w.verified ? <CheckCircle2 size={14} className="inline text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
+                              </tr>
+                            ))}
+                            {paidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6">No paid workers match this selection</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -1063,6 +1178,13 @@ function ReportsSection({ user }: { user: any }) {
             <div className="report-stat"><p className="report-stat-label">Verified</p><p className="report-stat-value" style={{ color: "#06b6d4" }}>{dailyVerified}</p></div>
             <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{dailyMale}</p></div>
             <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{dailyFemale}</p></div>
+          </>) : reportType === "paid" ? (<>
+            <div className="report-stat"><p className="report-stat-label">Paid Workers</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paidWorkers.length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Collected</p><p className="report-stat-value" style={{ fontSize: "11pt" }}>{fmtGHS(paidWorkers.length * REG_FEE)}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Regions</p><p className="report-stat-value">{new Set(paidWorkers.map((w: any) => w.region)).size}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Divisions</p><p className="report-stat-value">{new Set(paidWorkers.map((w: any) => w.division)).size}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{paidWorkers.filter((w: any) => w.gender === "male").length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{paidWorkers.filter((w: any) => w.gender === "female").length}</p></div>
           </>) : (<>
             <div className="report-stat"><p className="report-stat-label">Total Workers</p><p className="report-stat-value">{total}</p></div>
             <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paid}</p></div>
@@ -1111,6 +1233,24 @@ function ReportsSection({ user }: { user: any }) {
                   <tr key={w.id}><td>{i + 1}</td><td>{w.zone}</td><td>{w.region}</td><td>{w.division}</td><td style={{fontWeight:600}}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td></tr>
                 ))}
                 {unpaid === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">All workers have paid</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Print: Paid Workers — honours the selected region/division within the officer's restriction level */}
+        {reportType === "paid" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Paid Workers — {paidEffectiveRegion || "All Regions"}{paidDivision ? ` › ${paidDivision}` : ""}</h3>
+            <p className="text-[7pt] text-slate-500 mb-2">Region, Division, Name, Gender, Position, Contact, Verified • {paidWorkers.length} paid • Collected {fmtGHS(paidWorkers.length * REG_FEE)} • Landscape A4</p>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Verified</th></tr></thead>
+              <tbody>
+                {paidWorkers.map((w: any, i: number) => (
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.region}</td><td>{w.division}</td><td style={{ fontWeight: 600 }}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                ))}
+                {paidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">No paid workers match this selection</td></tr>}
+                <tr className="report-total"><td colSpan={3}>TOTAL</td><td colSpan={5}>{paidWorkers.length} paid • {fmtGHS(paidWorkers.length * REG_FEE)} collected</td></tr>
               </tbody>
             </table>
           </div>
