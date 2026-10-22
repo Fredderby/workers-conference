@@ -22,6 +22,22 @@ const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#0
 const REG_FEE = 300;
 const fmtGHS = (n: number) => `GH₵${n.toLocaleString()}`;
 
+// ── Position groups used by the Positions report ─────────────────────────────
+// Every position in the system belongs to exactly one group, so the group
+// totals always reconcile with the overall paid total.
+const POSITION_GROUPS: {
+  key: string; label: string; paidLabel: string; grad: string; color: string; icon: any; positions: string[];
+}[] = [
+  { key: "adult", label: "Adult", paidLabel: "Total Adult Workers Paid", grad: "from-indigo-500 to-indigo-600", color: "#6366f1", icon: <Users size={16} />, positions: ["adult_leader", "adult_worker"] },
+  { key: "youth", label: "Youth", paidLabel: "Total Youth Workers Paid", grad: "from-sky-500 to-sky-600", color: "#0ea5e9", icon: <TrendingUp size={16} />, positions: ["youth_leader", "youth_worker"] },
+  { key: "children", label: "Children", paidLabel: "Total Children Workers Paid", grad: "from-pink-500 to-pink-600", color: "#ec4899", icon: <User size={16} />, positions: ["children_leader", "children_worker"] },
+  { key: "hq", label: "HQ Staff", paidLabel: "Total HQ Staff Paid", grad: "from-amber-500 to-orange-500", color: "#f59e0b", icon: <Building2 size={16} />, positions: ["hq_staff"] },
+  { key: "leadership", label: "Leadership & Administration", paidLabel: "Total Leadership & Admin Paid", grad: "from-violet-500 to-purple-600", color: "#8b5cf6", icon: <ShieldCheck size={16} />, positions: ["zonal_admin", "regional_admin", "divisional_admin", "national_officer"] },
+  { key: "campus", label: "Campus", paidLabel: "Total Campus Paid", grad: "from-emerald-500 to-teal-600", color: "#10b981", icon: <Briefcase size={16} />, positions: ["campus_leader", "campus_worker"] },
+];
+
+const POSITION_LABEL_SAFE = (p: string) => POSITION_LABELS[p as keyof typeof POSITION_LABELS] || p;
+
 // Workers cache is scoped by viewer role+scope so a national full list can never
 // be served from cache to a regional officer (and vice versa).
 const WORKERS_KEY = (user: any) => ["workers", user?.role, user?.region ?? "", user?.zone ?? ""];
@@ -370,6 +386,9 @@ function ReportsSection({ user }: { user: any }) {
   const [paidExpanded, setPaidExpanded] = useState(false);
   const [paidRegion, setPaidRegion] = useState("");
   const [paidDivision, setPaidDivision] = useState("");
+  const [posExpanded, setPosExpanded] = useState(false);
+  const [posRegion, setPosRegion] = useState("");
+  const [posDivision, setPosDivision] = useState("");
   const [verificationExpanded, setVerificationExpanded] = useState(false);
   const [genderExpanded, setGenderExpanded] = useState(false);
   const [dailyExpanded, setDailyExpanded] = useState(false);
@@ -415,6 +434,64 @@ function ReportsSection({ user }: { user: any }) {
     [workers, paidEffectiveRegion, paidDivision]
   );
 
+  // ── Positions report — same role scoping, plus group + gender breakdown ──
+  const posRegionLock = isRegionalOfficer ? (user.region || "") : "";
+  const posEffectiveRegion = posRegionLock || posRegion;
+  const posDivisionOptions = useMemo(() => {
+    const scoped = posEffectiveRegion
+      ? workers.filter((w: any) => (w.region || "").trim().toLowerCase() === posEffectiveRegion.trim().toLowerCase())
+      : workers;
+    return [...new Set(scoped.map((w: any) => w.division).filter(Boolean))].sort();
+  }, [workers, posEffectiveRegion]);
+  const posScoped = useMemo(
+    () => workers
+      .filter((w: any) => !posEffectiveRegion || (w.region || "").trim().toLowerCase() === posEffectiveRegion.trim().toLowerCase())
+      .filter((w: any) => !posDivision || w.division === posDivision),
+    [workers, posEffectiveRegion, posDivision]
+  );
+  const positionRows = useMemo(() => POSITION_GROUPS.flatMap(g =>
+    g.positions.map(p => {
+      const ws = posScoped.filter((w: any) => w.position === p);
+      const paidWs = ws.filter((w: any) => w.paymentStatus === "paid");
+      const malePaid = paidWs.filter((w: any) => w.gender === "male").length;
+      const femalePaid = paidWs.filter((w: any) => w.gender === "female").length;
+      return {
+        position: p, label: POSITION_LABEL_SAFE(p), group: g.key, groupLabel: g.label, groupColor: g.color,
+        total: ws.length, paid: paidWs.length, unpaid: ws.length - paidWs.length,
+        malePaid, femalePaid, collected: paidWs.length * REG_FEE,
+        rate: ws.length > 0 ? (paidWs.length / ws.length) * 100 : 0,
+      };
+    })
+  ), [posScoped]);
+  const positionGroups = useMemo(() => POSITION_GROUPS.map(g => {
+    const rows = positionRows.filter(r => r.group === g.key);
+    const total = rows.reduce((s, r) => s + r.total, 0);
+    const paidCount = rows.reduce((s, r) => s + r.paid, 0);
+    return {
+      ...g, total, paid: paidCount,
+      malePaid: rows.reduce((s, r) => s + r.malePaid, 0),
+      femalePaid: rows.reduce((s, r) => s + r.femalePaid, 0),
+      collected: rows.reduce((s, r) => s + r.collected, 0),
+      rate: total > 0 ? (paidCount / total) * 100 : 0,
+    };
+  }), [positionRows]);
+  const posTotal = positionGroups.reduce((s, g) => s + g.total, 0);
+  const posPaid = positionGroups.reduce((s, g) => s + g.paid, 0);
+  const posMalePaid = positionGroups.reduce((s, g) => s + g.malePaid, 0);
+  const posFemalePaid = positionGroups.reduce((s, g) => s + g.femalePaid, 0);
+  const posCollected = positionGroups.reduce((s, g) => s + g.collected, 0);
+  const posRate = posTotal > 0 ? (posPaid / posTotal) * 100 : 0;
+  const posCovered = positionRows.filter(r => r.paid > 0).length;
+
+  // Shared filter accessors so the Paid Workers and Positions tabs use the same
+  // region/division controls while keeping independent selections.
+  const reportFilterRegion = reportType === "positions" ? posEffectiveRegion : paidEffectiveRegion;
+  const reportFilterRegionLock = reportType === "positions" ? posRegionLock : paidRegionLock;
+  const reportFilterDivision = reportType === "positions" ? posDivision : paidDivision;
+  const reportFilterDivisions = reportType === "positions" ? posDivisionOptions : paidDivisionOptions;
+  const setReportFilterRegion = (v: string) => { if (reportType === "positions") setPosRegion(v); else setPaidRegion(v); };
+  const setReportFilterDivision = (v: string) => { if (reportType === "positions") setPosDivision(v); else setPaidDivision(v); };
+
   const handlePrint = () => { window.print(); };
 
   const reportMeta: Record<string, { label: string; title: string; subtitle: string; color: string; icon: any }> = {
@@ -422,6 +499,7 @@ function ReportsSection({ user }: { user: any }) {
     registration: { label: "Registration", title: "Registration Summary Report", subtitle: "Complete list of all registered workers across all zones", color: "#6366f1", icon: <UserPlus size={18} /> },
     payment: { label: "Payment", title: "Payment Status Report", subtitle: "Payment collection breakdown and outstanding balances", color: "#10b981", icon: <CreditCard size={18} /> },
     paid: { label: "Paid Workers", title: "Paid Workers Report", subtitle: "Confirmed payments — filter by region and division", color: "#0ea5e9", icon: <CheckCircle2 size={18} /> },
+    positions: { label: "Positions", title: "Positions Breakdown Report", subtitle: "Adult, youth, children, HQ staff, leadership and campus — paid and gender breakdown", color: "#8b5cf6", icon: <Briefcase size={18} /> },
     verification: { label: "Verification", title: "Verification Status Report", subtitle: "Identity verification progress and pending reviews", color: "#06b6d4", icon: <ScanLine size={18} /> },
     regional: { label: "Regional", title: "Regional Breakdown Report", subtitle: "Worker distribution by zone, region, and division", color: "#8b5cf6", icon: <MapPin size={18} /> },
     gender: { label: "Gender", title: "Gender Analysis Report", subtitle: "Gender distribution with zone-level ratios", color: "#ec4899", icon: <Users size={18} /> },
@@ -483,15 +561,15 @@ function ReportsSection({ user }: { user: any }) {
           </div>
         )}
 
-        {/* Region / Division filters — Paid Workers report, scoped per officer level */}
-        {reportType === "paid" && (
+        {/* Region / Division filters — Paid Workers + Positions reports, scoped per officer level */}
+        {(reportType === "paid" || reportType === "positions") && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Region</label>
               <select
-                value={paidEffectiveRegion}
-                disabled={!!paidRegionLock}
-                onChange={e => { setPaidRegion(e.target.value); setPaidDivision(""); }}
+                value={reportFilterRegion}
+                disabled={!!reportFilterRegionLock}
+                onChange={e => { setReportFilterRegion(e.target.value); setReportFilterDivision(""); }}
                 className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 min-w-[190px] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 dark:focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">All Regions</option>
@@ -501,17 +579,17 @@ function ReportsSection({ user }: { user: any }) {
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">Division</label>
               <select
-                value={paidDivision}
-                onChange={e => setPaidDivision(e.target.value)}
+                value={reportFilterDivision}
+                onChange={e => setReportFilterDivision(e.target.value)}
                 className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 min-w-[190px] focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 dark:focus:border-indigo-500 font-medium"
               >
                 <option value="">All Divisions</option>
-                {paidDivisionOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                {reportFilterDivisions.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
-            {paidRegionLock && (
+            {reportFilterRegionLock && (
               <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 px-2.5 py-1.5 rounded-full">
-                <MapPin size={11} /> Scoped to your region: {paidRegionLock}
+                <MapPin size={11} /> Scoped to your region: {reportFilterRegionLock}
               </span>
             )}
           </div>
@@ -533,6 +611,13 @@ function ReportsSection({ user }: { user: any }) {
             { label: "Divisions", value: new Set(paidWorkers.map((w: any) => w.division)).size, color: "from-blue-500 to-blue-600", icon: <Layers size={16} /> },
             { label: "Male", value: paidWorkers.filter((w: any) => w.gender === "male").length, color: "from-indigo-500 to-indigo-600", icon: <User size={16} /> },
             { label: "Female", value: paidWorkers.filter((w: any) => w.gender === "female").length, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
+          ] : reportType === "positions" ? [
+            { label: "Paid Workers", value: posPaid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
+            { label: "Collected", value: fmtGHS(posCollected), color: "from-teal-500 to-teal-600", icon: <CreditCard size={16} /> },
+            { label: "Male Paid", value: posMalePaid, color: "from-indigo-500 to-indigo-600", icon: <User size={16} /> },
+            { label: "Female Paid", value: posFemalePaid, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
+            { label: "Positions Paid", value: `${posCovered}/${positionRows.length}`, color: "from-violet-500 to-violet-600", icon: <Briefcase size={16} /> },
+            { label: "Paid Rate", value: posTotal > 0 ? `${posRate.toFixed(0)}%` : "—", color: "from-amber-500 to-amber-600", icon: <TrendingUp size={16} /> },
           ] : [
             { label: "Total Workers", value: total, color: "from-indigo-500 to-indigo-600", icon: <UserPlus size={16} /> },
             { label: "Paid", value: paid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
@@ -808,6 +893,89 @@ function ReportsSection({ user }: { user: any }) {
                               </tr>
                             ))}
                             {paidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6">No paid workers match this selection</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          {/* Positions Report — named group totals, gender split, per-position table */}
+          {reportType === "positions" && (
+            <div className="p-5 space-y-4">
+              {/* Named group totals requested per level */}
+              <div>
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Group Totals</h4>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {positionGroups.map(g => (
+                    <div key={g.key} className="relative overflow-hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/60 p-3.5 shadow-sm">
+                      <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: g.color }} />
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{g.paidLabel}</span>
+                        <span className="text-[10px] font-semibold text-slate-400 shrink-0">{g.rate.toFixed(0)}%</span>
+                      </div>
+                      <p className="text-2xl font-black tracking-tight kpi-number" style={{ color: g.color }}>{g.paid}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{g.total} registered • {g.malePaid}M / {g.femalePaid}F • {fmtGHS(g.collected)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Paid gender split */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Paid Gender Split</h4>
+                  <span className="text-[10px] font-semibold text-slate-400">{posPaid} paid</span>
+                </div>
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div className="h-full bg-gradient-to-r from-indigo-500 to-blue-500" style={{ width: `${posPaid > 0 ? (posMalePaid / posPaid) * 100 : 0}%` }} />
+                  <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500" style={{ width: `${posPaid > 0 ? (posFemalePaid / posPaid) * 100 : 0}%` }} />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px] font-medium">
+                  <span className="text-indigo-600 dark:text-indigo-400">Male {posMalePaid} ({posPaid > 0 ? ((posMalePaid / posPaid) * 100).toFixed(1) : 0}%)</span>
+                  <span className="text-pink-600 dark:text-pink-400">Female {posFemalePaid} ({posPaid > 0 ? ((posFemalePaid / posPaid) * 100).toFixed(1) : 0}%)</span>
+                </div>
+              </div>
+
+              {/* Collapsible per-position breakdown */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                <button onClick={() => setPosExpanded(!posExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-50 to-white dark:from-violet-950/20 dark:to-slate-900 hover:from-violet-100 dark:hover:from-violet-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 grid place-items-center shadow-sm"><Briefcase size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Position Breakdown</p><p className="text-[11px] text-slate-400">{positionRows.length} positions • {posPaid} paid{posDivision ? ` in ${posDivision}` : posEffectiveRegion ? ` in ${posEffectiveRegion}` : ""}</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline text-[11px] font-semibold text-violet-600 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1 rounded-full border border-violet-200 dark:border-violet-800">{posExpanded ? "Collapse" : "Expand"}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${posExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {posExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-sm min-w-[900px]">
+                          <thead className="thead-dark"><tr><th className="px-4 py-3 text-left">Position</th><th className="px-3 py-3 text-left">Group</th><th className="px-3 py-3 text-right">Registered</th><th className="px-3 py-3 text-right">Paid</th><th className="px-3 py-3 text-right">Unpaid</th><th className="px-3 py-3 text-right">Male Paid</th><th className="px-3 py-3 text-right">Female Paid</th><th className="px-3 py-3 text-right">Collected</th><th className="px-3 py-3 text-right">Paid %</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {positionRows.map(r => (
+                              <tr key={r.position} className="hover:bg-violet-50/50 dark:hover:bg-violet-950/10 transition-colors">
+                                <td className="px-4 py-2.5 font-semibold">{r.label}</td>
+                                <td className="px-3 py-2.5"><span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400"><span className="h-2 w-2 rounded-full" style={{ background: r.groupColor }} />{r.groupLabel}</span></td>
+                                <td className="px-3 py-2.5 text-right">{r.total}</td>
+                                <td className="px-3 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">{r.paid}</td>
+                                <td className="px-3 py-2.5 text-right text-amber-600 dark:text-amber-400">{r.unpaid}</td>
+                                <td className="px-3 py-2.5 text-right">{r.malePaid}</td>
+                                <td className="px-3 py-2.5 text-right">{r.femalePaid}</td>
+                                <td className="px-3 py-2.5 text-right font-mono text-xs">{fmtGHS(r.collected)}</td>
+                                <td className="px-3 py-2.5 text-right font-semibold">{r.rate.toFixed(1)}%</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-slate-50 dark:bg-slate-800/50 font-bold">
+                              <td className="px-4 py-3" colSpan={2}>TOTAL</td>
+                              <td className="px-3 py-3 text-right">{posTotal}</td>
+                              <td className="px-3 py-3 text-right text-emerald-600 dark:text-emerald-400">{posPaid}</td>
+                              <td className="px-3 py-3 text-right">{posTotal - posPaid}</td>
+                              <td className="px-3 py-3 text-right">{posMalePaid}</td>
+                              <td className="px-3 py-3 text-right">{posFemalePaid}</td>
+                              <td className="px-3 py-3 text-right font-mono text-xs">{fmtGHS(posCollected)}</td>
+                              <td className="px-3 py-3 text-right">{posRate.toFixed(1)}%</td>
+                            </tr>
                           </tbody>
                         </table>
                       </div>
@@ -1185,6 +1353,13 @@ function ReportsSection({ user }: { user: any }) {
             <div className="report-stat"><p className="report-stat-label">Divisions</p><p className="report-stat-value">{new Set(paidWorkers.map((w: any) => w.division)).size}</p></div>
             <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{paidWorkers.filter((w: any) => w.gender === "male").length}</p></div>
             <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{paidWorkers.filter((w: any) => w.gender === "female").length}</p></div>
+          </>) : reportType === "positions" ? (<>
+            <div className="report-stat"><p className="report-stat-label">Paid Workers</p><p className="report-stat-value" style={{ color: "#10b981" }}>{posPaid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Collected</p><p className="report-stat-value" style={{ fontSize: "11pt" }}>{fmtGHS(posCollected)}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Male Paid</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{posMalePaid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Female Paid</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{posFemalePaid}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Positions</p><p className="report-stat-value">{posCovered}/{positionRows.length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Paid Rate</p><p className="report-stat-value" style={{ color: "#f59e0b" }}>{posTotal > 0 ? posRate.toFixed(1) : 0}%</p></div>
           </>) : (<>
             <div className="report-stat"><p className="report-stat-label">Total Workers</p><p className="report-stat-value">{total}</p></div>
             <div className="report-stat"><p className="report-stat-label">Paid</p><p className="report-stat-value" style={{ color: "#10b981" }}>{paid}</p></div>
@@ -1254,6 +1429,39 @@ function ReportsSection({ user }: { user: any }) {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Print: Positions — group totals + per-position + gender breakdown */}
+        {reportType === "positions" && (
+          <>
+            <div className="report-section">
+              <h3 className="report-section-title">Group Totals — {posEffectiveRegion || "All Regions"}{posDivision ? ` › ${posDivision}` : ""}</h3>
+              <p className="text-[7pt] text-slate-500 mb-2">Paid workers by group • {positionGroups.length} groups • {posPaid} paid • {fmtGHS(posCollected)} collected • Landscape A4</p>
+              <table className="report-table">
+                <thead><tr><th>Group</th><th>Registered</th><th>Paid</th><th>Unpaid</th><th>Male Paid</th><th>Female Paid</th><th>Collected</th><th>Paid %</th></tr></thead>
+                <tbody>
+                  {positionGroups.map(g => (
+                    <tr key={g.key}><td style={{ fontWeight: 600 }}>{g.label}</td><td>{g.total}</td><td>{g.paid}</td><td>{g.total - g.paid}</td><td>{g.malePaid}</td><td>{g.femalePaid}</td><td>{fmtGHS(g.collected)}</td><td>{g.rate.toFixed(1)}%</td></tr>
+                  ))}
+                  <tr className="report-total"><td>TOTAL</td><td>{posTotal}</td><td>{posPaid}</td><td>{posTotal - posPaid}</td><td>{posMalePaid}</td><td>{posFemalePaid}</td><td>{fmtGHS(posCollected)}</td><td>{posRate.toFixed(1)}%</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="report-section">
+              <h3 className="report-section-title">Position Breakdown</h3>
+              <p className="text-[7pt] text-slate-500 mb-2">Every position in the conference • Male/Female columns count paid workers only</p>
+              <table className="report-table">
+                <thead><tr><th>Position</th><th>Group</th><th>Registered</th><th>Paid</th><th>Unpaid</th><th>Male Paid</th><th>Female Paid</th><th>Collected</th><th>Paid %</th></tr></thead>
+                <tbody>
+                  {positionRows.map(r => (
+                    <tr key={r.position}><td style={{ fontWeight: 600 }}>{r.label}</td><td>{r.groupLabel}</td><td>{r.total}</td><td>{r.paid}</td><td>{r.unpaid}</td><td>{r.malePaid}</td><td>{r.femalePaid}</td><td>{fmtGHS(r.collected)}</td><td>{r.rate.toFixed(1)}%</td></tr>
+                  ))}
+                  <tr className="report-total"><td colSpan={2}>TOTAL</td><td>{posTotal}</td><td>{posPaid}</td><td>{posTotal - posPaid}</td><td>{posMalePaid}</td><td>{posFemalePaid}</td><td>{fmtGHS(posCollected)}</td><td>{posRate.toFixed(1)}%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Print: Verification */}
