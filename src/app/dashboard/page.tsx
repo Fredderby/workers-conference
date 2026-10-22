@@ -32,7 +32,7 @@ const POSITION_GROUPS: {
   { key: "youth", label: "Youth", paidLabel: "Total Youth Workers Paid", grad: "from-sky-500 to-sky-600", color: "#0ea5e9", icon: <TrendingUp size={16} />, positions: ["youth_leader", "youth_worker"] },
   { key: "children", label: "Children", paidLabel: "Total Children Workers Paid", grad: "from-pink-500 to-pink-600", color: "#ec4899", icon: <User size={16} />, positions: ["children_leader", "children_worker"] },
   { key: "hq", label: "HQ Staff", paidLabel: "Total HQ Staff Paid", grad: "from-amber-500 to-orange-500", color: "#f59e0b", icon: <Building2 size={16} />, positions: ["hq_staff"] },
-  { key: "leadership", label: "Leadership & Administration", paidLabel: "Total Leadership & Admin Paid", grad: "from-violet-500 to-purple-600", color: "#8b5cf6", icon: <ShieldCheck size={16} />, positions: ["zonal_admin", "regional_admin", "divisional_admin", "national_officer"] },
+  { key: "admin", label: "Admin Officers", paidLabel: "Total Admin Officers Paid", grad: "from-violet-500 to-purple-600", color: "#8b5cf6", icon: <ShieldCheck size={16} />, positions: ["zonal_admin", "regional_admin", "divisional_admin"] },
   { key: "campus", label: "Campus", paidLabel: "Total Campus Paid", grad: "from-emerald-500 to-teal-600", color: "#10b981", icon: <Briefcase size={16} />, positions: ["campus_leader", "campus_worker"] },
 ];
 
@@ -499,7 +499,7 @@ function ReportsSection({ user }: { user: any }) {
     registration: { label: "Registration", title: "Registration Summary Report", subtitle: "Complete list of all registered workers across all zones", color: "#6366f1", icon: <UserPlus size={18} /> },
     payment: { label: "Payment", title: "Payment Status Report", subtitle: "Payment collection breakdown and outstanding balances", color: "#10b981", icon: <CreditCard size={18} /> },
     paid: { label: "Paid Workers", title: "Paid Workers Report", subtitle: "Confirmed payments — filter by region and division", color: "#0ea5e9", icon: <CheckCircle2 size={18} /> },
-    positions: { label: "Positions", title: "Positions Breakdown Report", subtitle: "Adult, youth, children, HQ staff, leadership and campus — paid and gender breakdown", color: "#8b5cf6", icon: <Briefcase size={18} /> },
+    positions: { label: "Positions", title: "Positions Breakdown Report", subtitle: "Adult, youth, children, HQ staff, admin officers and campus — paid and gender breakdown", color: "#8b5cf6", icon: <Briefcase size={18} /> },
     verification: { label: "Verification", title: "Verification Status Report", subtitle: "Identity verification progress and pending reviews", color: "#06b6d4", icon: <ScanLine size={18} /> },
     regional: { label: "Regional", title: "Regional Breakdown Report", subtitle: "Worker distribution by zone, region, and division", color: "#8b5cf6", icon: <MapPin size={18} /> },
     gender: { label: "Gender", title: "Gender Analysis Report", subtitle: "Gender distribution with zone-level ratios", color: "#ec4899", icon: <Users size={18} /> },
@@ -1450,7 +1450,7 @@ function ReportsSection({ user }: { user: any }) {
 
             <div className="report-section">
               <h3 className="report-section-title">Position Breakdown</h3>
-              <p className="text-[7pt] text-slate-500 mb-2">Every position in the conference • Male/Female columns count paid workers only</p>
+              <p className="text-[7pt] text-slate-500 mb-2">Positions included in this breakdown • Male/Female columns count paid workers only</p>
               <table className="report-table">
                 <thead><tr><th>Position</th><th>Group</th><th>Registered</th><th>Paid</th><th>Unpaid</th><th>Male Paid</th><th>Female Paid</th><th>Collected</th><th>Paid %</th></tr></thead>
                 <tbody>
