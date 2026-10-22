@@ -475,12 +475,18 @@ function ReportsSection({ user }: { user: any }) {
       rate: total > 0 ? (paidCount / total) * 100 : 0,
     };
   }), [positionRows]);
-  const posTotal = positionGroups.reduce((s, g) => s + g.total, 0);
-  const posPaid = positionGroups.reduce((s, g) => s + g.paid, 0);
-  const posMalePaid = positionGroups.reduce((s, g) => s + g.malePaid, 0);
-  const posFemalePaid = positionGroups.reduce((s, g) => s + g.femalePaid, 0);
-  const posCollected = positionGroups.reduce((s, g) => s + g.collected, 0);
+  // National Officers are not itemised in the breakdown, but any who have paid
+  // still count towards the grand totals so no money is missed.
+  const excludedNational = posScoped.filter((w: any) => w.position === "national_officer");
+  const excludedNationalPaid = excludedNational.filter((w: any) => w.paymentStatus === "paid");
+  const posTotal = positionGroups.reduce((s, g) => s + g.total, 0) + excludedNational.length;
+  const posPaid = positionGroups.reduce((s, g) => s + g.paid, 0) + excludedNationalPaid.length;
+  const posMalePaid = positionGroups.reduce((s, g) => s + g.malePaid, 0) + excludedNationalPaid.filter((w: any) => w.gender === "male").length;
+  const posFemalePaid = positionGroups.reduce((s, g) => s + g.femalePaid, 0) + excludedNationalPaid.filter((w: any) => w.gender === "female").length;
+  const posCollected = posPaid * REG_FEE;
   const posRate = posTotal > 0 ? (posPaid / posTotal) * 100 : 0;
+  const posExcludedCount = excludedNational.length;
+  const posExcludedPaidCount = excludedNationalPaid.length;
   const posCovered = positionRows.filter(r => r.paid > 0).length;
 
   // Shared filter accessors so the Paid Workers and Positions tabs use the same
@@ -922,6 +928,9 @@ function ReportsSection({ user }: { user: any }) {
                     </div>
                   ))}
                 </div>
+                {posExcludedCount > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-2">Totals include {posExcludedCount} National Officer{posExcludedCount === 1 ? "" : "s"} ({posExcludedPaidCount} paid) — not itemised in this breakdown.</p>
+                )}
               </div>
 
               {/* Paid gender split */}
@@ -1446,6 +1455,7 @@ function ReportsSection({ user }: { user: any }) {
                   <tr className="report-total"><td>TOTAL</td><td>{posTotal}</td><td>{posPaid}</td><td>{posTotal - posPaid}</td><td>{posMalePaid}</td><td>{posFemalePaid}</td><td>{fmtGHS(posCollected)}</td><td>{posRate.toFixed(1)}%</td></tr>
                 </tbody>
               </table>
+              {posExcludedCount > 0 && <p className="text-[7pt] text-slate-500 mt-1">TOTAL includes {posExcludedCount} National Officer{posExcludedCount === 1 ? "" : "s"} ({posExcludedPaidCount} paid) — not itemised.</p>}
             </div>
 
             <div className="report-section">
