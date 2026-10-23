@@ -20,7 +20,7 @@ const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserP
 
 const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#06b6d4", "#f43f5e", "#10b981"];
 const REG_FEE = 300;
-const fmtGHS = (n: number) => `GH₵${n.toLocaleString()}`;
+const fmtGHS = (n: number) => `ȼ${n.toLocaleString()}`;
 
 // ── Position groups used by the Positions report ─────────────────────────────
 // Every position in the system belongs to exactly one group, so the group
@@ -386,6 +386,9 @@ function ReportsSection({ user }: { user: any }) {
   const [paidExpanded, setPaidExpanded] = useState(false);
   const [paidRegion, setPaidRegion] = useState("");
   const [paidDivision, setPaidDivision] = useState("");
+  const [unpaidExpanded, setUnpaidExpanded] = useState(false);
+  const [unpaidRegion, setUnpaidRegion] = useState("");
+  const [unpaidDivision, setUnpaidDivision] = useState("");
   const [posExpanded, setPosExpanded] = useState(false);
   const [posRegion, setPosRegion] = useState("");
   const [posDivision, setPosDivision] = useState("");
@@ -432,6 +435,24 @@ function ReportsSection({ user }: { user: any }) {
       (!paidDivision || w.division === paidDivision)
     ),
     [workers, paidEffectiveRegion, paidDivision]
+  );
+
+  // ── Unpaid Workers report — same role scoping and filters as Paid Workers ──
+  const unpaidRegionLock = isRegionalOfficer ? (user.region || "") : "";
+  const unpaidEffectiveRegion = unpaidRegionLock || unpaidRegion;
+  const unpaidDivisionOptions = useMemo(() => {
+    const scoped = unpaidEffectiveRegion
+      ? workers.filter((w: any) => (w.region || "").trim().toLowerCase() === unpaidEffectiveRegion.trim().toLowerCase())
+      : workers;
+    return [...new Set(scoped.map((w: any) => w.division).filter(Boolean))].sort();
+  }, [workers, unpaidEffectiveRegion]);
+  const unpaidWorkers = useMemo(
+    () => workers.filter((w: any) =>
+      w.paymentStatus === "unpaid" &&
+      (!unpaidEffectiveRegion || (w.region || "").trim().toLowerCase() === unpaidEffectiveRegion.trim().toLowerCase()) &&
+      (!unpaidDivision || w.division === unpaidDivision)
+    ),
+    [workers, unpaidEffectiveRegion, unpaidDivision]
   );
 
   // ── Positions report — same role scoping, plus group + gender breakdown ──
@@ -491,12 +512,12 @@ function ReportsSection({ user }: { user: any }) {
 
   // Shared filter accessors so the Paid Workers and Positions tabs use the same
   // region/division controls while keeping independent selections.
-  const reportFilterRegion = reportType === "positions" ? posEffectiveRegion : paidEffectiveRegion;
-  const reportFilterRegionLock = reportType === "positions" ? posRegionLock : paidRegionLock;
-  const reportFilterDivision = reportType === "positions" ? posDivision : paidDivision;
-  const reportFilterDivisions = reportType === "positions" ? posDivisionOptions : paidDivisionOptions;
-  const setReportFilterRegion = (v: string) => { if (reportType === "positions") setPosRegion(v); else setPaidRegion(v); };
-  const setReportFilterDivision = (v: string) => { if (reportType === "positions") setPosDivision(v); else setPaidDivision(v); };
+  const reportFilterRegion = reportType === "positions" ? posEffectiveRegion : reportType === "unpaid" ? unpaidEffectiveRegion : paidEffectiveRegion;
+  const reportFilterRegionLock = reportType === "positions" ? posRegionLock : reportType === "unpaid" ? unpaidRegionLock : paidRegionLock;
+  const reportFilterDivision = reportType === "positions" ? posDivision : reportType === "unpaid" ? unpaidDivision : paidDivision;
+  const reportFilterDivisions = reportType === "positions" ? posDivisionOptions : reportType === "unpaid" ? unpaidDivisionOptions : paidDivisionOptions;
+  const setReportFilterRegion = (v: string) => { if (reportType === "positions") setPosRegion(v); else if (reportType === "unpaid") setUnpaidRegion(v); else setPaidRegion(v); };
+  const setReportFilterDivision = (v: string) => { if (reportType === "positions") setPosDivision(v); else if (reportType === "unpaid") setUnpaidDivision(v); else setPaidDivision(v); };
 
   const handlePrint = () => { window.print(); };
 
@@ -505,6 +526,7 @@ function ReportsSection({ user }: { user: any }) {
     registration: { label: "Registration", title: "Registration Summary Report", subtitle: "Complete list of all registered workers across all zones", color: "#6366f1", icon: <UserPlus size={18} /> },
     payment: { label: "Payment", title: "Payment Status Report", subtitle: "Payment collection breakdown and outstanding balances", color: "#10b981", icon: <CreditCard size={18} /> },
     paid: { label: "Paid Workers", title: "Paid Workers Report", subtitle: "Confirmed payments — filter by region and division", color: "#0ea5e9", icon: <CheckCircle2 size={18} /> },
+    unpaid: { label: "Unpaid Workers", title: "Unpaid Workers Report", subtitle: "Outstanding payments — filter by region and division", color: "#f59e0b", icon: <AlertTriangle size={18} /> },
     positions: { label: "Positions", title: "Positions Breakdown Report", subtitle: "Adult, youth, children, HQ staff, admin officers and campus — paid and gender breakdown", color: "#8b5cf6", icon: <Briefcase size={18} /> },
     verification: { label: "Verification", title: "Verification Status Report", subtitle: "Identity verification progress and pending reviews", color: "#06b6d4", icon: <ScanLine size={18} /> },
     regional: { label: "Regional", title: "Regional Breakdown Report", subtitle: "Worker distribution by zone, region, and division", color: "#8b5cf6", icon: <MapPin size={18} /> },
@@ -577,7 +599,7 @@ function ReportsSection({ user }: { user: any }) {
         )}
 
         {/* Region / Division filters — Paid Workers + Positions reports, scoped per officer level */}
-        {(reportType === "paid" || reportType === "positions") && (
+        {(reportType === "paid" || reportType === "unpaid" || reportType === "positions") && (
           <section className="rpt-toolbar">
             <div className="flex flex-col gap-1.5">
               <label className="rpt-field-label">Region</label>
@@ -604,7 +626,7 @@ function ReportsSection({ user }: { user: any }) {
               </span>
             )}
             <div className="ml-auto self-center text-[11px] font-semibold text-slate-400">
-              {reportType === "positions" ? `${posPaid} paid · ${positionRows.length} positions` : `${paidWorkers.length} paid`}
+              {reportType === "positions" ? `${posPaid} paid · ${positionRows.length} positions` : reportType === "unpaid" ? `${unpaidWorkers.length} unpaid` : `${paidWorkers.length} paid`}
             </div>
           </section>
         )}
@@ -625,6 +647,13 @@ function ReportsSection({ user }: { user: any }) {
             { label: "Divisions", value: new Set(paidWorkers.map((w: any) => w.division)).size, color: "from-blue-500 to-blue-600", icon: <Layers size={16} /> },
             { label: "Male", value: paidWorkers.filter((w: any) => w.gender === "male").length, color: "from-indigo-500 to-indigo-600", icon: <User size={16} /> },
             { label: "Female", value: paidWorkers.filter((w: any) => w.gender === "female").length, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
+          ] : reportType === "unpaid" ? [
+            { label: "Unpaid Workers", value: unpaidWorkers.length, color: "from-amber-500 to-amber-600", icon: <AlertTriangle size={16} /> },
+            { label: "Outstanding", value: fmtGHS(unpaidWorkers.length * REG_FEE), color: "from-orange-500 to-orange-600", icon: <CreditCard size={16} /> },
+            { label: "Regions", value: new Set(unpaidWorkers.map((w: any) => w.region)).size, color: "from-amber-500 to-amber-600", icon: <MapPin size={16} /> },
+            { label: "Divisions", value: new Set(unpaidWorkers.map((w: any) => w.division)).size, color: "from-orange-500 to-orange-600", icon: <Layers size={16} /> },
+            { label: "Male", value: unpaidWorkers.filter((w: any) => w.gender === "male").length, color: "from-blue-500 to-blue-600", icon: <User size={16} /> },
+            { label: "Female", value: unpaidWorkers.filter((w: any) => w.gender === "female").length, color: "from-pink-500 to-pink-600", icon: <Users size={16} /> },
           ] : reportType === "positions" ? [
             { label: "Paid Workers", value: posPaid, color: "from-emerald-500 to-emerald-600", icon: <CheckCircle2 size={16} /> },
             { label: "Collected", value: fmtGHS(posCollected), color: "from-teal-500 to-teal-600", icon: <CreditCard size={16} /> },
@@ -848,13 +877,13 @@ function ReportsSection({ user }: { user: any }) {
                       <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
                       <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
                     </div>
-                    {/* Financial Summary — GH₵300 rule */}
+                    {/* Financial Summary — ȼ300 rule */}
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-sm font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GH₵300</p></div>
+                      <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-sm font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × ȼ300</p></div>
                       <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-sm font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
                       <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-sm font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
                     </div>
-                    <p className="text-[10px] text-slate-400 text-center">Registration Fee: GH₵300 per participant • Total = Participants × GH₵300</p>
+                    <p className="text-[10px] text-slate-400 text-center">Registration Fee: ȼ300 per participant • Total = Participants × ȼ300</p>
                     {/* Top unpaid — Premium Collapsible */}
                   <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <button onClick={() => setPaymentExpanded(!paymentExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
@@ -894,7 +923,7 @@ function ReportsSection({ user }: { user: any }) {
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Collected</span><span className="rpt-kpi-icon"><CreditCard size={14} /></span></div>
                   <p className="rpt-kpi-value">{fmtGHS(paidWorkers.length * REG_FEE)}</p>
-                  <p className="text-[10px] text-slate-400">{paidWorkers.length} × GH₵300</p>
+                  <p className="text-[10px] text-slate-400">{paidWorkers.length} × ȼ300</p>
                 </div>
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Regions</span><span className="rpt-kpi-icon"><MapPin size={14} /></span></div>
@@ -933,6 +962,67 @@ function ReportsSection({ user }: { user: any }) {
                               </tr>
                             ))}
                             {paidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6">No paid workers match this selection</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          {/* Unpaid Workers Report — mirrors Paid Workers, shows outstanding balances */}
+          {reportType === "unpaid" && (
+            <div className="p-5">
+              <div className="rpt-kpi-panel rpt-kpi-panel--4">
+                <div className="rpt-kpi-cell rpt-kpi-cell--hero">
+                  <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Unpaid Workers</span><span className="rpt-kpi-icon"><AlertTriangle size={14} /></span></div>
+                  <p className="rpt-kpi-value">{unpaidWorkers.length}</p>
+                  <p className="text-[10px] text-white/55 truncate">{unpaidEffectiveRegion || "All regions"}</p>
+                </div>
+                <div className="rpt-kpi-cell">
+                  <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Outstanding</span><span className="rpt-kpi-icon"><CreditCard size={14} /></span></div>
+                  <p className="rpt-kpi-value">{fmtGHS(unpaidWorkers.length * REG_FEE)}</p>
+                  <p className="text-[10px] text-slate-400">{unpaidWorkers.length} × ȼ300</p>
+                </div>
+                <div className="rpt-kpi-cell">
+                  <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Regions</span><span className="rpt-kpi-icon"><MapPin size={14} /></span></div>
+                  <p className="rpt-kpi-value">{new Set(unpaidWorkers.map((w: any) => w.region)).size}</p>
+                  <p className="text-[10px] text-slate-400">in scope</p>
+                </div>
+                <div className="rpt-kpi-cell">
+                  <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Divisions</span><span className="rpt-kpi-icon"><Layers size={14} /></span></div>
+                  <p className="rpt-kpi-value">{new Set(unpaidWorkers.map((w: any) => w.division)).size}</p>
+                  <p className="text-[10px] text-slate-400">in scope</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                <button onClick={() => setUnpaidExpanded(!unpaidExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
+                  <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 grid place-items-center shadow-sm"><AlertTriangle size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Unpaid Workers</p><p className="text-[11px] text-slate-400">{unpaidWorkers.length} unpaid{unpaidDivision ? ` in ${unpaidDivision}` : unpaidEffectiveRegion ? ` in ${unpaidEffectiveRegion}` : ""}</p></div></div>
+                  <div className="flex items-center gap-2"><span className="hidden sm:inline text-[11px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">{unpaidExpanded ? "Collapse" : "Expand"}</span><span className={`h-7 w-7 rounded-full bg-white dark:bg-slate-800 border grid place-items-center transition-transform ${unpaidExpanded ? "rotate-180" : ""}`}><ChevronDown size={14} /></span></div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {unpaidExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="table-scroll overflow-x-auto scrollbar-thin">
+                        <table className="table-premium w-full text-sm min-w-[800px]">
+                          <thead className="thead-dark"><tr><th className="px-4 py-3 text-left">#</th><th className="px-3 py-3 text-left">Name</th><th className="px-3 py-3 text-left">Gender</th><th className="px-3 py-3 text-left">Region</th><th className="px-3 py-3 text-left">Division</th><th className="px-3 py-3 text-left">Position</th><th className="px-3 py-3 text-left">Contact</th><th className="px-3 py-3 text-center">Verified</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {unpaidWorkers.map((w: any, i: number) => (
+                              <tr key={w.id} className="hover:bg-amber-50/50 dark:hover:bg-amber-950/10 transition-colors">
+                                <td className="px-4 py-2.5 text-slate-400 font-medium">{i + 1}</td>
+                                <td className="px-3 py-2.5 font-semibold">{toProperCase(w.name)}</td>
+                                <td className="px-3 py-2.5 capitalize">{w.gender}</td>
+                                <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.region}</td>
+                                <td className="px-3 py-2.5 text-slate-600 dark:text-slate-400">{w.division}</td>
+                                <td className="px-3 py-2.5">{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td>
+                                <td className="px-3 py-2.5 font-mono text-xs">{w.contact || "—"}</td>
+                                <td className="px-3 py-2.5 text-center">{w.verified ? <CheckCircle2 size={14} className="inline text-emerald-500" /> : <span className="text-slate-300">—</span>}</td>
+                              </tr>
+                            ))}
+                            {unpaidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-6">No unpaid workers match this selection</td></tr>}
                           </tbody>
                         </table>
                       </div>
@@ -1398,6 +1488,13 @@ function ReportsSection({ user }: { user: any }) {
             <div className="report-stat"><p className="report-stat-label">Divisions</p><p className="report-stat-value">{new Set(paidWorkers.map((w: any) => w.division)).size}</p></div>
             <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{paidWorkers.filter((w: any) => w.gender === "male").length}</p></div>
             <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{paidWorkers.filter((w: any) => w.gender === "female").length}</p></div>
+          </>) : reportType === "unpaid" ? (<>
+            <div className="report-stat"><p className="report-stat-label">Unpaid Workers</p><p className="report-stat-value" style={{ color: "#f59e0b" }}>{unpaidWorkers.length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Outstanding</p><p className="report-stat-value" style={{ fontSize: "11pt" }}>{fmtGHS(unpaidWorkers.length * REG_FEE)}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Regions</p><p className="report-stat-value">{new Set(unpaidWorkers.map((w: any) => w.region)).size}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Divisions</p><p className="report-stat-value">{new Set(unpaidWorkers.map((w: any) => w.division)).size}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Male</p><p className="report-stat-value" style={{ color: "#6366f1" }}>{unpaidWorkers.filter((w: any) => w.gender === "male").length}</p></div>
+            <div className="report-stat"><p className="report-stat-label">Female</p><p className="report-stat-value" style={{ color: "#ec4899" }}>{unpaidWorkers.filter((w: any) => w.gender === "female").length}</p></div>
           </>) : reportType === "positions" ? (<>
             <div className="report-stat"><p className="report-stat-label">Paid Workers</p><p className="report-stat-value" style={{ color: "#10b981" }}>{posPaid}</p></div>
             <div className="report-stat"><p className="report-stat-label">Collected</p><p className="report-stat-value" style={{ fontSize: "11pt" }}>{fmtGHS(posCollected)}</p></div>
@@ -1471,6 +1568,24 @@ function ReportsSection({ user }: { user: any }) {
                 ))}
                 {paidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">No paid workers match this selection</td></tr>}
                 <tr className="report-total"><td colSpan={3}>TOTAL</td><td colSpan={5}>{paidWorkers.length} paid • {fmtGHS(paidWorkers.length * REG_FEE)} collected</td></tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Print: Unpaid Workers — mirrors the Paid Workers layout */}
+        {reportType === "unpaid" && (
+          <div className="report-section">
+            <h3 className="report-section-title">Unpaid Workers — {unpaidEffectiveRegion || "All Regions"}{unpaidDivision ? ` › ${unpaidDivision}` : ""}</h3>
+            <p className="text-[7pt] text-slate-500 mb-2">Region, Division, Name, Gender, Position, Contact, Verified • {unpaidWorkers.length} unpaid • Outstanding {fmtGHS(unpaidWorkers.length * REG_FEE)} • Landscape A4</p>
+            <table className="report-table">
+              <thead><tr><th>#</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Verified</th></tr></thead>
+              <tbody>
+                {unpaidWorkers.map((w: any, i: number) => (
+                  <tr key={w.id}><td>{i + 1}</td><td>{w.region}</td><td>{w.division}</td><td style={{ fontWeight: 600 }}>{toProperCase(w.name)}</td><td className="capitalize">{w.gender}</td><td>{POSITION_LABELS[w.position as keyof typeof POSITION_LABELS] || w.position}</td><td className="col-contact">{w.contact || "—"}</td><td>{w.verified ? "Yes" : "No"}</td></tr>
+                ))}
+                {unpaidWorkers.length === 0 && <tr><td colSpan={8} className="text-center text-slate-400 py-4">No unpaid workers match this selection</td></tr>}
+                <tr className="report-total"><td colSpan={3}>TOTAL</td><td colSpan={5}>{unpaidWorkers.length} unpaid • {fmtGHS(unpaidWorkers.length * REG_FEE)} outstanding</td></tr>
               </tbody>
             </table>
           </div>
@@ -1735,7 +1850,7 @@ function OverviewSection({ user }: { user: any }) {
     // Division coverage
     const divisionCount = Object.keys(byDivision).length;
     const avgPerDivision = divisionCount > 0 ? (total / divisionCount).toFixed(1) : "0";
-    // Financial — GH₵300 per participant
+    // Financial — ȼ300 per participant
     const totalPayable = total * REG_FEE;
     const paidAmount = paid.length * REG_FEE;
     const unpaidAmount = unpaid.length * REG_FEE;
@@ -1811,12 +1926,12 @@ function OverviewSection({ user }: { user: any }) {
         </div>
         {(user.role === "accounts_officer" || isAdmin(user.role as RoleType)) && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 p-3">
-            <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(stats.totalPayable)}</p><p className="text-[10px] text-slate-400">{stats.total} × GH₵300</p></div><CreditCard size={18} className="text-slate-400" /></div>
+            <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(stats.totalPayable)}</p><p className="text-[10px] text-slate-400">{stats.total} × ȼ300</p></div><CreditCard size={18} className="text-slate-400" /></div>
             <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(stats.paidAmount)}</p><p className="text-[10px] text-emerald-100">{stats.paid} paid</p></div><CheckCircle2 size={18} className="text-white/80" /></div>
             <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(stats.unpaidAmount)}</p><p className="text-[10px] text-amber-100">{stats.unpaid} unpaid</p></div><AlertTriangle size={18} className="text-white/80" /></div>
           </div>
         )}
-        <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-500"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GH₵300 per participant • Total = Participants × GH₵300</div>
+        <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-500"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> ȼ300 per participant • Total = Participants × ȼ300</div>
       </div>
 
       {/* ── Metric Cards — Power BI Card Visual ── */}
@@ -3592,18 +3707,18 @@ function VerificationSection({ user }: { user: any }) {
       <div className="space-y-4">
         <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
           <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><CreditCard size={16} className="text-white" /></div>
-          <div><p className="text-sm font-bold">Payment Verification — Accounts</p><p className="text-xs text-white/80">Verify participant count and GH₵300 fee before approval • Total = Participants × GH₵300</p></div>
+          <div><p className="text-sm font-bold">Payment Verification — Accounts</p><p className="text-xs text-white/80">Verify participant count and ȼ300 fee before approval • Total = Participants × ȼ300</p></div>
         </div>
         <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
           <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Payment Verification: {!locked ? "OPEN" : "LOCKED"}{locked && <span className="text-xs text-red-600 ml-2">— only super_admin can unlock</span>}</div>
           {isSuper && <button onClick={() => toggleVerificationLock.mutate()} disabled={toggleVerificationLock.isPending} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5 disabled:opacity-50">{toggleVerificationLock.isPending ? "..." : locked ? "Unlock" : "Lock"}</button>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GH₵300</p></div>
+          <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × ȼ300</p></div>
           <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
           <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
         </div>
-        <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Payment</h3><p className="text-xs text-slate-400">Search by name or ID • {workers.length} workers • Payment = GH₵300 each</p></CardHeader>
+        <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Payment</h3><p className="text-xs text-slate-400">Search by name or ID • {workers.length} workers • Payment = ȼ300 each</p></CardHeader>
           <CardContent>
             <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2 relative">
               <div className="relative flex-1 max-w-md">
@@ -4006,9 +4121,9 @@ function ApprovalSection({ user }: { user: any }) {
                 <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 grid place-items-center shadow-md"><ClipboardCheck size={16} className="text-white" /></div>
                 <div><h3 className="font-semibold text-sm">Approve Souvenirs — All Regions</h3><p className="text-xs text-slate-400">Click <span className="font-bold text-violet-600">Approve</span> in the table to approve verified workers for souvenir distribution</p></div>
               </div>
-              <div className="flex items-center gap-2 text-[11px] flex-wrap"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span><span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Pending amount: {fmtGHS(totalCurrentBatch * REG_FEE)}</span><span className="hidden sm:inline text-[10px] text-slate-400">GH₵300 × participants</span></div>
+              <div className="flex items-center gap-2 text-[11px] flex-wrap"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span><span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Pending amount: {fmtGHS(totalCurrentBatch * REG_FEE)}</span><span className="hidden sm:inline text-[10px] text-slate-400">ȼ300 × participants</span></div>
             </div>
-            <div className="px-5 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px]"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GH₵300 per participant • Total = Participants × GH₵300 • Verified batch × GH₵300 approved</div>
+            <div className="px-5 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px]"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> ȼ300 per participant • Total = Participants × ȼ300 • Verified batch × ȼ300 approved</div>
             <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
               <table className="table-premium w-full text-sm">
                 <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Amount</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
