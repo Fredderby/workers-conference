@@ -921,3 +921,70 @@ body {
 .report-shell .table-premium tbody tr:nth-child(even) { background: #f7fafd; }
 .dark .report-shell .table-premium tbody tr:nth-child(even) { background: rgba(30, 41, 59, 0.35); }
 .report-shell .table-premium tbody tr:hover { background: rgba(72, 152, 200, 0.07) !important; }
+
+/* ── Position breakdown chart (Paid / Unpaid reports) ── */
+.rpt-chart {
+  margin-top: 16px;
+  padding: 16px 18px 13px;
+  border: 1px solid var(--rpt-line);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(72, 152, 200, 0.07) 0%, rgba(72, 152, 200, 0) 58%),
+    #fff;
+}
+.dark .rpt-chart {
+  background:
+    radial-gradient(120% 160% at 100% 0%, rgba(72, 152, 200, 0.14) 0%, rgba(72, 152, 200, 0) 58%),
+    #0b1220;
+}
+.rpt-chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.rpt-chart-eyebrow { font-size: 9.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--rpt-azure); }
+.rpt-chart-title { margin-top: 2px; font-size: 13.5px; font-weight: 800; letter-spacing: -0.015em; color: var(--rpt-ink); }
+.rpt-chart-sub { margin-top: 2px; font-size: 10.5px; color: var(--rpt-muted); }
+.rpt-chart-note { margin-top: 10px; font-size: 10px; color: var(--rpt-muted); }
+.rpt-chart-empty { padding: 18px 0; text-align: center; font-size: 12px; color: var(--rpt-muted); }
+
+.rpt-seg { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 3px; border: 1px solid var(--rpt-line); border-radius: 10px; background: #eef3f9; }
+.dark .rpt-seg { background: #111c30; }
+.rpt-seg-btn { padding: 5px 11px; border-radius: 7px; font-size: 10.5px; font-weight: 700; color: #64748b; transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+.rpt-seg-btn:hover { color: #1b2d47; }
+.dark .rpt-seg-btn:hover { color: #e2eef7; }
+.rpt-seg-btn--on { background: #fff; color: #1b2d47; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14); }
+.dark .rpt-seg-btn--on { background: #1e293b; color: #f8fafc; }
+.rpt-seg-btn:focus-visible { outline: 2px solid var(--rpt-azure); outline-offset: 1px; }
+
+.rpt-bars { display: grid; gap: 8px; }
+.rpt-bar-axis,
+.rpt-bar-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) 100px 46px; align-items: center; gap: 12px; }
+.rpt-bar-axis { margin-bottom: -2px; }
+.rpt-bar-axis-track { display: flex; justify-content: space-between; font-size: 9px; font-weight: 600; color: #94a3b8; }
+.rpt-bar-axis-track i { font-style: normal; }
+.rpt-bar-row { padding: 3px 4px; border-radius: 8px; transition: background 140ms ease; }
+.rpt-bar-row:hover { background: rgba(72, 152, 200, 0.07); }
+.dark .rpt-bar-row:hover { background: rgba(72, 152, 200, 0.12); }
+.rpt-bar-name { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 11.5px; font-weight: 700; color: var(--rpt-ink); }
+.rpt-bar-chip { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid; border-radius: 7px; flex-shrink: 0; }
+.rpt-bar-track { position: relative; height: 12px; border-radius: 999px; background: #eef3f9; overflow: hidden; }
+.dark .rpt-bar-track { background: #16233a; }
+.rpt-bar-fill { display: block; height: 100%; border-radius: 999px; box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.35); }
+.rpt-bar-value { text-align: right; font-size: 11.5px; font-weight: 800; color: var(--rpt-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rpt-bar-share { text-align: right; font-size: 10px; font-weight: 600; color: var(--rpt-muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .rpt-chart { padding: 14px 14px 12px; }
+  .rpt-chart-head { flex-direction: column; }
+  .rpt-bar-axis { display: none; }
+  .rpt-bar-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name value" "track track"; gap: 6px 10px; padding: 4px; }
+  .rpt-bar-name { grid-area: name; }
+  .rpt-bar-value { grid-area: value; }
+  .rpt-bar-track { grid-area: track; }
+  .rpt-bar-share { display: none; }
+}
+
+/* Printed position bars (inside .print-report) */
+.report-bars { display: grid; gap: 3px; margin: 6px 0 10px; }
+.report-bar-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 120px; align-items: center; gap: 8px; font-size: 7.5pt; color: #0f172a; }
+.report-bar-name { font-weight: 700; }
+.report-bar-track { height: 8px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+.report-bar-fill { display: block; height: 100%; border-radius: 999px; }
+.report-bar-value { text-align: right; color: #475569; font-variant-numeric: tabular-nums; }

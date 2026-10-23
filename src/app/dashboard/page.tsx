@@ -38,6 +38,80 @@ const POSITION_GROUPS: {
 
 const POSITION_LABEL_SAFE = (p: string) => POSITION_LABELS[p as keyof typeof POSITION_LABELS] || p;
 
+// ── Position breakdown chart ──────────────────────────────────────────────────
+// Shared by the Paid and Unpaid Workers tabs. Bars are scaled to the largest
+// group; the percentage is that group's share of the itemised total.
+type PositionCount = { key: string; label: string; color: string; icon: any; count: number };
+
+function groupPositionCounts(list: any[]): PositionCount[] {
+  const byPosition = new Map<string, number>();
+  for (const w of list) byPosition.set(w.position, (byPosition.get(w.position) || 0) + 1);
+  return POSITION_GROUPS
+    .map(g => ({ key: g.key, label: g.label, color: g.color, icon: g.icon, count: g.positions.reduce((s, p) => s + (byPosition.get(p) || 0), 0) }))
+    .sort((a, b) => b.count - a.count);
+}
+
+function PositionBreakdownChart({ rows, total, tone, scopeLabel }: { rows: PositionCount[]; total: number; tone: "paid" | "unpaid"; scopeLabel: string }) {
+  const [metric, setMetric] = useState<"count" | "amount">("count");
+  const scale = (n: number) => (metric === "count" ? n : n * REG_FEE);
+  const max = Math.max(1, ...rows.map(r => scale(r.count)));
+  const itemised = rows.reduce((s, r) => s + r.count, 0);
+  const unlisted = Math.max(0, total - itemised);
+  const activeGroups = rows.filter(r => r.count > 0).length;
+
+  return (
+    <section className="rpt-chart" aria-label={`Position breakdown — ${tone} workers`}>
+      <div className="rpt-chart-head">
+        <div className="min-w-0">
+          <p className="rpt-chart-eyebrow">Position breakdown</p>
+          <h4 className="rpt-chart-title">{tone === "paid" ? "Paid" : "Unpaid"} workers by position group</h4>
+          <p className="rpt-chart-sub truncate">{scopeLabel} · {itemised.toLocaleString()} itemised of {total.toLocaleString()}</p>
+        </div>
+        <div className="rpt-seg" role="group" aria-label="Chart metric">
+          <button type="button" onClick={() => setMetric("count")} aria-pressed={metric === "count"} className={`rpt-seg-btn${metric === "count" ? " rpt-seg-btn--on" : ""}`}>Workers</button>
+          <button type="button" onClick={() => setMetric("amount")} aria-pressed={metric === "amount"} className={`rpt-seg-btn${metric === "amount" ? " rpt-seg-btn--on" : ""}`}>Value</button>
+        </div>
+      </div>
+
+      <div className="rpt-bars">
+        <div className="rpt-bar-axis" aria-hidden="true">
+          <span />
+          <span className="rpt-bar-axis-track"><i>0</i><i>{metric === "count" ? max.toLocaleString() : fmtGHS(max)}</i></span>
+          <span /><span />
+        </div>
+        {rows.map((r, i) => {
+          const share = itemised ? (r.count / itemised) * 100 : 0;
+          return (
+            <div className="rpt-bar-row" key={r.key} title={`${r.label}: ${r.count.toLocaleString()} workers · ${fmtGHS(r.count * REG_FEE)} · ${share.toFixed(1)}% of itemised`}>
+              <span className="rpt-bar-name">
+                <span className="rpt-bar-chip" style={{ color: r.color, background: `${r.color}14`, borderColor: `${r.color}33` }}>{r.icon}</span>
+                <span className="truncate">{r.label}</span>
+              </span>
+              <span className="rpt-bar-track">
+                <motion.span
+                  className="rpt-bar-fill"
+                  style={{ background: `linear-gradient(90deg, ${r.color} 0%, ${r.color}d9 62%, ${r.color}a6 100%)` }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(scale(r.count) / max) * 100}%` }}
+                  transition={{ duration: 0.7, ease: "easeOut", delay: i * 0.06 }}
+                />
+              </span>
+              <span className="rpt-bar-value">{metric === "count" ? r.count.toLocaleString() : fmtGHS(r.count * REG_FEE)}</span>
+              <span className="rpt-bar-share">{share.toFixed(1)}%</span>
+            </div>
+          );
+        })}
+        {rows.length === 0 && <p className="rpt-chart-empty">No workers match this selection</p>}
+      </div>
+
+      <p className="rpt-chart-note">
+        {itemised.toLocaleString()} of {total.toLocaleString()} {tone} workers · {activeGroups} of {rows.length} position groups
+        {unlisted > 0 ? ` · ${unlisted.toLocaleString()} National Officer${unlisted === 1 ? "" : "s"} not itemised` : ""}
+      </p>
+    </section>
+  );
+}
+
 // Workers cache is scoped by viewer role+scope so a national full list can never
 // be served from cache to a regional officer (and vice versa).
 const WORKERS_KEY = (user: any) => ["workers", user?.role, user?.region ?? "", user?.zone ?? ""];
@@ -454,6 +528,12 @@ function ReportsSection({ user }: { user: any }) {
     ),
     [workers, unpaidEffectiveRegion, unpaidDivision]
   );
+
+  // Position breakdown for the Paid / Unpaid tabs (sorted by count, largest first)
+  const paidBreakdown = useMemo(() => groupPositionCounts(paidWorkers), [paidWorkers]);
+  const unpaidBreakdown = useMemo(() => groupPositionCounts(unpaidWorkers), [unpaidWorkers]);
+  const paidBreakdownMax = paidBreakdown[0]?.count || 1;
+  const unpaidBreakdownMax = unpaidBreakdown[0]?.count || 1;
 
   // ── Positions report — same role scoping, plus group + gender breakdown ──
   const posRegionLock = isRegionalOfficer ? (user.region || "") : "";
@@ -937,6 +1017,8 @@ function ReportsSection({ user }: { user: any }) {
                 </div>
               </div>
 
+              <PositionBreakdownChart rows={paidBreakdown} total={paidWorkers.length} tone="paid" scopeLabel={paidDivision || paidEffectiveRegion || "All regions"} />
+
               <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
                 <button onClick={() => setPaidExpanded(!paidExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-white dark:from-emerald-950/20 dark:to-slate-900 hover:from-emerald-100 dark:hover:from-emerald-900/20 transition-colors">
                   <div className="flex items-center gap-2.5"><div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 grid place-items-center shadow-sm"><CheckCircle2 size={12} className="text-white" /></div><div className="text-left"><p className="text-xs font-bold">Paid Workers</p><p className="text-[11px] text-slate-400">{paidWorkers.length} paid{paidDivision ? ` in ${paidDivision}` : paidEffectiveRegion ? ` in ${paidEffectiveRegion}` : ""}</p></div></div>
@@ -997,6 +1079,8 @@ function ReportsSection({ user }: { user: any }) {
                   <p className="text-[10px] text-slate-400">in scope</p>
                 </div>
               </div>
+
+              <PositionBreakdownChart rows={unpaidBreakdown} total={unpaidWorkers.length} tone="unpaid" scopeLabel={unpaidDivision || unpaidEffectiveRegion || "All regions"} />
 
               <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
                 <button onClick={() => setUnpaidExpanded(!unpaidExpanded)} className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
@@ -1560,6 +1644,15 @@ function ReportsSection({ user }: { user: any }) {
           <div className="report-section">
             <h3 className="report-section-title">Paid Workers — {paidEffectiveRegion || "All Regions"}{paidDivision ? ` › ${paidDivision}` : ""}</h3>
             <p className="text-[7pt] text-slate-500 mb-2">Region, Division, Name, Gender, Position, Contact, Verified • {paidWorkers.length} paid • Collected {fmtGHS(paidWorkers.length * REG_FEE)} • Landscape A4</p>
+            <div className="report-bars">
+              {paidBreakdown.map(g => (
+                <div className="report-bar-row" key={g.key}>
+                  <span className="report-bar-name">{g.label}</span>
+                  <span className="report-bar-track"><span className="report-bar-fill" style={{ width: `${(g.count / paidBreakdownMax) * 100}%`, background: g.color }} /></span>
+                  <span className="report-bar-value">{g.count.toLocaleString()} · {fmtGHS(g.count * REG_FEE)}</span>
+                </div>
+              ))}
+            </div>
             <table className="report-table">
               <thead><tr><th>#</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Verified</th></tr></thead>
               <tbody>
@@ -1578,6 +1671,15 @@ function ReportsSection({ user }: { user: any }) {
           <div className="report-section">
             <h3 className="report-section-title">Unpaid Workers — {unpaidEffectiveRegion || "All Regions"}{unpaidDivision ? ` › ${unpaidDivision}` : ""}</h3>
             <p className="text-[7pt] text-slate-500 mb-2">Region, Division, Name, Gender, Position, Contact, Verified • {unpaidWorkers.length} unpaid • Outstanding {fmtGHS(unpaidWorkers.length * REG_FEE)} • Landscape A4</p>
+            <div className="report-bars">
+              {unpaidBreakdown.map(g => (
+                <div className="report-bar-row" key={g.key}>
+                  <span className="report-bar-name">{g.label}</span>
+                  <span className="report-bar-track"><span className="report-bar-fill" style={{ width: `${(g.count / unpaidBreakdownMax) * 100}%`, background: g.color }} /></span>
+                  <span className="report-bar-value">{g.count.toLocaleString()} · {fmtGHS(g.count * REG_FEE)}</span>
+                </div>
+              ))}
+            </div>
             <table className="report-table">
               <thead><tr><th>#</th><th>Region</th><th>Division</th><th>Name</th><th>Gender</th><th>Position</th><th>Contact</th><th>Verified</th></tr></thead>
               <tbody>
