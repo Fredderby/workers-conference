@@ -20,7 +20,7 @@ const ICON_MAP: Record<string, any> = { LayoutDashboard: BarChart3, Users, UserP
 
 const CHART_COLORS = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#06b6d4", "#f43f5e", "#10b981"];
 const REG_FEE = 300;
-const fmtGHS = (n: number) => `ȼ${n.toLocaleString()}`;
+const fmtGHS = (n: number) => `GHȼ${n.toLocaleString()}`;
 
 // ── Position groups used by the Positions report ─────────────────────────────
 // Every position in the system belongs to exactly one group, so the group
@@ -877,13 +877,13 @@ function ReportsSection({ user }: { user: any }) {
                       <div className="flex items-center justify-between mb-1"><span className="text-xs font-medium">Unpaid</span><span className="text-xs font-bold text-amber-600">{unpaid} ({total > 0 ? ((unpaid/total)*100).toFixed(1) : 0}%)</span></div>
                       <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all duration-700" style={{ width: `${total > 0 ? (unpaid/total)*100 : 0}%` }} /></div>
                     </div>
-                    {/* Financial Summary — ȼ300 rule */}
+                    {/* Financial Summary — GHȼ300 rule */}
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-sm font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × ȼ300</p></div>
+                      <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-sm font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GHȼ300</p></div>
                       <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-sm font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
                       <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[9px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-sm font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
                     </div>
-                    <p className="text-[10px] text-slate-400 text-center">Registration Fee: ȼ300 per participant • Total = Participants × ȼ300</p>
+                    <p className="text-[10px] text-slate-400 text-center">Registration Fee: GHȼ300 per participant • Total = Participants × GHȼ300</p>
                     {/* Top unpaid — Premium Collapsible */}
                   <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                     <button onClick={() => setPaymentExpanded(!paymentExpanded)} className="w-full flex items-center justify-between px-3 py-2.5 bg-gradient-to-r from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-900 hover:from-amber-100 dark:hover:from-amber-900/20 transition-colors">
@@ -923,7 +923,7 @@ function ReportsSection({ user }: { user: any }) {
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Collected</span><span className="rpt-kpi-icon"><CreditCard size={14} /></span></div>
                   <p className="rpt-kpi-value">{fmtGHS(paidWorkers.length * REG_FEE)}</p>
-                  <p className="text-[10px] text-slate-400">{paidWorkers.length} × ȼ300</p>
+                  <p className="text-[10px] text-slate-400">{paidWorkers.length} × GHȼ300</p>
                 </div>
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Regions</span><span className="rpt-kpi-icon"><MapPin size={14} /></span></div>
@@ -984,7 +984,7 @@ function ReportsSection({ user }: { user: any }) {
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Outstanding</span><span className="rpt-kpi-icon"><CreditCard size={14} /></span></div>
                   <p className="rpt-kpi-value">{fmtGHS(unpaidWorkers.length * REG_FEE)}</p>
-                  <p className="text-[10px] text-slate-400">{unpaidWorkers.length} × ȼ300</p>
+                  <p className="text-[10px] text-slate-400">{unpaidWorkers.length} × GHȼ300</p>
                 </div>
                 <div className="rpt-kpi-cell">
                   <div className="flex items-start justify-between gap-2"><span className="rpt-kpi-label">Regions</span><span className="rpt-kpi-icon"><MapPin size={14} /></span></div>
@@ -1850,7 +1850,7 @@ function OverviewSection({ user }: { user: any }) {
     // Division coverage
     const divisionCount = Object.keys(byDivision).length;
     const avgPerDivision = divisionCount > 0 ? (total / divisionCount).toFixed(1) : "0";
-    // Financial — ȼ300 per participant
+    // Financial — GHȼ300 per participant
     const totalPayable = total * REG_FEE;
     const paidAmount = paid.length * REG_FEE;
     const unpaidAmount = unpaid.length * REG_FEE;
@@ -1926,12 +1926,12 @@ function OverviewSection({ user }: { user: any }) {
         </div>
         {(user.role === "accounts_officer" || isAdmin(user.role as RoleType)) && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 p-3">
-            <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(stats.totalPayable)}</p><p className="text-[10px] text-slate-400">{stats.total} × ȼ300</p></div><CreditCard size={18} className="text-slate-400" /></div>
+            <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(stats.totalPayable)}</p><p className="text-[10px] text-slate-400">{stats.total} × GHȼ300</p></div><CreditCard size={18} className="text-slate-400" /></div>
             <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(stats.paidAmount)}</p><p className="text-[10px] text-emerald-100">{stats.paid} paid</p></div><CheckCircle2 size={18} className="text-white/80" /></div>
             <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 flex items-center justify-between shadow-sm"><div><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(stats.unpaidAmount)}</p><p className="text-[10px] text-amber-100">{stats.unpaid} unpaid</p></div><AlertTriangle size={18} className="text-white/80" /></div>
           </div>
         )}
-        <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-500"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> ȼ300 per participant • Total = Participants × ȼ300</div>
+        <div className="px-4 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-2 text-[11px] text-slate-500"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GHȼ300 per participant • Total = Participants × GHȼ300</div>
       </div>
 
       {/* ── Metric Cards — Power BI Card Visual ── */}
@@ -3707,18 +3707,18 @@ function VerificationSection({ user }: { user: any }) {
       <div className="space-y-4">
         <div className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 flex items-center gap-2.5 shadow-md">
           <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center"><CreditCard size={16} className="text-white" /></div>
-          <div><p className="text-sm font-bold">Payment Verification — Accounts</p><p className="text-xs text-white/80">Verify participant count and ȼ300 fee before approval • Total = Participants × ȼ300</p></div>
+          <div><p className="text-sm font-bold">Payment Verification — Accounts</p><p className="text-xs text-white/80">Verify participant count and GHȼ300 fee before approval • Total = Participants × GHȼ300</p></div>
         </div>
         <div className={`rounded-2xl border p-4 flex items-center justify-between ${!locked ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20" : "bg-red-50 border-red-200 dark:bg-red-950/20"}`}>
           <div className="flex items-center gap-2 text-sm font-medium"><span className={`h-2 w-2 rounded-full ${!locked ? "bg-emerald-500" : "bg-red-500"}`} /> Payment Verification: {!locked ? "OPEN" : "LOCKED"}{locked && <span className="text-xs text-red-600 ml-2">— only super_admin can unlock</span>}</div>
           {isSuper && <button onClick={() => toggleVerificationLock.mutate()} disabled={toggleVerificationLock.isPending} className="text-xs rounded-full bg-white dark:bg-slate-800 border px-3 py-1.5 disabled:opacity-50">{toggleVerificationLock.isPending ? "..." : locked ? "Unlock" : "Lock"}</button>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × ȼ300</p></div>
+          <div className="rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Total Payable</p><p className="text-lg font-black mt-1">{fmtGHS(totalPayable)}</p><p className="text-[10px] text-slate-400">{total} × GHȼ300</p></div>
           <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-emerald-100 uppercase tracking-widest">Collected</p><p className="text-lg font-black mt-1">{fmtGHS(paidAmount)}</p><p className="text-[10px] text-emerald-100">{paid} paid</p></div>
           <div className="rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white p-3 shadow-sm"><p className="text-[10px] font-bold text-amber-100 uppercase tracking-widest">Outstanding</p><p className="text-lg font-black mt-1">{fmtGHS(unpaidAmount)}</p><p className="text-[10px] text-amber-100">{unpaid} unpaid</p></div>
         </div>
-        <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Payment</h3><p className="text-xs text-slate-400">Search by name or ID • {workers.length} workers • Payment = ȼ300 each</p></CardHeader>
+        <Card className="rounded-2xl"><CardHeader><h3 className="font-semibold">Verify Payment</h3><p className="text-xs text-slate-400">Search by name or ID • {workers.length} workers • Payment = GHȼ300 each</p></CardHeader>
           <CardContent>
             <form onSubmit={verify} className="flex flex-col sm:flex-row gap-2 relative">
               <div className="relative flex-1 max-w-md">
@@ -4121,9 +4121,9 @@ function ApprovalSection({ user }: { user: any }) {
                 <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 grid place-items-center shadow-md"><ClipboardCheck size={16} className="text-white" /></div>
                 <div><h3 className="font-semibold text-sm">Approve Souvenirs — All Regions</h3><p className="text-xs text-slate-400">Click <span className="font-bold text-violet-600">Approve</span> in the table to approve verified workers for souvenir distribution</p></div>
               </div>
-              <div className="flex items-center gap-2 text-[11px] flex-wrap"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span><span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Pending amount: {fmtGHS(totalCurrentBatch * REG_FEE)}</span><span className="hidden sm:inline text-[10px] text-slate-400">ȼ300 × participants</span></div>
+              <div className="flex items-center gap-2 text-[11px] flex-wrap"><span className="px-2.5 py-1 rounded-full bg-violet-50 dark:bg-violet-950/20 border border-violet-200 text-violet-700 font-medium">Total: {totalWorkers}</span><span className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 text-amber-700 font-medium">Pending: {totalCurrentBatch}</span><span className="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 text-emerald-700 font-medium">Pending amount: {fmtGHS(totalCurrentBatch * REG_FEE)}</span><span className="hidden sm:inline text-[10px] text-slate-400">GHȼ300 × participants</span></div>
             </div>
-            <div className="px-5 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px]"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> ȼ300 per participant • Total = Participants × ȼ300 • Verified batch × ȼ300 approved</div>
+            <div className="px-5 py-2 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800/30 dark:to-indigo-950/10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px]"><CreditCard size={12} className="text-indigo-500" /><span className="font-medium">Payment Rule:</span> GHȼ300 per participant • Total = Participants × GHȼ300 • Verified batch × GHȼ300 approved</div>
             <div className="hidden md:block table-scroll overflow-x-auto scrollbar-thin">
               <table className="table-premium w-full text-sm">
                 <thead className="thead-dark bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-700 text-white"><tr><th className="text-left px-5 py-3 font-semibold">Region</th><th className="text-center px-3 py-3 font-semibold">Total</th><th className="text-center px-3 py-3 font-semibold">Verified</th><th className="text-center px-3 py-3 font-semibold">Last Approved</th><th className="text-center px-3 py-3 font-semibold">New Batch</th><th className="text-center px-3 py-3 font-semibold">Amount</th><th className="text-center px-3 py-3 font-semibold">Approve</th></tr></thead>
